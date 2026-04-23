@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>星光代購 — 後台管理</title>
+<title>yuyuz_98 — 後台管理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -225,6 +225,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .toast-admin{position:fixed;bottom:20px;right:20px;background:var(--dark);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:opacity 0.3s;pointer-events:none}
 .toast-admin.show{opacity:1}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -270,6 +271,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
           <option value="processing">處理中</option>
         </select>
         <button class="new-btn" onclick="loadOrders()">重新整理</button>
+        <button class="new-btn" style="background:#185fa5" onclick="exportExcel()">匯出 Excel</button>
       </div>
       <div class="otable">
         <div class="oth"><span>訂單編號</span><span>商品</span><span>客戶</span><span>金額</span><span>到貨</span><span>進度</span><span>狀態</span></div>
@@ -380,9 +382,9 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 
 <script>
 // ── Supabase 設定（與 shop.html 相同）────────────────────
-const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co/rest/v1/';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
-const ADMIN_PASSWORD = 'uu2101619'; // 換成你的密碼
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const ADMIN_PASSWORD = 'YOUR_ADMIN_PASSWORD'; // 換成你的密碼
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ──────────────────────────────────────────────────────────
 
@@ -524,7 +526,7 @@ function renderOrders() {
     const multi = o.items.length > 1 ? ` +${o.items.length-1} 件` : '';
     const { arr, tot } = orderProgress(o);
     const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
-    const det = buildOrderDetail(o);
+    const detHtml = buildOrderDetail(o);
     return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')">
       <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}<span class="eh">▶</span></span>
       <span>${f.product}${multi}</span>
@@ -534,7 +536,7 @@ function renderOrders() {
       <span style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${st==='arrived'||st==='shipped'?'#1d9e75':'#ef9f27'};width:${pct}%"></div></div></span>
       <span onclick="event.stopPropagation()"><select class="status-sel" onchange="changeOrderStatus('${o.order_id||o.id}',this.value)"><option value="" disabled selected>—</option><option value="shipped"${st==='shipped'?' selected':''}>已出貨</option><option value="processing"${st==='processing'?' selected':''}>處理中</option></select></span>
     </div>
-    <div class="order-detail" id="odet-${key}">${det}</div>`;
+    <div class="order-detail" id="odet-${key}">${detHtml}</div>`;
   }).join('');
 }
 function buildOrderDetail(o) {
@@ -549,7 +551,7 @@ function buildOrderDetail(o) {
       <span style="font-size:11px;min-width:40px;text-align:right">${i.arrivedQty}/${i.qty}</span>
     </div>`;
   }).join('');
-  return `<div class="order-detail" style="display:none">
+  return `<div style="display:contents">
     <div class="det-block">
       <div class="det-title">收件資料</div>
       <div class="det-row"><span class="det-label">姓名</span><span class="det-val">${o.customer_name||''}</span></div>
@@ -576,7 +578,7 @@ function toggleOrder(key) {
   det.classList.toggle('open', !open);
   row.classList.toggle('exp', !open);
   const h = row.querySelector('.eh');
-  if (h) h.textContent = open ? '▶' : '▼';
+  if (h) h.textContent = open ? '▼' : '▶';
 }
 async function changeOrderStatus(oid, val) {
   if (!val) return;
@@ -844,6 +846,67 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+// ── 匯出 Excel ────────────────────────────────────────────
+function exportExcel() {
+  if (!window.XLSX) {
+    showToast('Excel 套件載入中，請稍後再試');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+
+  // 訂單工作表
+  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','狀態','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
+  const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中'};
+  orders.forEach(o => {
+    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
+    const st = getArrivalStatus(o);
+    const row = [
+      o.order_id||o.id,
+      o.created_at ? new Date(o.created_at).toLocaleDateString('zh-TW') : '',
+      o.customer_name||'', o.phone||'', o.email||'',
+      o.store||'', o.store_no||'', o.ig||'', o.line_nickname||'', o.note||'',
+      o.amount||0, stMap[st]||st
+    ];
+    for (let i = 0; i < 3; i++) {
+      const item = items[i];
+      if (item) { row.push(item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0); }
+      else { row.push('','','',''); }
+    }
+    orderRows.push(row);
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(orderRows);
+  ws1['!cols'] = orderRows[0].map((_,i) => ({ wch: i < 2 ? 16 : i < 12 ? 12 : 16 }));
+  XLSX.utils.book_append_sheet(wb, ws1, '訂單清單');
+
+  // 商品工作表
+  const prodRows = [['商品名稱','分類','規格','售價(NT$)','庫存','狀態']];
+  products.forEach(p => {
+    const cat = categories.find(c => c.id === p.cat_id);
+    (p.specs||[]).forEach(sp => {
+      prodRows.push([p.name, cat?cat.label:'未分類', sp.name, sp.price, sp.stock, p.online?'上架中':'已下架']);
+    });
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(prodRows);
+  ws2['!cols'] = [20,12,14,10,8,8].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws2, '商品庫存');
+
+  // 客戶工作表
+  const custRows = [['客戶姓名','電話','Email','訂單數','累積消費(NT$)']];
+  customers.forEach(c => {
+    const cOrders = orders.filter(o => o.phone === c.phone);
+    const total = cOrders.reduce((s, o) => s + (o.amount||0), 0);
+    custRows.push([c.name||'', c.phone||'', c.email||'', cOrders.length, total]);
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet(custRows);
+  ws3['!cols'] = [14,14,20,8,14].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws3, '客戶資料');
+
+  const date = new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  XLSX.writeFile(wb, `星光代購_${date}.xlsx`);
+  showToast('Excel 已下載！');
+}
+
 </script>
 </body>
 </html>
