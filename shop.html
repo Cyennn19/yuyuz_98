@@ -143,21 +143,93 @@ a{color:inherit;text-decoration:none}
   .cart-drawer{width:100vw}
   .form-row{grid-template-columns:1fr}
 }
+
+/* ORDER LOOKUP */
+.lookup-section{background:#fff;border-top:1px solid var(--border);padding:32px 24px;margin-top:0}
+.lookup-wrap{max-width:500px;margin:0 auto;text-align:center}
+.lookup-title{font-size:18px;font-weight:700;color:var(--dark);margin-bottom:6px}
+.lookup-sub{font-size:13px;color:var(--text-muted);margin-bottom:20px}
+.lookup-tabs{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.lookup-tab{flex:1;padding:9px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:#fff;color:var(--text-muted);transition:all 0.15s}
+.lookup-tab.active{background:var(--brown);color:#fff}
+.lookup-form{display:flex;gap:8px}
+.lookup-input{flex:1;padding:10px 13px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:var(--light);color:var(--dark)}
+.lookup-input:focus{outline:none;border-color:var(--brown)}
+.lookup-btn{padding:10px 18px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.lookup-btn:hover{background:var(--mid)}
+.lookup-result{margin-top:16px;text-align:left}
+.lookup-card{background:var(--light);border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:10px}
+.lookup-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.lookup-oid{font-size:14px;font-weight:700;color:var(--dark)}
+.lookup-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.ls-waiting{background:#faeeda;color:#854f0b}
+.ls-partial{background:#eeedfe;color:#3c3489}
+.ls-arrived{background:#e1f5ee;color:#0f6e56}
+.ls-shipped{background:#eaf3de;color:#3b6d11}
+.ls-processing{background:#e6f1fb;color:#185fa5}
+.lookup-items{margin-bottom:10px}
+.lookup-item{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--dark)}
+.lookup-item:last-child{border-bottom:none}
+.lookup-item-prog{font-size:11px;color:var(--text-muted);margin-top:2px}
+.lookup-total{display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:var(--dark);padding-top:8px;border-top:1px solid var(--border)}
+.lookup-err{color:#c0392b;font-size:13px;margin-top:10px;text-align:center}
+.lookup-empty{color:var(--text-muted);font-size:13px;margin-top:10px;text-align:center}
+
+/* NAV LOOKUP BUTTON */
+.nav-lookup-btn{padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;color:var(--dark);transition:all 0.15s}
+.nav-lookup-btn:hover{background:var(--light);border-color:var(--brown);color:var(--brown)}
+
+/* LOOKUP MODAL */
+.lookup-modal-wrap{display:none;position:fixed;inset:0;background:rgba(44,32,24,0.45);z-index:200;align-items:flex-start;justify-content:center;padding:80px 20px 20px}
+.lookup-modal-wrap.open{display:flex}
+.lookup-modal{background:#fff;border-radius:16px;width:480px;max-width:100%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+.lookup-modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.lookup-modal-title{font-size:16px;font-weight:700;color:var(--dark)}
+.lookup-modal-x{width:32px;height:32px;border:none;background:var(--light);border-radius:8px;cursor:pointer;font-size:18px;color:var(--text-muted)}
+.lookup-modal-body{padding:20px;overflow-y:auto;flex:1}
+.lookup-tabs{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.lookup-tab{flex:1;padding:9px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:#fff;color:var(--text-muted);transition:all 0.15s}
+.lookup-tab.active{background:var(--brown);color:#fff}
+.lookup-form{display:flex;gap:8px;margin-bottom:16px}
+.lookup-input{flex:1;padding:10px 13px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:var(--light);color:var(--dark)}
+.lookup-input:focus{outline:none;border-color:var(--brown)}
+.lookup-btn{padding:10px 18px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.lookup-btn:hover{background:var(--mid)}
+.lookup-card{background:var(--light);border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:10px}
+.lookup-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.lookup-oid{font-size:14px;font-weight:700;color:var(--dark)}
+.lookup-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.ls-waiting{background:#faeeda;color:#854f0b}
+.ls-partial{background:#eeedfe;color:#3c3489}
+.ls-arrived{background:#e1f5ee;color:#0f6e56}
+.ls-shipped{background:#eaf3de;color:#3b6d11}
+.ls-processing{background:#e6f1fb;color:#185fa5}
+.lookup-items{margin-bottom:10px}
+.lookup-item{font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);color:var(--dark)}
+.lookup-item:last-child{border-bottom:none}
+.lookup-item-top{display:flex;justify-content:space-between;margin-bottom:3px}
+.lookup-item-prog{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)}
+.lookup-total{display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:var(--dark);padding-top:8px;border-top:1px solid var(--border)}
+.lookup-err{color:#c0392b;font-size:13px;text-align:center}
+.lookup-empty-msg{color:var(--text-muted);font-size:13px;text-align:center;padding:16px 0}
 </style>
 </head>
 <body>
 
 <nav class="nav">
   <div class="nav-logo">✦ <span>yuyuz_98</span></div>
-  <button class="nav-cart" onclick="openCart()">
-    🛒 購物車
-    <span class="cart-count" id="cart-count">0</span>
-  </button>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="nav-lookup-btn" onclick="openLookup()">查詢訂單</button>
+    <button class="nav-cart" onclick="openCart()">
+      🛒 購物車
+      <span class="cart-count" id="cart-count">0</span>
+    </button>
+  </div>
 </nav>
 
 <div class="hero">
   <div class="hero-title">✦ yuyuz_98</div>
-  <div class="hero-sub">偶像週邊 · 美妝保養 · 同款服飾</div>
+  <div class="hero-sub">偶像週邊 · 美妝保養 · 服飾精選</div>
 </div>
 
 <div class="cat-bar" id="cat-bar"></div>
@@ -496,6 +568,115 @@ function showToast(msg) {
 }
 
 init();
+
+// ── ORDER LOOKUP ──────────────────────────────────────────
+function openLookup() {
+  document.getElementById('lookup-modal').classList.add('open');
+}
+function closeLookup() {
+  document.getElementById('lookup-modal').classList.remove('open');
+  document.getElementById('lookup-result').innerHTML = '';
+  document.getElementById('lookup-input').value = '';
+}
+let lookupMode = 'id';
+function setLookupMode(mode) {
+  lookupMode = mode;
+  document.getElementById('ltab-id').classList.toggle('active', mode === 'id');
+  document.getElementById('ltab-phone').classList.toggle('active', mode === 'phone');
+  const inp = document.getElementById('lookup-input');
+  inp.placeholder = mode === 'id' ? '輸入訂單編號（例：ORD-ABC123）' : '輸入電話號碼（例：0912345678）';
+  inp.value = '';
+  document.getElementById('lookup-result').innerHTML = '';
+}
+
+const STATUS_LABEL = { waiting:'等待到貨', partial:'部分到貨', arrived:'已到貨', shipped:'已出貨', processing:'處理中' };
+const STATUS_CLASS = { waiting:'ls-waiting', partial:'ls-partial', arrived:'ls-arrived', shipped:'ls-shipped', processing:'ls-processing' };
+
+function getOrderStatus(o) {
+  if (o.status === 'shipped') return 'shipped';
+  if (o.status === 'processing') return 'processing';
+  const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+  const allDone = items.every(i => i.arrivedQty >= i.qty);
+  if (allDone) return 'arrived';
+  const anyArrived = items.some(i => i.arrivedQty > 0);
+  if (anyArrived) return 'partial';
+  return 'waiting';
+}
+
+async function doLookup() {
+  const val = document.getElementById('lookup-input').value.trim();
+  const result = document.getElementById('lookup-result');
+  if (!val) { result.innerHTML = '<div class="lookup-err">請輸入查詢內容</div>'; return; }
+  result.innerHTML = '<div class="lookup-empty">查詢中…</div>';
+  try {
+    let query = sb.from('orders').select('*');
+    if (lookupMode === 'id') {
+      query = query.ilike('order_id', `%${val}%`);
+    } else {
+      query = query.eq('phone', val);
+    }
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      result.innerHTML = '<div class="lookup-empty">找不到符合的訂單，請確認輸入是否正確</div>';
+      return;
+    }
+    result.innerHTML = data.map(o => {
+      const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+      const st = getOrderStatus(o);
+      const date = new Date(o.created_at).toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' });
+      const itemsHtml = items.map(i => {
+        const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
+        return `<div class="lookup-item">
+          <div>
+            <div>${i.product}（${i.spec}）× ${i.qty}</div>
+            <div class="lookup-item-prog">已到貨 ${i.arrivedQty}/${i.qty} 件
+              <span style="display:inline-block;width:60px;height:4px;background:#e8e2d6;border-radius:2px;vertical-align:middle;margin-left:4px;overflow:hidden"><span style="display:block;height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></span></span>
+            </div>
+          </div>
+          <div style="white-space:nowrap;color:var(--brown);font-weight:600">NT$ ${(i.price*i.qty).toLocaleString()}</div>
+        </div>`;
+      }).join('');
+      return `<div class="lookup-card">
+        <div class="lookup-card-hdr">
+          <div>
+            <div class="lookup-oid">${o.order_id}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">下單日期：${date}</div>
+          </div>
+          <span class="lookup-status ${STATUS_CLASS[st]}">${STATUS_LABEL[st]}</span>
+        </div>
+        <div class="lookup-items">${itemsHtml}</div>
+        <div class="lookup-total"><span>合計</span><span>NT$ ${(o.amount||0).toLocaleString()}</span></div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    // demo mode fallback
+    result.innerHTML = '<div class="lookup-empty">目前為展示模式，上線後才能查詢真實訂單</div>';
+  }
+}
+
 </script>
+
+<!-- LOOKUP MODAL -->
+<div class="lookup-modal-wrap" id="lookup-modal" onclick="if(event.target===this)closeLookup()">
+  <div class="lookup-modal">
+    <div class="lookup-modal-hdr">
+      <span class="lookup-modal-title">查詢訂單狀態</span>
+      <button class="lookup-modal-x" onclick="closeLookup()">×</button>
+    </div>
+    <div class="lookup-modal-body">
+      <div class="lookup-tabs">
+        <button class="lookup-tab active" id="ltab-id" onclick="setLookupMode('id')">訂單編號查詢</button>
+        <button class="lookup-tab" id="ltab-phone" onclick="setLookupMode('phone')">電話號碼查詢</button>
+      </div>
+      <div class="lookup-form">
+        <input class="lookup-input" id="lookup-input" placeholder="輸入訂單編號（例：ORD-ABC123）" onkeydown="if(event.key==='Enter')doLookup()">
+        <button class="lookup-btn" onclick="doLookup()">查詢</button>
+      </div>
+      <div id="lookup-result"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
