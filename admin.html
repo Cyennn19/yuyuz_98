@@ -234,7 +234,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
   <div class="login-box">
     <div class="login-logo">✦ <span>yuyuz_98</span></div>
     <div class="login-sub">後台管理系統</div>
-    <input type="password" class="login-input" id="pw-input" placeholder="uu2101619" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" class="login-input" id="pw-input" placeholder="請輸入管理員密碼" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">登入</button>
     <div class="login-err" id="login-err">密碼錯誤，請再試一次</div>
   </div>
@@ -382,9 +382,9 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 
 <script>
 // ── Supabase 設定（與 shop.html 相同）────────────────────
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-const ADMIN_PASSWORD = 'YOUR_ADMIN_PASSWORD'; // 換成你的密碼
+const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
+const ADMIN_PASSWORD = 'uu2101619'; // 換成你的密碼
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ──────────────────────────────────────────────────────────
 
