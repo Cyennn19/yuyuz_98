@@ -43,15 +43,25 @@ a{color:inherit;text-decoration:none}
 /* PRODUCT CARD */
 .product-card{background:#fff;border-radius:12px;border:1px solid var(--border);overflow:hidden;transition:transform 0.15s,box-shadow 0.15s;cursor:pointer}
 .product-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(44,32,24,0.1)}
+.product-card.in-cart{border-color:var(--brown);border-width:1.5px}
 .pc-img{width:100%;aspect-ratio:1;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:40px;position:relative;overflow:hidden}
 .pc-img img{width:100%;height:100%;object-fit:cover}
+.pc-img .cart-dot{position:absolute;top:8px;right:8px;background:var(--brown);color:#fff;font-size:10px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 5px}
 .pc-info{padding:12px}
 .pc-name{font-size:13px;font-weight:600;color:var(--dark);margin-bottom:4px;line-height:1.4}
 .pc-price{font-size:13px;color:var(--brown);font-weight:500}
 .pc-controls{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
-.pc-add{width:100%;padding:8px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.pc-spec select{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--light);color:var(--dark);cursor:pointer}
+.pc-qty{display:flex;align-items:center;justify-content:space-between}
+.qty-ctrl{display:flex;align-items:center;gap:8px}
+.qty-btn{width:28px;height:28px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--dark);transition:background 0.1s}
+.qty-btn:hover{background:var(--light)}
+.qty-num{font-size:14px;font-weight:600;min-width:20px;text-align:center}
+.qty-price{font-size:12px;color:var(--brown);font-weight:600}
+.pc-add{width:100%;padding:8px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s}
+.pc-add:hover{background:var(--mid)}
 
-/* MODALS */
+/* MODAL & DRAWER COMMON */
 .modal-wrap{display:none;position:fixed;inset:0;background:rgba(44,32,24,0.45);z-index:200;align-items:center;justify-content:center;padding:20px}
 .modal-wrap.open{display:flex}
 .modal{background:#fff;border-radius:16px;width:480px;max-width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
@@ -60,11 +70,27 @@ a{color:inherit;text-decoration:none}
 .modal-x{width:32px;height:32px;border:none;background:var(--light);border-radius:8px;cursor:pointer;font-size:20px;color:var(--text-muted)}
 .modal-body{padding:20px;overflow-y:auto;flex:1}
 
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#2c2018;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;z-index:300;transition:transform 0.3s ease}
+/* CART DRAWER */
+.cart-overlay{display:none;position:fixed;inset:0;background:rgba(44,32,24,0.4);z-index:100}
+.cart-overlay.open{display:block}
+.cart-drawer{position:fixed;right:0;top:0;bottom:0;width:360px;max-width:100vw;background:#fff;z-index:101;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease}
+.cart-overlay.open .cart-drawer{transform:translateX(0)}
+.cart-body{flex:1;overflow-y:auto;padding:16px 20px}
+.cart-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.cart-total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;margin-bottom:14px;color:var(--dark)}
+.checkout-btn{width:100%;padding:14px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:background 0.15s}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#2c2018;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:300;transition:transform 0.3s ease;white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+/* SUCCESS PAGE */
+.success-page{display:none;text-align:center;padding:60px 20px}
+.success-page.show{display:block}
 
 @media(max-width:600px){
   .product-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .cart-drawer{width:100vw}
 }
 </style>
 </head>
@@ -91,16 +117,55 @@ a{color:inherit;text-decoration:none}
   <div id="loading" style="text-align:center;padding:40px;color:var(--text-muted)">載入商品中...</div>
   <div id="product-area"></div>
   
-  <div class="success-page" id="success-page" style="display:none; text-align:center; padding:40px;">
-    <div style="font-size:64px;">🎉</div>
-    <h2>下單成功！</h2>
-    <p id="success-order-id" style="color:var(--brown); font-weight:bold; margin:20px 0;"></p>
-    <button class="nav-cart" onclick="location.reload()">回到首頁</button>
+  <div class="success-page" id="success-page">
+    <div style="font-size:64px;margin-bottom:16px">🎉</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:8px">下單成功！</div>
+    <p style="color:var(--text-muted);margin-bottom:24px">感謝你的訂購，請保留訂單編號以便查詢。</p>
+    <div id="success-order-id" style="font-size:18px;font-weight:700;color:var(--brown);background:var(--light);padding:12px;border-radius:10px;display:inline-block;margin-bottom:24px"></div>
+    <br>
+    <button class="nav-cart" style="padding:12px 32px; border-radius:10px" onclick="location.reload()">回到首頁</button>
   </div>
 </div>
 
 <div class="footer" style="text-align:center;padding:32px;color:var(--text-muted);font-size:12px;border-top:1px solid var(--border)">
   © yuyuz_98 · 所有商品皆為正品代購
+</div>
+
+<div class="cart-overlay" id="cart-overlay" onclick="closeCart()">
+  <div class="cart-drawer" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <span class="modal-hdr-title">購物車</span>
+      <button class="modal-x" onclick="closeCart()">×</button>
+    </div>
+    <div class="cart-body" id="cart-body"></div>
+    <div class="cart-footer">
+      <div class="cart-total"><span>合計</span><span id="cart-total">NT$ 0</span></div>
+      <button class="checkout-btn" id="checkout-btn" onclick="openCheckout()" disabled>前往結帳</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="checkout-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-hdr-title">填寫收件資料</span>
+      <button class="modal-x" onclick="closeCheckout()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="order-summary" style="background:var(--light);padding:15px;border-radius:10px;margin-bottom:20px;font-size:13px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px">
+        <input id="f-name" placeholder="收件人姓名 *" style="padding:10px;border:1px solid var(--border);border-radius:8px">
+        <input id="f-phone" placeholder="電話 09xx *" style="padding:10px;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <input id="f-email" placeholder="Email" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <input id="f-store" placeholder="超商門市名稱" style="padding:10px;border:1px solid var(--border);border-radius:8px">
+        <input id="f-storeno" placeholder="超商門市店號" style="padding:10px;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <textarea id="f-note" placeholder="備註需求" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;min-height:60px"></textarea>
+      <button class="checkout-btn" id="submit-btn" style="margin-top:20px" onclick="submitOrder()">確認下單</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-wrap" id="lookup-modal">
@@ -110,35 +175,12 @@ a{color:inherit;text-decoration:none}
       <button class="modal-x" onclick="closeLookup()">×</button>
     </div>
     <div class="modal-body">
-      <input type="text" id="lookup-phone" placeholder="請輸入手機號碼" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">
-      <button class="pc-add" style="width:100%" onclick="doLookup()">開始查詢</button>
-      <div id="lookup-result" style="margin-top:20px;"></div>
-    </div>
-  </div>
-</div>
-
-<div class="modal-wrap" id="cart-modal">
-  <div class="modal" style="max-width:400px">
-    <div class="modal-hdr">
-      <span class="modal-hdr-title">購物車</span>
-      <button class="modal-x" onclick="document.getElementById('cart-modal').classList.remove('open')">×</button>
-    </div>
-    <div class="modal-body" id="cart-body"></div>
-    <div style="padding:20px; border-top:1px solid #eee">
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px"><b>總計</b><b id="cart-total">NT$ 0</b></div>
-      <button class="pc-add" id="checkout-btn" style="width:100%" onclick="openCheckout()">前往結帳</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-wrap" id="checkout-modal">
-  <div class="modal">
-    <div class="modal-hdr"><span class="modal-hdr-title">收件資料</span><button class="modal-x" onclick="closeCheckout()">×</button></div>
-    <div class="modal-body">
-      <input id="f-name" placeholder="姓名 *" style="width:100%;padding:10px;margin-bottom:10px">
-      <input id="f-phone" placeholder="電話 *" style="width:100%;padding:10px;margin-bottom:10px">
-      <input id="f-store" placeholder="門市名稱" style="width:100%;padding:10px;margin-bottom:10px">
-      <button class="pc-add" style="width:100%" onclick="submitOrder()">確認下單</button>
+      <div style="margin-bottom:15px">
+        <label style="display:block;margin-bottom:5px;font-size:14px">請輸入訂購時的電話號碼</label>
+        <input type="text" id="lookup-phone" placeholder="09xxxxxxxx" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <button class="checkout-btn" style="width:100%" onclick="doLookup()">開始查詢</button>
+      <div id="lookup-result" style="margin-top:20px; max-height:350px; overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -161,23 +203,15 @@ async function init() {
 
 async function loadData() {
   try {
-    const { data: catData } = await sb.from('categories').select('*').order('sort_order');
-    const { data: prodData, error } = await sb.from('products').select('*').eq('online', true).order('sort_order');
-    
-    if (error) throw error;
-
-    categories = catData || [];
-    products = (prodData || []).map(p => {
-      let parsedSpecs = [];
-      try {
-        parsedSpecs = typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs;
-      } catch (e) { parsedSpecs = [{name: '預設規格', price: p.price || 0}]; }
-      return { ...p, specs: parsedSpecs };
-    });
-  } catch(e) {
-    console.error("資料加載失敗:", e);
-    document.getElementById('loading').innerHTML = "加載失敗，請檢查網路或權限設定。";
-  }
+    const [catRes, prodRes] = await Promise.all([
+      sb.from('categories').select('*').order('sort_order'),
+      sb.from('products').select('*').eq('online', true).order('sort_order')
+    ]);
+    categories = catRes.data || [];
+    products = (prodRes.data || []).map(p => ({
+      ...p, specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs
+    }));
+  } catch(e) { console.log("載入失敗", e); }
   document.getElementById('loading').style.display = 'none';
 }
 
@@ -190,32 +224,32 @@ function setCat(id) { activeCat = id; renderCatBar(); renderProducts(); }
 
 function renderProducts() {
   const area = document.getElementById('product-area');
-  const cats = activeCat === 'all' ? categories : categories.filter(c => c.id === activeCat);
+  const cats = activeCat === 'all' ? categories : [categories.find(c => c.id === activeCat)].filter(Boolean);
   let html = '';
-  
   cats.forEach(cat => {
     const list = products.filter(p => p.cat_id === cat.id);
     if (list.length) {
       html += `<div class="cat-section"><div class="cat-section-title">${cat.label}</div><div class="product-grid">`;
       list.forEach(p => {
-        const specName = pcSpecMap[p.id] || p.specs[0].name;
-        const spec = p.specs.find(s => s.name === specName) || p.specs[0];
+        const spec = pcSpecMap[p.id] || p.specs[0].name;
+        const price = p.specs.find(s => s.name === spec).price;
         const qty = pcQtyMap[p.id] || 1;
-        
         html += `<div class="product-card">
           <div class="pc-img">${p.photo ? `<img src="${p.photo}">` : `<span>${p.emoji||'🎁'}</span>`}</div>
           <div class="pc-info">
             <div class="pc-name">${p.name}</div>
-            <div class="pc-price">NT$ ${spec.price.toLocaleString()}</div>
+            <div class="pc-price">NT$ ${price.toLocaleString()}</div>
           </div>
           <div class="pc-controls">
-            <select onchange="pcSpecMap[${p.id}]=this.value;renderProducts()">
-              ${p.specs.map(s => `<option value="${s.name}" ${s.name===specName?'selected':''}>${s.name}</option>`).join('')}
+            <select style="width:100%;padding:5px;border-radius:5px" onchange="pcSpecMap[${p.id}]=this.value;renderProducts()">
+              ${p.specs.map(s => `<option value="${s.name}" ${s.name===spec?'selected':''}>${s.name}</option>`).join('')}
             </select>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0;">
-              <button onclick="pcQtyMap[${p.id}]=Math.max(1,(pcQtyMap[${p.id}]||1)-1);renderProducts()">-</button>
-              <span>${qty}</span>
-              <button onclick="pcQtyMap[${p.id}]=(pcQtyMap[${p.id}]||1)+1;renderProducts()">+</button>
+            <div class="pc-qty">
+              <div class="qty-ctrl">
+                <button class="qty-btn" onclick="pcQtyMap[${p.id}]=Math.max(1,(pcQtyMap[${p.id}]||1)-1);renderProducts()">−</button>
+                <span class="qty-num">${qty}</span>
+                <button class="qty-btn" onclick="pcQtyMap[${p.id}]=(pcQtyMap[${p.id}]||1)+1;renderProducts()">+</button>
+              </div>
             </div>
             <button class="pc-add" onclick="addToCart(${p.id})">加入購物車</button>
           </div>
@@ -224,73 +258,90 @@ function renderProducts() {
       html += `</div></div>`;
     }
   });
-  area.innerHTML = html || '<div style="text-align:center;color:#999">目前沒有商品</div>';
+  area.innerHTML = html;
 }
 
 function addToCart(pid) {
   const p = products.find(x => x.id === pid);
-  const specName = pcSpecMap[pid] || p.specs[0].name;
-  const spec = p.specs.find(s => s.name === specName);
+  const spec = pcSpecMap[pid] || p.specs[0].name;
   const qty = pcQtyMap[pid] || 1;
-  cart.push({ cartId: Date.now(), productId: pid, product: p.name, spec: specName, qty, price: spec.price });
+  const price = p.specs.find(s => s.name === spec).price;
+  cart.push({ cartId: Date.now(), productId: pid, product: p.name, spec, qty, price });
   showToast("已加入購物車！");
-  updateCartUI();
+  renderCart();
 }
 
-function updateCartUI() {
-  const count = cart.reduce((s,i) => s+i.qty, 0);
-  document.getElementById('cart-count').textContent = count;
-}
-
-function openCart() {
-  const modal = document.getElementById('cart-modal');
+function renderCart() {
   const body = document.getElementById('cart-body');
-  modal.classList.add('open');
-  if(!cart.length) { body.innerHTML = "購物車是空的"; return; }
-  body.innerHTML = cart.map(i => `<div>${i.product} x ${i.qty} - $${(i.price*i.qty).toLocaleString()}</div>`).join('');
-  document.getElementById('cart-total').textContent = 'NT$ ' + cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString();
+  const count = cart.reduce((s,i) => s+i.qty, 0);
+  const total = cart.reduce((s,i) => s+(i.price*i.qty), 0);
+  document.getElementById('cart-count').textContent = count;
+  document.getElementById('cart-total').textContent = 'NT$ ' + total.toLocaleString();
+  document.getElementById('checkout-btn').disabled = cart.length === 0;
+  
+  if(!cart.length) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#999">購物車空空的</div>'; return; }
+  body.innerHTML = cart.map(i => `
+    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee">
+      <div><b>${i.product}</b><br><small>${i.spec} x ${i.qty}</small></div>
+      <div style="text-align:right">NT$ ${(i.price*i.qty).toLocaleString()}<br><button onclick="cart=cart.filter(x=>x.cartId!==${i.cartId});renderCart()" style="border:none;background:none;color:red;font-size:12px">移除</button></div>
+    </div>
+  `).join('');
 }
 
+function openCart() { document.getElementById('cart-overlay').classList.add('open'); }
+function closeCart() { document.getElementById('cart-overlay').classList.remove('open'); }
 function openOrderLookup() { document.getElementById('lookup-modal').classList.add('open'); }
 function closeLookup() { document.getElementById('lookup-modal').classList.remove('open'); }
 
 async function doLookup() {
   const phone = document.getElementById('lookup-phone').value.trim();
-  if(!phone) return alert("請輸入電話");
-  const resDiv = document.getElementById('lookup-result');
-  resDiv.innerHTML = "查詢中...";
-  const { data } = await sb.from('orders').select('*').eq('phone', phone).order('created_at', {ascending:false});
+  if(!phone) return alert('請輸入電話');
+  const res = document.getElementById('lookup-result');
+  res.innerHTML = '搜尋中...';
+  const { data } = await sb.from('orders').select('*').eq('phone', phone).order('created_at', {ascending: false});
   if(data && data.length > 0) {
-    resDiv.innerHTML = data.map(o => `<div style="border:1px solid #ddd; padding:10px; border-radius:8px; margin-bottom:10px;">
-      <b>單號: ${o.order_id}</b><br>狀態: ${o.status || '處理中'}<br>金額: $${o.amount}
-    </div>`).join('');
-  } else { resDiv.innerHTML = "查無訂單"; }
+    res.innerHTML = data.map(o => {
+      const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+      return `<div style="border:1px solid var(--border); padding:12px; border-radius:10px; margin-bottom:10px; background:#fff; border-left:4px solid var(--brown)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px"><b>${o.order_id}</b> <span style="font-size:12px;color:var(--brown)">${o.status||'處理中'}</span></div>
+        <div style="font-size:12px;color:#666">${items.map(i => `• ${i.product}x${i.qty}`).join('<br>')}</div>
+        <div style="text-align:right;font-weight:700;margin-top:5px">NT$ ${o.amount.toLocaleString()}</div>
+      </div>`;
+    }).join('');
+  } else { res.innerHTML = '查無訂單，請確認電話是否正確。'; }
 }
 
-function openCheckout() { document.getElementById('checkout-modal').classList.add('open'); }
+function openCheckout() {
+  document.getElementById('checkout-modal').classList.add('open');
+  const summary = cart.map(i => `<div>${i.product}(${i.spec}) x ${i.qty} - NT$ ${(i.price*i.qty).toLocaleString()}</div>`).join('');
+  document.getElementById('order-summary').innerHTML = summary + `<hr style="margin:10px 0"><b>合計：NT$ ${cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()}</b>`;
+}
 function closeCheckout() { document.getElementById('checkout-modal').classList.remove('open'); }
 
 async function submitOrder() {
   const name = document.getElementById('f-name').value;
   const phone = document.getElementById('f-phone').value;
-  if(!name || !phone) return alert("請填寫姓名與電話");
+  if(!name || !phone) return alert('請填寫必填欄位');
   
-  const orderId = 'ORD' + Math.random().toString(36).substr(2, 6).toUpperCase();
+  const orderId = 'ORD' + Date.now().toString().slice(-6).toUpperCase();
   const { error } = await sb.from('orders').insert([{
     order_id: orderId, customer_name: name, phone: phone,
+    email: document.getElementById('f-email').value,
+    store: document.getElementById('f-store').value,
+    store_no: document.getElementById('f-storeno').value,
+    note: document.getElementById('f-note').value,
     amount: cart.reduce((s,i)=>s+(i.price*i.qty),0),
     items: JSON.stringify(cart),
     created_at: new Date().toISOString()
   }]);
   
   if(!error) {
-    document.getElementById('success-order-id').textContent = "訂單編號：" + orderId;
-    document.getElementById('product-area').style.display = 'none';
-    document.getElementById('success-page').style.display = 'block';
+    document.getElementById('success-order-id').textContent = orderId;
     document.getElementById('checkout-modal').classList.remove('open');
-    document.getElementById('cart-modal').classList.remove('open');
-    cart = []; updateCartUI();
-  } else { alert("下單失敗"); }
+    document.getElementById('product-area').style.display = 'none';
+    document.getElementById('success-page').classList.add('show');
+    cart = []; renderCart();
+  } else { alert('下單失敗，請稍後再試'); }
 }
 
 function showToast(msg) {
