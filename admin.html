@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>星光代購 — 後台管理</title>
+<title>yuyuz_98 — 後台管理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -42,7 +42,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .pg{display:none}.pg.on{display:block}
 
 /* COMMON */
-.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
 .sc{background:var(--white);border-radius:10px;border:1px solid var(--border);padding:12px 14px}
 .sl{font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:500;letter-spacing:0.03em}
 .sv{font-size:20px;font-weight:700;color:var(--dark)}
@@ -51,7 +51,6 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);color:var(--dark)}
 .new-btn{padding:7px 14px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .new-btn:hover{background:var(--mid)}
-.empty{text-align:center;padding:32px;color:var(--muted);font-size:14px;background:var(--white);border-radius:12px;border:1px solid var(--border)}
 .badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
 .bw{background:var(--amber-bg);color:var(--amber)}
 .bp{background:var(--purple-bg);color:var(--purple)}
@@ -59,196 +58,51 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .bs{background:var(--green-bg);color:var(--green)}
 .bpr{background:var(--blue-bg);color:var(--blue)}
 
-/* ORDERS TABLE */
+/* TABLES */
 .otable{background:var(--white);border-radius:12px;border:1px solid var(--border);overflow:hidden}
-.oth{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 110px 90px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em}
+.oth{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 110px 90px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600}
 .otr{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 110px 90px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center;cursor:pointer}
-.otr:last-child{border-bottom:none}
 .otr:hover{background:var(--light)}
-.otr.exp{border-color:var(--brown)}
-.order-detail{display:none;border-top:1px solid var(--border);background:var(--light);padding:14px}
-.order-detail.open{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.det-block{background:var(--white);border-radius:10px;border:1px solid var(--border);padding:12px 14px}
-.det-title{font-size:11px;font-weight:700;color:var(--brown);margin-bottom:9px;letter-spacing:0.04em}
-.det-row{display:flex;gap:6px;font-size:13px;margin-bottom:5px;align-items:baseline}
-.det-row:last-child{margin-bottom:0}
-.det-label{color:var(--muted);min-width:64px;font-size:11px;flex-shrink:0}
-.det-val{color:var(--dark)}
-.item-prog-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:4px}
-.item-prog-row:last-child{margin-bottom:0}
-.prog-bar-wrap{flex:1;height:5px;background:var(--light);border-radius:3px;overflow:hidden;min-width:40px}
-.prog-bar{height:5px;border-radius:3px}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot-ok{background:#1d9e75}
-.dot-part{background:#ef9f27}
-.dot-wait{background:#d3c8b4}
-.det-actions{display:flex;gap:6px;margin-top:10px}
-.edit-btn{padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;color:var(--dark)}
-.edit-btn:hover{background:var(--light)}
-.status-sel{padding:4px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);color:var(--dark);cursor:pointer}
-.eh{font-size:10px;color:var(--muted);margin-left:2px}
-.nf{display:inline-block;width:6px;height:6px;background:var(--amber);border-radius:50%;margin-left:4px;vertical-align:middle}
-
-/* ARRIVAL */
-.apl{display:flex;flex-direction:column;gap:9px;margin-bottom:16px}
-.apc{background:var(--white);border-radius:12px;border:1px solid var(--border);overflow:hidden}
-.apch{display:flex;align-items:center;gap:9px;padding:12px 14px;background:var(--light);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
-.apcn{font-size:13px;font-weight:600;color:var(--dark);flex:1}
-.apcb{padding:12px 14px;display:none}
-.apcb.open{display:block}
-.sph{display:grid;grid-template-columns:96px 72px 80px 1fr;gap:8px;padding:0 0 7px;border-bottom:1px solid var(--border);margin-bottom:5px;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em}
-.spr{display:grid;grid-template-columns:96px 72px 80px 1fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
-.spr:last-child{border-bottom:none}
-.spn{font-size:13px;font-weight:600;color:var(--dark)}
-.sp-stat{font-size:11px;color:var(--muted);text-align:center}
-.sp-stat span{display:block;font-weight:600;color:var(--dark);font-size:13px}
-.sp-wait{font-size:11px;text-align:center}
-.sp-wait span{display:block;font-weight:600;font-size:13px}
-.sp-inp-wrap{display:flex;gap:6px;align-items:center}
-.sp-inp{width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--light);color:var(--dark)}
-.sp-btn{padding:6px 11px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600}
-.sp-btn:hover{background:var(--mid)}
-.sp-res{font-size:12px;color:var(--green);display:none;white-space:nowrap}
-.section-block{background:var(--white);border-radius:12px;border:1px solid var(--border);overflow:hidden;margin-bottom:14px}
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--light);border-bottom:1px solid var(--border)}
-.sec-title{font-size:14px;font-weight:700;color:var(--dark)}
-.sec-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.ship-btn{padding:7px 14px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
-.ship-btn:hover{background:#27500a}
-.ship-btn:disabled{background:#c0dd97;color:var(--green);cursor:default}
-.ath{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 80px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600}
-.atr{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 80px;padding:9px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center}
-.atr:last-child{border-bottom:none}
-.atr:hover{background:var(--light)}
-.pth{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 76px 90px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600}
-.ptr{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 76px 90px;padding:9px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:start}
-.ptr:last-child{border-bottom:none}
-.ptr:hover{background:var(--light)}
-.ipr{display:flex;flex-direction:column;gap:3px;margin-top:4px}
-.ipl{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
-
-/* INVENTORY */
-.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-.inv-card{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:14px}
-.inv-name{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:8px}
-.inv-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
-.inv-label{color:var(--muted)}
-.inv-val{font-weight:600;color:var(--dark)}
-.stock-bar{height:5px;background:var(--border);border-radius:3px;margin:8px 0 5px}
-.stock-fill{height:5px;border-radius:3px;background:var(--brown)}
-.spec-stocks{margin-top:8px;border-top:1px solid var(--border);padding-top:8px}
-.ss-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--muted)}
-.ss-row span:last-child{color:var(--dark);font-weight:600}
-
-/* CUSTOMERS */
-.cust-list{display:flex;flex-direction:column;gap:8px}
-.cust-card{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:14px;cursor:pointer}
-.cust-card:hover{border-color:var(--brown)}
-.cust-top{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center}
-.avatar{width:36px;height:36px;border-radius:50%;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--brown)}
-.cust-name{font-size:14px;font-weight:700;color:var(--dark)}
-.cust-sub{font-size:12px;color:var(--muted);margin-top:2px}
-.cust-amt{font-size:14px;font-weight:700;color:var(--brown)}
-.cust-orders{display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
-.cust-orders.open{display:block}
-.co-row{font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
-.co-row:last-child{border-bottom:none}
 
 /* PRODUCT MANAGEMENT */
-.pm-section{margin-bottom:24px}
-.pm-section-hdr{font-size:15px;font-weight:700;color:var(--dark);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
 .pm-list{display:flex;flex-direction:column;gap:8px}
 .pm-card{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:12px 14px;display:grid;grid-template-columns:54px 1fr auto;gap:12px;align-items:center}
-.pm-card.offline{opacity:0.55}
-.pm-thumb{width:52px;height:52px;border-radius:10px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;flex-shrink:0}
+.pm-thumb{width:52px;height:52px;border-radius:10px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden}
 .pm-thumb img{width:100%;height:100%;object-fit:cover}
-.pm-info .pm-name{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:2px}
-.pm-meta{font-size:12px;color:var(--muted)}
-.pm-specs-p{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
-.pm-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;margin-left:5px}
-.pm-badge.on{background:var(--green-bg);color:var(--green)}
-.pm-badge.off{background:var(--amber-bg);color:var(--amber)}
-.pm-actions{display:flex;gap:6px;flex-shrink:0}
-.pm-edit-btn{padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;color:var(--dark);font-weight:500}
-.pm-edit-btn:hover{background:var(--light)}
-.pm-tog-btn{padding:5px 12px;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600}
-.pm-tog-btn.on{background:var(--green-bg);color:var(--green)}
-.pm-tog-btn.off{background:var(--amber-bg);color:var(--amber)}
-.cat-list{display:flex;flex-direction:column;gap:6px}
-.cat-row{background:var(--white);border-radius:10px;border:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:10px}
-.cat-label-text{flex:1;font-size:14px;color:var(--dark)}
-.cat-count{font-size:12px;color:var(--muted);min-width:52px}
-.cat-edit-inp{flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--light);color:var(--dark)}
-.cat-save-btn{padding:5px 12px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600}
-.cat-del-btn{padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:7px;font-size:13px;cursor:pointer;color:var(--muted)}
-.cat-del-btn:hover{color:var(--red);border-color:var(--red)}
-.cat-rename-btn{padding:5px 11px;background:transparent;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;color:var(--dark)}
-.cat-rename-btn:hover{background:var(--light)}
-.new-cat-row{display:flex;gap:8px;margin-top:8px}
-.new-cat-inp{flex:1;padding:8px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);color:var(--dark)}
 
 /* MODAL */
 .modal-wrap{display:none;position:fixed;inset:0;background:rgba(44,32,24,0.45);z-index:200;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
 .modal-wrap.open{display:flex}
-.modal{background:var(--white);border-radius:14px;border:1px solid var(--border);width:480px;max-width:100%;margin-bottom:32px}
+.modal{background:var(--white);border-radius:14px;width:480px;max-width:100%}
 .modal-hdr{padding:14px 18px;border-bottom:1px solid var(--border);background:var(--light);display:flex;align-items:center;justify-content:space-between;border-radius:14px 14px 0 0}
-.modal-title{font-size:15px;font-weight:700;color:var(--dark)}
-.modal-x{width:30px;height:30px;border:none;background:var(--white);border-radius:7px;cursor:pointer;font-size:18px;color:var(--muted)}
 .modal-body{padding:16px 18px;max-height:70vh;overflow-y:auto}
-.m2col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.mfg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-.mfg label{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em}
-.mfg input,.mfg select,.mfg textarea{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--light);color:var(--dark);font-family:inherit}
-.mfg textarea{resize:vertical;min-height:54px}
-.mfg input:focus,.mfg select:focus,.mfg textarea:focus{outline:none;border-color:var(--brown)}
-.msec{font-size:11px;font-weight:700;color:var(--brown);margin:14px 0 8px;letter-spacing:0.04em}
-.msec:first-child{margin-top:0}
-.spec-table{width:100%;border-collapse:collapse;margin-top:6px}
-.spec-table th{font-size:11px;color:var(--muted);font-weight:600;padding:6px 7px;background:var(--light);border-bottom:1px solid var(--border);text-align:left;letter-spacing:0.03em}
-.spec-table td{padding:5px 4px;border-bottom:1px solid var(--border);vertical-align:middle}
-.spec-table tr:last-child td{border-bottom:none}
-.spec-table input{padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--white);color:var(--dark);width:100%}
-.spec-table input[type=number]{width:84px}
-.add-spec-btn{margin-top:9px;padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--dark);font-weight:500}
-.add-spec-btn:hover{background:var(--light)}
-.rm-spec-btn{padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:5px;font-size:13px;cursor:pointer;color:var(--muted)}
-.rm-spec-btn:hover{color:var(--red);border-color:var(--red)}
-.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
-.btn-cancel{padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--dark);font-weight:500}
-.btn-cancel:hover{background:var(--light)}
-.btn-primary{padding:8px 18px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
-.btn-primary:hover{background:var(--mid)}
+.spec-table{width:100%;border-collapse:collapse}
+.spec-table th{font-size:11px;color:var(--muted);padding:6px;text-align:left}
+.spec-table input{padding:5px;border:1px solid var(--border);border-radius:6px;width:100%}
 
-.loading-bar{text-align:center;padding:40px;color:var(--muted);font-size:14px}
-.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--brown);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px}
-@keyframes spin{to{transform:rotate(360deg)}}
 .toast-admin{position:fixed;bottom:20px;right:20px;background:var(--dark);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:opacity 0.3s;pointer-events:none}
 .toast-admin.show{opacity:1}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login-screen" class="login-wrap">
   <div class="login-box">
-    <div class="login-logo">✦ <span>星光代購</span></div>
+    <div class="login-logo">✦ <span>yuyuz_98</span></div>
     <div class="login-sub">後台管理系統</div>
-    <input type="password" class="login-input" id="pw-input" placeholder="請輸入管理員密碼" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" class="login-input" id="pw-input" placeholder="請輸入管理員密碼">
     <button class="login-btn" onclick="doLogin()">登入</button>
-    <div class="login-err" id="login-err">密碼錯誤，請再試一次</div>
+    <div class="login-err" id="login-err">密碼錯誤</div>
   </div>
 </div>
 
-<!-- ADMIN -->
 <div id="admin-screen" class="admin">
   <nav class="admin-nav">
-    <div class="admin-logo">✦ <span>星光代購</span> 後台</div>
+    <div class="admin-logo">✦ <span>yuyuz_98</span> 後台</div>
     <div class="admin-nav-right">
       <div class="admin-tabs">
         <button class="at active" onclick="sw('orders')">訂單管理</button>
-        <button class="at" onclick="sw('arrival')">到貨配貨</button>
         <button class="at" onclick="sw('inventory')">庫存</button>
-        <button class="at" onclick="sw('customers')">客戶</button>
         <button class="at" onclick="sw('products')">商品管理</button>
       </div>
       <button class="logout-btn" onclick="doLogout()">登出</button>
@@ -256,122 +110,50 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
   </nav>
   <div class="admin-body">
 
-    <!-- ORDERS -->
     <div class="pg on" id="pg-orders">
-      <div class="stats" id="order-stats"></div>
       <div class="toolbar">
-        <input class="search-box" id="o-search" placeholder="搜尋訂單編號、商品、客戶…" oninput="renderOrders()">
-        <select class="filter-sel" id="o-filter" onchange="renderOrders()">
-          <option value="">全部狀態</option>
-          <option value="waiting">等待到貨</option>
-          <option value="partial">部分到貨</option>
-          <option value="arrived">已到貨</option>
-          <option value="shipped">已出貨</option>
-          <option value="processing">處理中</option>
-        </select>
-        <button class="new-btn" onclick="loadOrders()">重新整理</button>
+        <input class="search-box" id="o-search" placeholder="搜尋訂單..." oninput="renderOrders()">
+        <button class="new-btn" onclick="loadAllData()">重新整理</button>
+        <button class="new-btn" style="background:#3b6d11" onclick="exportOrders()">📤 匯出訂單</button>
       </div>
       <div class="otable">
-        <div class="oth"><span>訂單編號</span><span>商品</span><span>客戶</span><span>金額</span><span>到貨</span><span>進度</span><span>狀態</span></div>
+        <div class="oth"><span>單號</span><span>商品</span><span>客戶</span><span>金額</span><span>到貨</span><span>進度</span><span>狀態</span></div>
         <div id="order-list"></div>
       </div>
     </div>
 
-    <!-- ARRIVAL -->
-    <div class="pg" id="pg-arrival">
-      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:14px">登記到貨數量</div>
-      <div class="apl" id="apl"></div>
-      <div class="section-block">
-        <div class="sec-hdr">
-          <div><div class="sec-title">全部到貨 — 待出貨</div><div class="sec-sub">所有商品皆到齊，可整批出貨</div></div>
-          <button class="ship-btn" id="ship-btn" onclick="shipAll()">整批出貨</button>
-        </div>
-        <div class="ath"><span>訂單編號</span><span>商品</span><span>客戶</span><span>金額</span><span>規格／數量</span><span>狀態</span></div>
-        <div id="arrived-body"></div>
-      </div>
-      <div class="section-block">
-        <div class="sec-hdr">
-          <div><div class="sec-title">部分到貨 — 等待剩餘數量</div><div class="sec-sub">已到貨數量不足，等湊齊才進入待出貨列表</div></div>
-        </div>
-        <div class="pth"><span>訂單編號</span><span>商品明細</span><span>客戶</span><span>金額</span><span>到貨進度</span></div>
-        <div id="partial-body"></div>
-      </div>
-    </div>
-
-    <!-- INVENTORY -->
     <div class="pg" id="pg-inventory">
-      <div class="toolbar">
-        <input class="search-box" id="inv-search" placeholder="搜尋商品…" oninput="renderInventory()" style="max-width:240px">
-        <select class="filter-sel" id="inv-filter" onchange="renderInventory()">
-          <option value="">全部</option><option value="low">庫存偏低</option><option value="out">已售罄</option>
-        </select>
-      </div>
-      <div class="inv-grid" id="inv-grid"></div>
+      <div id="inv-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;"></div>
     </div>
 
-    <!-- CUSTOMERS -->
-    <div class="pg" id="pg-customers">
-      <div class="toolbar">
-        <input class="search-box" id="cust-search" placeholder="搜尋客戶…" oninput="renderCustomers()" style="max-width:240px">
-        <select class="filter-sel" id="cust-sort" onchange="renderCustomers()">
-          <option value="total">依消費排序</option><option value="orders">依訂單數排序</option><option value="name">依姓名排序</option>
-        </select>
-        <button class="new-btn" onclick="loadCustomers()">重新整理</button>
-      </div>
-      <div class="cust-list" id="cust-list"></div>
-    </div>
-
-    <!-- PRODUCTS -->
     <div class="pg" id="pg-products">
-      <div class="pm-section">
-        <div class="pm-section-hdr"><span>分類管理</span><button class="new-btn" onclick="addCat()">+ 新增分類</button></div>
-        <div class="cat-list" id="cat-list"></div>
-        <div class="new-cat-row"><input class="new-cat-inp" id="new-cat-inp" placeholder="輸入新分類名稱…" onkeydown="if(event.key==='Enter')addCat()"></div>
+      <div class="toolbar">
+        <button class="new-btn" onclick="openProductModal()">+ 新增商品</button>
       </div>
-      <div class="pm-section">
-        <div class="pm-section-hdr"><span>商品列表</span></div>
-        <div class="toolbar">
-          <input class="search-box" id="pm-search" placeholder="搜尋商品…" oninput="renderProductMgmt()" style="max-width:200px">
-          <select class="filter-sel" id="pm-cat-f" onchange="renderProductMgmt()"><option value="">全部分類</option></select>
-          <select class="filter-sel" id="pm-status-f" onchange="renderProductMgmt()">
-            <option value="">全部</option><option value="on">上架中</option><option value="off">已下架</option>
-          </select>
-          <button class="new-btn" onclick="openProductModal()">+ 新增商品</button>
-        </div>
-        <div class="pm-list" id="pm-list"></div>
-      </div>
+      <div class="pm-list" id="pm-list"></div>
     </div>
   </div>
 </div>
 
-<!-- PRODUCT MODAL -->
 <div class="modal-wrap" id="product-modal">
   <div class="modal">
-    <div class="modal-hdr"><span class="modal-title" id="pm-modal-title">新增商品</span><button class="modal-x" onclick="closeProductModal()">×</button></div>
+    <div class="modal-hdr"><span class="modal-title">商品編輯</span><button class="modal-x" onclick="closeProductModal()">×</button></div>
     <div class="modal-body">
-      <div class="m2col">
-        <div class="mfg"><label>商品名稱 *</label><input id="pm-name" placeholder="商品名稱"></div>
-        <div class="mfg"><label>分類 *</label><select id="pm-cat-sel"></select></div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;color:#999">名稱</label>
+        <input id="pm-name" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
       </div>
-      <div class="m2col">
-        <div class="mfg"><label>圖示 Emoji</label><input id="pm-emoji" placeholder="✨" maxlength="4" style="width:80px"></div>
-        <div class="mfg">
-          <label>商品照片</label>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
-            <div id="pm-photo-prev" style="width:42px;height:42px;border-radius:8px;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;overflow:hidden" onclick="document.getElementById('pm-photo-inp').click()"></div>
-            <button class="btn-cancel" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('pm-photo-inp').click()">選擇照片</button>
-            <input type="file" accept="image/*" id="pm-photo-inp" style="display:none" onchange="previewPhoto(this)">
-          </div>
-        </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;color:#999">規格</label>
+        <table class="spec-table">
+            <thead><tr><th>名稱</th><th>價格</th><th>庫存</th></tr></thead>
+            <tbody id="spec-tbody"></tbody>
+        </table>
+        <button onclick="addSpecRow()" style="margin-top:5px">+ 新增規格</button>
       </div>
-      <div class="msec">規格與定價</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">每個規格可設定獨立售價與庫存</div>
-      <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>初始庫存</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
-      <button class="add-spec-btn" onclick="addSpecRow()">+ 新增規格</button>
     </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeProductModal()">取消</button>
-      <button class="btn-primary" onclick="saveProduct()">儲存商品</button>
+    <div class="modal-footer" style="padding:15px; text-align:right">
+      <button class="new-btn" onclick="saveProduct()">儲存</button>
     </div>
   </div>
 </div>
@@ -379,470 +161,154 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 <div class="toast-admin" id="toast-admin"></div>
 
 <script>
-// ── Supabase 設定（與 shop.html 相同）────────────────────
 const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
-const ADMIN_PASSWORD = 'uu2101619'; // 換成你的密碼
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// ──────────────────────────────────────────────────────────
 
-// ── 登入 ──────────────────────────────────────────────────
 function doLogin() {
   const pw = document.getElementById('pw-input').value;
-  if (pw === ADMIN_PASSWORD) {
+  if (pw === 'uu2101619') {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'block';
     sessionStorage.setItem('admin_auth', '1');
-    initAdmin();
+    loadAllData();
   } else {
     document.getElementById('login-err').style.display = 'block';
-    setTimeout(() => document.getElementById('login-err').style.display = 'none', 3000);
   }
 }
-function doLogout() {
-  sessionStorage.removeItem('admin_auth');
-  location.reload();
-}
-// 記住登入狀態（同一頁面 session）
-if (sessionStorage.getItem('admin_auth') === '1') {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('admin-screen').style.display = 'block';
-  window.addEventListener('DOMContentLoaded', initAdmin);
-}
+function doLogout() { sessionStorage.removeItem('admin_auth'); location.reload(); }
 
-// ── 資料 ──────────────────────────────────────────────────
-let categories = [], products = [], orders = [], customers = [];
-let editingProductId = null, pmPhotoData = null, renamingCatId = null, specRows = [];
+let products = [], orders = [], categories = [];
 
-async function initAdmin() {
-  await Promise.all([loadCategories(), loadProducts(), loadOrders(), loadCustomers()]);
-  syncCatFilters();
+async function loadAllData() {
+  showToast("資料讀取中...");
+  await Promise.all([loadCategories(), loadProducts(), loadOrders()]);
   renderOrders();
-  renderArrival();
   renderInventory();
-  renderCustomers();
   renderProductMgmt();
 }
 
 async function loadCategories() {
-  try {
-    const { data } = await sb.from('categories').select('*').order('sort_order');
-    categories = data || [];
-  } catch(e) {
-    categories = [
-      {id:'twice',label:'TWICE'},{id:'ive',label:'IVE'},{id:'aespa',label:'aespa'},
-      {id:'newjeans',label:'NewJeans'},{id:'lesserafim',label:'LE SSERAFIM'},
-      {id:'blackpink',label:'BLACKPINK'},{id:'beauty',label:'美妝保養'},{id:'fashion',label:'服飾'}
-    ];
-  }
+  const { data } = await sb.from('categories').select('*').order('sort_order');
+  categories = data || [];
 }
+
 async function loadProducts() {
-  try {
-    const { data } = await sb.from('products').select('*').order('sort_order');
-    products = (data || []).map(p => ({ ...p, specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []) }));
-  } catch(e) {
-    products = [
-      {id:1,cat_id:'twice',name:'TWICE 官方手燈',emoji:'✨',photo:null,specs:[{name:'標準版',price:1200,stock:8},{name:'豪華版',price:1500,stock:7}],sold:42,online:true},
-      {id:2,cat_id:'ive',name:'IVE 周年寫真集',emoji:'📸',photo:null,specs:[{name:'一般版',price:880,stock:4},{name:'限定版',price:1080,stock:2},{name:'簽名版',price:1580,stock:2}],sold:28,online:true},
-      {id:3,cat_id:'aespa',name:'aespa 壓克力立牌',emoji:'🪄',photo:null,specs:[{name:'KARINA',price:350,stock:3},{name:'WINTER',price:350,stock:1},{name:'GISELLE',price:350,stock:4},{name:'NINGNING',price:350,stock:2}],sold:67,online:true},
-      {id:4,cat_id:'newjeans',name:'NewJeans 馬克杯',emoji:'☕',photo:null,specs:[{name:'藍色',price:480,stock:0},{name:'粉色',price:480,stock:0},{name:'白色',price:480,stock:0}],sold:19,online:true},
-      {id:5,cat_id:'lesserafim',name:'LE SSERAFIM T恤',emoji:'👕',photo:null,specs:[{name:'S',price:800,stock:1},{name:'M',price:850,stock:1},{name:'L',price:900,stock:0},{name:'XL',price:950,stock:0}],sold:31,online:true},
-      {id:6,cat_id:'blackpink',name:'BLACKPINK 鑰匙圈',emoji:'🔑',photo:null,specs:[{name:'JISOO',price:220,stock:0},{name:'JENNIE',price:220,stock:0},{name:'ROSÉ',price:220,stock:0},{name:'LISA',price:220,stock:0}],sold:88,online:true},
-      {id:7,cat_id:'beauty',name:'韓國限定唇釉',emoji:'💄',photo:null,specs:[{name:'#01 玫瑰紅',price:680,stock:8},{name:'#02 珊瑚橘',price:680,stock:6},{name:'#03 豆沙粉',price:680,stock:5}],sold:22,online:true},
-      {id:8,cat_id:'fashion',name:'韓版格紋外套',emoji:'🧥',photo:null,specs:[{name:'S',price:1480,stock:2},{name:'M',price:1480,stock:3},{name:'L',price:1580,stock:1}],sold:9,online:true},
-    ];
-  }
-}
-async function loadOrders() {
-  try {
-    const { data } = await sb.from('orders').select('*').order('created_at', { ascending: false });
-    orders = (data || []).map(o => ({ ...o, items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []) }));
-  } catch(e) {
-    orders = [
-      {id:1,order_id:'ORD-DEMO1',items:[{productId:1,product:'TWICE 官方手燈',spec:'豪華版',qty:3,price:1500,arrivedQty:1}],customer_name:'陳小美',phone:'0912-345-678',email:'demo@email.com',amount:4500,status:'',store:'全家 台南中正門市',store_no:'123456',ig:'@xiao_mei',line_nickname:'小美',note:'',created_at:new Date(Date.now()-3600000).toISOString()},
-      {id:2,order_id:'ORD-DEMO2',items:[{productId:2,product:'IVE 周年寫真集',spec:'簽名版',qty:2,price:1580,arrivedQty:0},{productId:7,product:'韓國限定唇釉',spec:'#01 玫瑰紅',qty:2,price:680,arrivedQty:2}],customer_name:'林雅婷',phone:'0923-456-789',email:'',amount:4520,status:'',store:'7-11 台南成功門市',store_no:'654321',ig:'@yating',line_nickname:'雅婷',note:'請用氣泡袋包裝',created_at:new Date(Date.now()-7200000).toISOString()},
-      {id:3,order_id:'ORD-DEMO3',items:[{productId:4,product:'NewJeans 馬克杯',spec:'粉色',qty:3,price:480,arrivedQty:0},{productId:3,product:'aespa 壓克力立牌',spec:'WINTER',qty:1,price:350,arrivedQty:0}],customer_name:'王柔安',phone:'0934-567-890',email:'',amount:1790,status:'',store:'7-11 台南東門門市',store_no:'',ig:'@rouan',line_nickname:'柔安NJ',note:'',created_at:new Date(Date.now()-10800000).toISOString()},
-    ];
-  }
-}
-async function loadCustomers() {
-  try {
-    const { data } = await sb.from('customers').select('*').order('name');
-    customers = data || [];
-  } catch(e) {
-    customers = [
-      {phone:'0912-345-678',name:'陳小美',email:'demo@email.com'},
-      {phone:'0923-456-789',name:'林雅婷',email:''},
-      {phone:'0934-567-890',name:'王柔安',email:''},
-    ];
-  }
-}
-
-// ── 到貨狀態 ──────────────────────────────────────────────
-function getArrivalStatus(o) {
-  if (o.status === 'shipped') return 'shipped';
-  if (o.status === 'processing') return 'processing';
-  const allDone = o.items.every(i => i.arrivedQty >= i.qty);
-  if (allDone) return 'arrived';
-  const anyArrived = o.items.some(i => i.arrivedQty > 0);
-  if (anyArrived) return 'partial';
-  return 'waiting';
-}
-function orderProgress(o) {
-  const arr = o.items.reduce((s, i) => s + i.arrivedQty, 0);
-  const tot = o.items.reduce((s, i) => s + i.qty, 0);
-  return { arr, tot };
-}
-const SL = { waiting:'等待到貨', partial:'部分到貨', arrived:'已到貨', shipped:'已出貨', processing:'處理中' };
-const SC = { waiting:'bw', partial:'bp', arrived:'ba', shipped:'bs', processing:'bpr' };
-
-function totalStock(p) { return (p.specs||[]).reduce((s, sp) => s + sp.stock, 0); }
-
-// ── 訂單管理 ──────────────────────────────────────────────
-function renderOrders() {
-  const kw = (document.getElementById('o-search').value || '').toLowerCase();
-  const ft = document.getElementById('o-filter').value;
-  let list = orders;
-  if (kw) list = list.filter(o => (o.order_id||'').toLowerCase().includes(kw) || (o.customer_name||'').includes(kw) || o.items.some(i => i.product.toLowerCase().includes(kw)));
-  const all = orders.map(getArrivalStatus);
-  const stats = document.getElementById('order-stats');
-  stats.innerHTML = [
-    ['總訂單', orders.length],
-    ['等待到貨', all.filter(s=>s==='waiting').length],
-    ['部分到貨', all.filter(s=>s==='partial').length],
-    ['已到貨', all.filter(s=>s==='arrived').length],
-    ['已出貨', all.filter(s=>s==='shipped').length],
-    ['處理中', all.filter(s=>s==='processing').length],
-  ].map(([l,v]) => `<div class="sc"><div class="sl">${l}</div><div class="sv">${v}</div></div>`).join('');
-  if (ft) list = list.filter(o => getArrivalStatus(o) === ft);
-  const body = document.getElementById('order-list');
-  if (!list.length) { body.innerHTML = '<div class="empty">沒有符合條件的訂單</div>'; return; }
-  body.innerHTML = list.map(o => {
-    const key = (o.order_id||o.id||'').replace(/[^a-zA-Z0-9]/g, '');
-    const st = getArrivalStatus(o);
-    const f = o.items[0];
-    const multi = o.items.length > 1 ? ` +${o.items.length-1} 件` : '';
-    const { arr, tot } = orderProgress(o);
-    const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
-    const det = buildOrderDetail(o);
-    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')">
-      <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}<span class="eh">▶</span></span>
-      <span>${f.product}${multi}</span>
-      <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
-      <span>NT$ ${(o.amount||0).toLocaleString()}</span>
-      <span><span class="badge ${SC[st]}">${arr}/${tot}</span></span>
-      <span style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${st==='arrived'||st==='shipped'?'#1d9e75':'#ef9f27'};width:${pct}%"></div></div></span>
-      <span onclick="event.stopPropagation()"><select class="status-sel" onchange="changeOrderStatus('${o.order_id||o.id}',this.value)"><option value="" disabled selected>—</option><option value="shipped"${st==='shipped'?' selected':''}>已出貨</option><option value="processing"${st==='processing'?' selected':''}>處理中</option></select></span>
-    </div>
-    <div class="order-detail" id="odet-${key}">${det}</div>`;
-  }).join('');
-}
-function buildOrderDetail(o) {
-  const { arr, tot } = orderProgress(o);
-  const iHtml = o.items.map(i => {
-    const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
-    const dotCls = i.arrivedQty >= i.qty ? 'dot-ok' : i.arrivedQty > 0 ? 'dot-part' : 'dot-wait';
-    return `<div class="item-prog-row">
-      <span class="dot ${dotCls}"></span>
-      <span style="flex:1">${i.product}（${i.spec}）× ${i.qty}</span>
-      <div class="prog-bar-wrap"><div class="prog-bar" style="background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></div></div>
-      <span style="font-size:11px;min-width:40px;text-align:right">${i.arrivedQty}/${i.qty}</span>
-    </div>`;
-  }).join('');
-  return `<div class="order-detail" style="display:none">
-    <div class="det-block">
-      <div class="det-title">收件資料</div>
-      <div class="det-row"><span class="det-label">姓名</span><span class="det-val">${o.customer_name||''}</span></div>
-      <div class="det-row"><span class="det-label">電話</span><span class="det-val">${o.phone||''}</span></div>
-      <div class="det-row"><span class="det-label">Email</span><span class="det-val">${o.email||'—'}</span></div>
-      <div class="det-row"><span class="det-label">超商門市</span><span class="det-val">${o.store||'—'}</span></div>
-      <div class="det-row"><span class="det-label">店號</span><span class="det-val">${o.store_no||'—'}</span></div>
-      <div class="det-row"><span class="det-label">IG 帳號</span><span class="det-val">${o.ig||'—'}</span></div>
-      <div class="det-row"><span class="det-label">LINE 暱稱</span><span class="det-val">${o.line_nickname||'—'}</span></div>
-      ${o.note?`<div class="det-row"><span class="det-label">備註</span><span class="det-val" style="color:var(--amber)">${o.note}</span></div>`:''}
-    </div>
-    <div class="det-block">
-      <div class="det-title">訂單明細（到貨 ${arr}/${tot} 件）</div>
-      ${iHtml}
-      <div class="det-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="det-label">總金額</span><span class="det-val" style="color:var(--brown);font-weight:700">NT$ ${(o.amount||0).toLocaleString()}</span></div>
-    </div>
-  </div>`;
-}
-function toggleOrder(key) {
-  const row = document.getElementById('otr-' + key);
-  const det = document.getElementById('odet-' + key);
-  if (!det) return;
-  const open = det.classList.contains('open');
-  det.classList.toggle('open', !open);
-  row.classList.toggle('exp', !open);
-  const h = row.querySelector('.eh');
-  if (h) h.textContent = open ? '▶' : '▼';
-}
-async function changeOrderStatus(oid, val) {
-  if (!val) return;
-  const o = orders.find(x => (x.order_id||x.id) === oid || x.id == oid);
-  if (o) o.status = val;
-  try { await sb.from('orders').update({ status: val }).eq('order_id', oid); } catch(e) {}
-  renderOrders(); renderArrival();
-}
-
-// ── 到貨配貨 ──────────────────────────────────────────────
-async function processArrival(pid, specName, inputId, resultId) {
-  const p = products.find(x => x.id == pid);
-  const n = parseInt(document.getElementById(inputId).value);
-  if (!p || !n || n <= 0) return;
-  const specObj = p.specs.find(s => s.name === specName);
-  const needOrders = orders.filter(o => {
-    const st = getArrivalStatus(o);
-    if (st === 'shipped' || st === 'processing') return false;
-    return o.items.some(i => i.productId == pid && i.spec === specName && i.arrivedQty < i.qty);
-  }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  let rem = n, log = [];
-  for (const o of needOrders) {
-    if (rem <= 0) break;
-    const item = o.items.find(i => i.productId == pid && i.spec === specName && i.arrivedQty < i.qty);
-    if (!item) continue;
-    const need = item.qty - item.arrivedQty;
-    const give = Math.min(rem, need);
-    item.arrivedQty += give;
-    rem -= give;
-    log.push(`${o.order_id||o.id} +${give}`);
-    try { await sb.from('orders').update({ items: JSON.stringify(o.items) }).eq('order_id', o.order_id||o.id); } catch(e) {}
-  }
-  if (specObj) specObj.stock += rem;
-  try { await sb.from('products').update({ specs: JSON.stringify(p.specs) }).eq('id', p.id); } catch(e) {}
-  document.getElementById(inputId).value = '';
-  const r = document.getElementById(resultId);
-  r.style.display = 'inline'; r.style.color = 'var(--green)';
-  r.textContent = log.length > 0 && rem > 0 ? `配給 ${log.length} 筆，剩餘 ${rem} 入庫` : log.length > 0 ? `已配給 ${log.length} 筆：${log.join('、')}` : `全數入庫 ${n} 件，無待配訂單`;
-  setTimeout(() => { r.style.display = 'none'; }, 4000);
-  renderOrders(); renderArrival(); renderInventory();
-}
-
-function renderArrival() {
-  document.getElementById('apl').innerHTML = products.filter(p => p.online).map(p => {
-    const pid = 'apc-' + p.id;
-    const needItems = orders.filter(o => { const st = getArrivalStatus(o); return st !== 'shipped' && st !== 'processing'; })
-      .flatMap(o => o.items.filter(i => i.productId == p.id && i.arrivedQty < i.qty).map(i => ({ ...i, still: i.qty - i.arrivedQty })));
-    const twq = needItems.reduce((s, i) => s + i.still, 0);
-    const rows = (p.specs||[]).map((sp, si) => {
-      const swq = needItems.filter(i => i.spec === sp.name).reduce((s, i) => s + i.still, 0);
-      const iid = `si-${p.id}-${si}`, rid = `sr-${p.id}-${si}`;
-      return `<div class="spr"><span class="spn">${sp.name}</span><div class="sp-stat"><span>${sp.stock}</span>現有庫存</div><div class="sp-wait"><span style="color:${swq>0?'var(--amber)':'var(--muted)'}">${swq}</span>待配件數</div><div class="sp-inp-wrap"><input class="sp-inp" id="${iid}" type="number" min="1" placeholder="到貨數"><button class="sp-btn" onclick="processArrival(${p.id},'${sp.name.replace(/'/g,"\\'")}','${iid}','${rid}')">確認到貨</button><span class="sp-res" id="${rid}"></span></div></div>`;
-    }).join('');
-    return `<div class="apc"><div class="apch" onclick="toa('${pid}')"><span style="font-size:16px">${p.emoji||'📦'}</span><span class="apcn">${p.name}</span><span style="font-size:12px;color:var(--muted)">${twq>0?'還差 '+twq+' 件':'無待配訂單'}</span><span id="tog-${pid}">▶</span></div><div class="apcb" id="${pid}"><div class="sph"><span>規格</span><span style="text-align:center">現有庫存</span><span style="text-align:center">待配件數</span><span>登記到貨</span></div>${rows}</div></div>`;
-  }).join('');
-  const al = orders.filter(o => getArrivalStatus(o) === 'arrived').sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const btn = document.getElementById('ship-btn');
-  btn.disabled = al.length === 0;
-  btn.textContent = al.length > 0 ? `整批出貨（${al.length} 筆）` : '整批出貨';
-  const ab = document.getElementById('arrived-body');
-  ab.innerHTML = al.length ? al.map(o => `<div class="atr"><span style="color:var(--muted);font-size:12px">${o.order_id||o.id}</span><span>${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}</span><span>${o.customer_name||''}</span><span>NT$ ${(o.amount||0).toLocaleString()}</span><span>${o.items[0].spec} × ${o.items[0].qty}</span><span><span class="badge ba">已到貨</span></span></div>`).join('') : '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">目前沒有全部到貨的訂單</div>';
-  const pl = orders.filter(o => getArrivalStatus(o) === 'partial').sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const pb = document.getElementById('partial-body');
-  pb.innerHTML = pl.length ? pl.map(o => {
-    const { arr, tot } = orderProgress(o);
-    const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
-    const itemDetails = o.items.map(i => {
-      const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
-      const dc = i.arrivedQty >= i.qty ? 'dot-ok' : i.arrivedQty > 0 ? 'dot-part' : 'dot-wait';
-      return `<div class="ipl"><span class="dot ${dc}"></span><span>${i.product}（${i.spec}）— 已到 ${i.arrivedQty}/${i.qty} 件</span><div style="flex:1;height:4px;background:var(--border);border-radius:2px;margin-left:6px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></div></div></div>`;
-    }).join('');
-    return `<div class="ptr"><span style="color:var(--muted);font-size:12px">${o.order_id||o.id}</span><div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${o.items[0].product}${o.items.length>1?` 等 ${o.items.length} 項`:''}</div><div class="ipr">${itemDetails}</div></div><span>${o.customer_name||''}</span><span>NT$ ${(o.amount||0).toLocaleString()}</span><div><span class="badge bp">${arr}/${tot} 件</span><div style="height:4px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden"><div style="height:4px;border-radius:2px;background:#ef9f27;width:${pct}%"></div></div></div></div>`;
-  }).join('') : '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">目前沒有部分到貨的訂單</div>';
-}
-function toa(id) { const b = document.getElementById(id), t = document.getElementById('tog-' + id); const op = b.classList.contains('open'); b.classList.toggle('open', !op); if (t) t.textContent = op ? '▶' : '▼'; }
-async function shipAll() {
-  const al = orders.filter(o => getArrivalStatus(o) === 'arrived');
-  for (const o of al) {
-    o.status = 'shipped';
-    try { await sb.from('orders').update({ status: 'shipped' }).eq('order_id', o.order_id || o.id); } catch(e) {}
-  }
-  renderOrders(); renderArrival();
-  showToast(`已出貨 ${al.length} 筆訂單`);
-}
-
-// ── 庫存 ──────────────────────────────────────────────────
-function renderInventory() {
-  const kw = (document.getElementById('inv-search').value || '').toLowerCase();
-  const ft = document.getElementById('inv-filter').value;
-  let list = products;
-  if (kw) list = list.filter(p => p.name.toLowerCase().includes(kw));
-  if (ft === 'low') list = list.filter(p => totalStock(p) > 0 && totalStock(p) <= 5);
-  if (ft === 'out') list = list.filter(p => totalStock(p) === 0);
-  const g = document.getElementById('inv-grid');
-  if (!list.length) { g.innerHTML = '<div class="empty">沒有符合條件的商品</div>'; return; }
-  g.innerHTML = list.map(p => {
-    const tot = totalStock(p), all = tot + (p.sold || 0), pct = all > 0 ? Math.round(tot / all * 100) : 0;
-    const wq = orders.filter(o => { const st = getArrivalStatus(o); return st !== 'shipped' && st !== 'processing'; }).flatMap(o => o.items.filter(i => i.productId == p.id && i.arrivedQty < i.qty).map(i => ({ still: i.qty - i.arrivedQty }))).reduce((s, i) => s + i.still, 0);
-    const cat = categories.find(c => c.id === p.cat_id);
-    return `<div class="inv-card">${p.photo ? `<img src="${p.photo}" style="width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:8px">` : `<div style="font-size:22px;margin-bottom:7px">${p.emoji||'📦'}</div>`}<div style="font-size:11px;color:var(--muted);margin-bottom:3px">${cat?cat.label:'未分類'}</div><div class="inv-name">${p.name}</div><div class="inv-row"><span class="inv-label">總庫存</span><span class="inv-val">${tot}</span></div><div class="inv-row"><span class="inv-label">已售出</span><span class="inv-val">${p.sold||0}</span></div>${wq>0?`<div class="inv-row"><span class="inv-label">待配貨</span><span class="inv-val" style="color:var(--amber)">${wq} 件</span></div>`:''}<div class="stock-bar"><div class="stock-fill" style="width:${pct}%"></div></div>${tot===0?'<div style="color:var(--red);font-size:12px;margin-bottom:5px">已售罄</div>':tot<=5?'<div style="color:var(--red);font-size:12px;margin-bottom:5px">庫存偏低</div>':''}<div class="spec-stocks">${(p.specs||[]).map(s=>`<div class="ss-row"><span>${s.name}</span><span>${s.stock} / NT$ ${s.price.toLocaleString()}</span></div>`).join('')}</div></div>`;
-  }).join('');
-}
-
-// ── 客戶 ──────────────────────────────────────────────────
-function renderCustomers() {
-  const kw = (document.getElementById('cust-search').value || '').toLowerCase();
-  const sort = document.getElementById('cust-sort').value;
-  const custOrders = {};
-  orders.forEach(o => {
-    const ph = o.phone;
-    if (!custOrders[ph]) custOrders[ph] = { orders: 0, total: 0 };
-    custOrders[ph].orders++;
-    custOrders[ph].total += o.amount || 0;
+  const { data } = await sb.from('products').select('*').order('sort_order');
+  // --- 關鍵修復邏輯 ---
+  products = (data || []).map(p => {
+    let s = [];
+    try {
+        s = typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs;
+        if(!Array.isArray(s)) s = [{name:'預設', price: p.price || 0, stock: 0}];
+    } catch(e) { s = [{name:'格式錯誤', price: 0, stock: 0}]; }
+    return { ...p, specs: s };
   });
-  let list = [...customers];
-  if (kw) list = list.filter(c => (c.name||'').includes(kw) || (c.phone||'').includes(kw));
-  if (sort === 'total') list.sort((a, b) => (custOrders[b.phone]?.total||0) - (custOrders[a.phone]?.total||0));
-  else if (sort === 'orders') list.sort((a, b) => (custOrders[b.phone]?.orders||0) - (custOrders[a.phone]?.orders||0));
-  else list.sort((a, b) => (a.name||'').localeCompare(b.name||'', 'zh'));
-  const g = document.getElementById('cust-list');
-  if (!list.length) { g.innerHTML = '<div class="empty">沒有符合條件的客戶</div>'; return; }
-  g.innerHTML = list.map(c => {
-    const key = (c.phone||'').replace(/[^0-9]/g, '');
-    const co = custOrders[c.phone] || { orders: 0, total: 0 };
-    const cOrders = orders.filter(o => o.phone === c.phone);
-    return `<div class="cust-card" id="cc-${key}" onclick="toggleCust('${key}')">
-      <div class="cust-top"><div class="avatar">${(c.name||'').slice(-2)}</div><div><div class="cust-name">${c.name||''}</div><div class="cust-sub">${c.phone||''} · ${co.orders} 筆訂單</div></div><div class="cust-amt">NT$ ${co.total.toLocaleString()}</div></div>
-      <div class="cust-orders" id="cco-${key}">${cOrders.map(o => { const st = getArrivalStatus(o); return `<div class="co-row"><span style="color:var(--muted)">${o.order_id||o.id}</span><span style="flex:1">${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}（${o.items[0].spec}）</span><span><span class="badge ${SC[st]}" style="font-size:11px">${SL[st]}</span></span><span style="color:var(--brown);font-weight:600">NT$ ${(o.amount||0).toLocaleString()}</span></div>`; }).join('')}</div>
-    </div>`;
-  }).join('');
 }
-function toggleCust(key) { document.getElementById('cco-' + key)?.classList.toggle('open'); }
 
-// ── 商品管理 ──────────────────────────────────────────────
-function renderCatMgmt() {
-  document.getElementById('cat-list').innerHTML = categories.map(c => {
-    const cnt = products.filter(p => p.cat_id === c.id).length;
-    const isR = renamingCatId === c.id;
-    return `<div class="cat-row">${isR ? `<input class="cat-edit-inp" id="cat-inp-${c.id}" value="${c.label}" onkeydown="if(event.key==='Enter')saveCatRename('${c.id}');if(event.key==='Escape')cancelCatRename()">` : `<span class="cat-label-text">${c.label}</span>`}<span class="cat-count">${cnt} 件商品</span>${isR ? `<button class="cat-save-btn" onclick="saveCatRename('${c.id}')">儲存</button><button class="btn-cancel" style="font-size:11px;padding:4px 9px" onclick="cancelCatRename()">取消</button>` : `<button class="cat-rename-btn" onclick="startCatRename('${c.id}')">重命名</button><button class="cat-del-btn" onclick="deleteCat('${c.id}')">刪除</button>`}</div>`;
-  }).join('');
+async function loadOrders() {
+  const { data } = await sb.from('orders').select('*').order('created_at', {ascending:false});
+  // --- 關鍵修復邏輯 ---
+  orders = (data || []).map(o => {
+    let it = [];
+    try {
+        it = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+    } catch(e) { it = []; }
+    return { ...o, items: it };
+  });
 }
-function startCatRename(id) { renamingCatId = id; renderCatMgmt(); setTimeout(() => document.getElementById('cat-inp-' + id)?.focus(), 50); }
-function cancelCatRename() { renamingCatId = null; renderCatMgmt(); }
-async function saveCatRename(id) {
-  const val = document.getElementById('cat-inp-' + id)?.value.trim();
-  if (!val) { showToast('分類名稱不能為空'); return; }
-  const c = categories.find(x => x.id === id);
-  if (c) c.label = val;
-  try { await sb.from('categories').update({ label: val }).eq('id', id); } catch(e) {}
-  renamingCatId = null; renderCatMgmt(); syncCatFilters();
+
+function renderOrders() {
+  const list = document.getElementById('order-list');
+  list.innerHTML = orders.map(o => `
+    <div class="otr">
+      <span>${o.order_id}</span>
+      <span style="font-size:11px">${o.items.map(i=>i.product).join(', ')}</span>
+      <span>${o.customer_name}</span>
+      <span>$${o.amount}</span>
+      <span>-</span>
+      <span>-</span>
+      <span>${o.status || '新訂單'}</span>
+    </div>
+  `).join('');
 }
-async function addCat() {
-  const inp = document.getElementById('new-cat-inp');
-  const val = inp?.value.trim();
-  if (!val) { inp?.focus(); return; }
-  const newId = 'cat_' + Date.now();
-  const newCat = { id: newId, label: val, sort_order: categories.length };
-  categories.push(newCat);
-  if (inp) inp.value = '';
-  try { await sb.from('categories').insert([newCat]); } catch(e) {}
-  renderCatMgmt(); syncCatFilters();
-}
-async function deleteCat(id) {
-  const cnt = products.filter(p => p.cat_id === id).length;
-  if (cnt > 0 && !confirm(`此分類有 ${cnt} 件商品，刪除後商品將標示為未分類。確定刪除嗎？`)) return;
-  categories = categories.filter(c => c.id !== id);
-  try { await sb.from('categories').delete().eq('id', id); } catch(e) {}
-  renderCatMgmt(); syncCatFilters(); renderProductMgmt();
-}
-function syncCatFilters() {
-  const opts = '<option value="">全部分類</option>' + categories.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
-  ['pm-cat-f'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
+
+function renderInventory() {
+  const grid = document.getElementById('inv-grid');
+  grid.innerHTML = products.map(p => `
+    <div class="sc">
+      <div class="sl">${p.name}</div>
+      <div class="sv">${p.specs.reduce((sum, s)=>sum+(parseInt(s.stock)||0), 0)}</div>
+    </div>
+  `).join('');
 }
 
 function renderProductMgmt() {
-  renderCatMgmt();
-  const kw = (document.getElementById('pm-search').value || '').toLowerCase();
-  const catF = document.getElementById('pm-cat-f').value;
-  const stF = document.getElementById('pm-status-f').value;
-  let list = products;
-  if (kw) list = list.filter(p => p.name.toLowerCase().includes(kw));
-  if (catF) list = list.filter(p => p.cat_id === catF);
-  if (stF === 'on') list = list.filter(p => p.online);
-  if (stF === 'off') list = list.filter(p => !p.online);
-  const g = document.getElementById('pm-list');
-  if (!list.length) { g.innerHTML = '<div class="empty">沒有符合條件的商品</div>'; return; }
-  g.innerHTML = list.map(p => {
-    const cat = categories.find(c => c.id === p.cat_id);
-    const tot = totalStock(p);
-    const sp = (p.specs||[]).map(s => `${s.name} NT$${s.price}`).join('、');
-    return `<div class="pm-card${p.online?'':' offline'}"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':'已下架'}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
-  }).join('');
-}
-async function toggleProduct(pid) {
-  const p = products.find(x => x.id == pid);
-  if (!p) return;
-  p.online = !p.online;
-  try { await sb.from('products').update({ online: p.online }).eq('id', pid); } catch(e) {}
-  renderProductMgmt();
+  const list = document.getElementById('pm-list');
+  list.innerHTML = products.map(p => `
+    <div class="pm-card">
+      <div class="pm-thumb">${p.emoji || '🎁'}</div>
+      <div class="pm-info">
+        <div class="pm-name">${p.name}</div>
+        <div class="pm-meta">${p.specs.length} 個規格</div>
+      </div>
+      <button class="at active" onclick="deleteProduct(${p.id})">刪除</button>
+    </div>
+  `).join('');
 }
 
-function addSpecRow(name='', price='', stock='') { specRows.push({ id: Date.now() + Math.random(), name, price, stock }); renderSpecTable(); }
-function removeSpecRow(id) { specRows = specRows.filter(r => r.id !== id); renderSpecTable(); }
-function renderSpecTable() {
-  document.getElementById('spec-tbody').innerHTML = specRows.map(r =>
-    `<tr><td><input value="${r.name}" placeholder="如：S 或 紅色" oninput="updateSpecRow(${r.id},'name',this.value)"></td><td><input type="number" value="${r.price}" placeholder="0" min="0" style="width:84px" oninput="updateSpecRow(${r.id},'price',this.value)"></td><td><input type="number" value="${r.stock}" placeholder="0" min="0" style="width:76px" oninput="updateSpecRow(${r.id},'stock',this.value)"></td><td><button class="rm-spec-btn" onclick="removeSpecRow(${r.id})">×</button></td></tr>`
-  ).join('');
+async function deleteProduct(id) {
+    if(!confirm("確定刪除商品？")) return;
+    await sb.from('products').delete().eq('id', id);
+    loadAllData();
 }
-function updateSpecRow(id, field, val) { const r = specRows.find(x => x.id === id); if (r) r[field] = val; }
-function openProductModal(pid) {
-  editingProductId = pid || null; pmPhotoData = null; specRows = [];
-  const p = pid ? products.find(x => x.id == pid) : null;
-  document.getElementById('pm-modal-title').textContent = p ? '編輯商品' : '新增商品';
-  document.getElementById('pm-name').value = p ? p.name : '';
-  document.getElementById('pm-emoji').value = p ? (p.emoji || '') : '✨';
-  document.getElementById('pm-photo-inp').value = '';
-  const prev = document.getElementById('pm-photo-prev');
-  if (p && p.photo) { prev.innerHTML = `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover">`; pmPhotoData = p.photo; }
-  else { prev.innerHTML = `<span style="font-size:18px">${p ? (p.emoji||'📦') : '✨'}</span>`; }
-  document.getElementById('pm-cat-sel').innerHTML = categories.map(c => `<option value="${c.id}"${p&&p.cat_id===c.id?' selected':''}>${c.label}</option>`).join('');
-  if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock })); }
-  else { addSpecRow('', 0, 0); addSpecRow('', 0, 0); }
-  renderSpecTable();
-  document.getElementById('product-modal').classList.add('open');
-}
+
+function openProductModal() { document.getElementById('product-modal').classList.add('open'); }
 function closeProductModal() { document.getElementById('product-modal').classList.remove('open'); }
-function previewPhoto(input) {
-  const file = input.files[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = e => { pmPhotoData = e.target.result; document.getElementById('pm-photo-prev').innerHTML = `<img src="${pmPhotoData}" style="width:100%;height:100%;object-fit:cover">`; };
-  r.readAsDataURL(file);
+
+function addSpecRow() {
+    const tbody = document.getElementById('spec-tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input class="s-n"></td><td><input type="number" class="s-p"></td><td><input type="number" class="s-s"></td>`;
+    tbody.appendChild(tr);
 }
+
 async function saveProduct() {
-  const name = document.getElementById('pm-name').value.trim();
-  const catId = document.getElementById('pm-cat-sel').value;
-  const emoji = document.getElementById('pm-emoji').value.trim() || '✨';
-  if (!name) { showToast('請填寫商品名稱'); return; }
-  const specs = specRows.map(r => ({ name: String(r.name).trim(), price: parseInt(r.price) || 0, stock: parseInt(r.stock) || 0 })).filter(s => s.name);
-  if (!specs.length) { showToast('請至少新增一個規格'); return; }
-  const data = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: true };
-  if (pmPhotoData) data.photo = pmPhotoData;
-  if (editingProductId) {
-    const p = products.find(x => x.id == editingProductId);
-    if (p) { Object.assign(p, { ...data, specs }); }
-    try { await sb.from('products').update(data).eq('id', editingProductId); } catch(e) {}
-  } else {
-    const newId = Date.now();
-    products.push({ id: newId, ...data, specs, sold: 0, sort_order: products.length });
-    try { await sb.from('products').insert([{ ...data, id: newId, sort_order: products.length }]); } catch(e) {}
-  }
-  closeProductModal(); renderProductMgmt(); renderInventory();
-  showToast(editingProductId ? '商品已更新' : '新商品已新增');
+    const name = document.getElementById('pm-name').value;
+    const rows = document.querySelectorAll('#spec-tbody tr');
+    const specs = Array.from(rows).map(r => ({
+        name: r.querySelector('.s-n').value,
+        price: parseInt(r.querySelector('.s-p').value) || 0,
+        stock: parseInt(r.querySelector('.s-s').value) || 0
+    }));
+    
+    await sb.from('products').insert([{ name, specs: JSON.stringify(specs), online: true }]);
+    closeProductModal();
+    loadAllData();
 }
 
-function sw(tab) {
-  const tabs = ['orders','arrival','inventory','customers','products'];
-  document.querySelectorAll('.at').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
-  document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
-  document.getElementById('pg-' + tab).classList.add('on');
-  if (tab === 'products') renderProductMgmt();
+function exportOrders() {
+    let csv = "\ufeff單號,客戶,金額,商品\n";
+    orders.forEach(o => {
+        csv += `${o.order_id},${o.customer_name},${o.amount},"${o.items.map(i=>i.product).join(';')}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `訂單匯出_${new Date().getTime()}.csv`;
+    link.click();
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast-admin');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+function showToast(m) {
+    const t = document.getElementById('toast-admin');
+    t.textContent = m; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2000);
+}
+
+if (sessionStorage.getItem('admin_auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'block';
+  loadAllData();
 }
 </script>
 </body>
