@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>yuyuz_98 — 後台管理</title>
+<title>星光代購 — 後台管理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -232,7 +232,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 <!-- LOGIN -->
 <div id="login-screen" class="login-wrap">
   <div class="login-box">
-    <div class="login-logo">✦ <span>yuyuz_98</span></div>
+    <div class="login-logo">✦ <span>星光代購</span></div>
     <div class="login-sub">後台管理系統</div>
     <input type="password" class="login-input" id="pw-input" placeholder="請輸入管理員密碼" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">登入</button>
@@ -243,7 +243,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 <!-- ADMIN -->
 <div id="admin-screen" class="admin">
   <nav class="admin-nav">
-    <div class="admin-logo">✦ <span>yuyuz_98</span> 後台</div>
+    <div class="admin-logo">✦ <span>星光代購</span> 後台</div>
     <div class="admin-nav-right">
       <div class="admin-tabs">
         <button class="at active" onclick="sw('orders')">訂單管理</button>
@@ -382,9 +382,9 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 
 <script>
 // ── Supabase 設定（與 shop.html 相同）────────────────────
-const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
-const ADMIN_PASSWORD = 'uu2101619'; // 換成你的密碼
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const ADMIN_PASSWORD = 'YOUR_ADMIN_PASSWORD'; // 換成你的密碼
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ──────────────────────────────────────────────────────────
 
@@ -818,16 +818,18 @@ async function saveProduct() {
   if (!name) { showToast('請填寫商品名稱'); return; }
   const specs = specRows.map(r => ({ name: String(r.name).trim(), price: parseInt(r.price) || 0, stock: parseInt(r.stock) || 0 })).filter(s => s.name);
   if (!specs.length) { showToast('請至少新增一個規格'); return; }
-  const data = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: true };
-  if (pmPhotoData) data.photo = pmPhotoData;
+  // 不帶 id，讓 Supabase BIGSERIAL 自動產生
+  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: true, sort_order: products.length };
+  if (pmPhotoData) dbData.photo = pmPhotoData;
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
-    if (p) { Object.assign(p, { ...data, specs }); }
-    try { await sb.from('products').update(data).eq('id', editingProductId); } catch(e) {}
+    if (p) { Object.assign(p, { ...dbData, specs }); }
+    const { error } = await sb.from('products').update(dbData).eq('id', editingProductId);
+    if (error) { showToast('更新失敗：' + error.message); return; }
   } else {
-    const newId = Date.now();
-    products.push({ id: newId, ...data, specs, sold: 0, sort_order: products.length });
-    try { await sb.from('products').insert([{ ...data, id: newId, sort_order: products.length }]); } catch(e) {}
+    const { data: inserted, error } = await sb.from('products').insert([dbData]).select().single();
+    if (error) { showToast('新增失敗：' + error.message); return; }
+    products.push({ ...dbData, id: inserted.id, specs, sold: 0 });
   }
   closeProductModal(); renderProductMgmt(); renderInventory();
   showToast(editingProductId ? '商品已更新' : '新商品已新增');
