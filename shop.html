@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>yuyuz_98 — 韓國代購</title>
+<title>星光代購 — 偶像週邊專賣</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -217,7 +217,7 @@ a{color:inherit;text-decoration:none}
 <body>
 
 <nav class="nav">
-  <div class="nav-logo">✦ <span>yuyuz_98</span></div>
+  <div class="nav-logo">✦ <span>星光代購</span></div>
   <div style="display:flex;align-items:center;gap:8px">
     <button class="nav-lookup-btn" onclick="openLookup()">查詢訂單</button>
     <button class="nav-cart" onclick="openCart()">
@@ -228,7 +228,7 @@ a{color:inherit;text-decoration:none}
 </nav>
 
 <div class="hero">
-  <div class="hero-title">✦ yuyuz_98</div>
+  <div class="hero-title">✦ 星光代購</div>
   <div class="hero-sub">偶像週邊 · 美妝保養 · 服飾精選</div>
 </div>
 
@@ -250,7 +250,7 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
-<div class="footer">© yuyuz_98 · 所有商品皆為正品代購</div>
+<div class="footer">© 星光代購 · 所有商品皆為正品代購</div>
 
 <!-- CART DRAWER -->
 <div class="cart-overlay" id="cart-overlay" onclick="closeCart()">
@@ -330,10 +330,17 @@ async function loadData() {
       sb.from('products').select('*').eq('online', true).order('sort_order')
     ]);
     categories = catRes.data || [];
-    products = (prodRes.data || []).map(p => ({
-      ...p,
-      specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs
-    }));
+    const now = new Date();
+    products = (prodRes.data || [])
+      .filter(p => {
+        if (p.start_time && new Date(p.start_time) > now) return false; // 還沒到上架時間
+        if (p.end_time && new Date(p.end_time) < now) return false;     // 已過下架時間
+        return p.online;
+      })
+      .map(p => ({
+        ...p,
+        specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs
+      }));
   } catch(e) {
     // demo mode if Supabase not configured
     categories = [
@@ -392,14 +399,17 @@ function renderCard(p) {
   const curPrice = specPrice(p, curSpec);
   const qty = pcQtyMap[p.id] || 1;
   const imgContent = p.photo ? `<img src="${p.photo}" alt="${p.name}">` : `<span>${p.emoji||'📦'}</span>`;
-  const specOpts = p.specs.map(s =>
-    `<option value="${s.name}"${s.name===curSpec?' selected':''}>${s.name} — NT$ ${s.price.toLocaleString()}</option>`
-  ).join('');
+  const specOpts = p.specs.map(s => {
+    const soldOut = s.stock <= 0 && !s.preorder;
+    const label = soldOut ? `${s.name} — 已售罄` : s.stock <= 0 && s.preorder ? `${s.name} — NT$ ${s.price.toLocaleString()}（預購）` : `${s.name} — NT$ ${s.price.toLocaleString()}`;
+    return `<option value="${s.name}"${s.name===curSpec?' selected':''}${soldOut?' disabled':''}>${label}</option>`;
+  }).join('');
   return `<div class="product-card${inCart>0?' in-cart':''}">
     <div class="pc-img">${imgContent}${inCart>0?`<span class="cart-dot">${inCart}</span>`:''}</div>
     <div class="pc-info">
       <div class="pc-name">${p.name}</div>
       <div class="pc-price">${priceRange(p)}</div>
+    ${p.specs.every(s=>s.stock<=0&&!s.preorder)?'<div style="font-size:11px;color:#c0392b;font-weight:600;margin-top:2px">已售罄</div>':p.specs.some(s=>s.stock<=0&&s.preorder)?'<div style="font-size:11px;color:#185fa5;font-weight:600;margin-top:2px">部分規格預購中</div>':''}
     </div>
     <div class="pc-controls">
       <div class="pc-spec"><select onchange="onSpec(${p.id},this.value)">${specOpts}</select></div>
@@ -440,6 +450,11 @@ function addToCart(pid) {
   const p = products.find(x => x.id === pid);
   if (!p) return;
   const spec = pcSpecMap[pid] || p.specs[0].name;
+  const specObj = p.specs.find(s => s.name === spec);
+  // 庫存為 0 且非預購模式，不能加入
+  if (specObj && specObj.stock <= 0 && !specObj.preorder) {
+    showToast('此規格已售罄'); return;
+  }
   const qty = pcQtyMap[pid] || 1;
   const price = specPrice(p, spec);
   const existing = cart.find(i => i.productId === pid && i.spec === spec);
