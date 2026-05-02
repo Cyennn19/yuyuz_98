@@ -366,9 +366,25 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
           </div>
         </div>
       </div>
+      <div class="msec">上下架時間設定</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">留空表示不設定時間，手動上下架</div>
+      <div class="m2col">
+        <div class="mfg"><label>指定上架時間</label><input type="datetime-local" id="pm-start-time" style="font-size:12px"></div>
+        <div class="mfg"><label>指定下架時間</label><input type="datetime-local" id="pm-end-time" style="font-size:12px"></div>
+      </div>
+      <div class="m2col">
+        <div class="mfg">
+          <label>倒計時上架（幾小時後）</label>
+          <input type="number" id="pm-start-hours" placeholder="例：24（留空不設定）" min="0" style="font-size:12px">
+        </div>
+        <div class="mfg">
+          <label>倒計時下架（幾小時後）</label>
+          <input type="number" id="pm-end-hours" placeholder="例：72（留空不設定）" min="0" style="font-size:12px">
+        </div>
+      </div>
       <div class="msec">規格與定價</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">每個規格可設定獨立售價與庫存</div>
-      <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>初始庫存</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
+      <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>初始庫存</th><th>庫存 0 時</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
       <button class="add-spec-btn" onclick="addSpecRow()">+ 新增規格</button>
     </div>
     <div class="modal-footer">
@@ -780,11 +796,20 @@ async function toggleProduct(pid) {
   renderProductMgmt();
 }
 
-function addSpecRow(name='', price='', stock='') { specRows.push({ id: Date.now() + Math.random(), name, price, stock }); renderSpecTable(); }
+function addSpecRow(name='', price='', stock='', preorder=0) { specRows.push({ id: Date.now() + Math.random(), name, price, stock, preorder }); renderSpecTable(); }
 function removeSpecRow(id) { specRows = specRows.filter(r => r.id !== id); renderSpecTable(); }
 function renderSpecTable() {
   document.getElementById('spec-tbody').innerHTML = specRows.map(r =>
-    `<tr><td><input value="${r.name}" placeholder="如：S 或 紅色" oninput="updateSpecRow(${r.id},'name',this.value)"></td><td><input type="number" value="${r.price}" placeholder="0" min="0" style="width:84px" oninput="updateSpecRow(${r.id},'price',this.value)"></td><td><input type="number" value="${r.stock}" placeholder="0" min="0" style="width:76px" oninput="updateSpecRow(${r.id},'stock',this.value)"></td><td><button class="rm-spec-btn" onclick="removeSpecRow(${r.id})">×</button></td></tr>`
+    `<tr>
+      <td><input value="${r.name}" placeholder="如：S 或 紅色" oninput="updateSpecRow(${r.id},'name',this.value)"></td>
+      <td><input type="number" value="${r.price}" placeholder="0" min="0" style="width:84px" oninput="updateSpecRow(${r.id},'price',this.value)"></td>
+      <td><input type="number" value="${r.stock}" placeholder="0" min="0" style="width:76px" oninput="updateSpecRow(${r.id},'stock',this.value)"></td>
+      <td><select style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:7px;background:#fff" onchange="updateSpecRow(${r.id},'preorder',this.value)">
+        <option value="0"${r.preorder==1?'':' selected'}>自動下架</option>
+        <option value="1"${r.preorder==1?' selected':''}>開放預購</option>
+      </select></td>
+      <td><button class="rm-spec-btn" onclick="removeSpecRow(${r.id})">×</button></td>
+    </tr>`
   ).join('');
 }
 function updateSpecRow(id, field, val) { const r = specRows.find(x => x.id === id); if (r) r[field] = val; }
@@ -799,9 +824,18 @@ function openProductModal(pid) {
   if (p && p.photo) { prev.innerHTML = `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover">`; pmPhotoData = p.photo; }
   else { prev.innerHTML = `<span style="font-size:18px">${p ? (p.emoji||'📦') : '✨'}</span>`; }
   document.getElementById('pm-cat-sel').innerHTML = categories.map(c => `<option value="${c.id}"${p&&p.cat_id===c.id?' selected':''}>${c.label}</option>`).join('');
-  if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock })); }
+  if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0 })); }
   else { addSpecRow('', 0, 0); addSpecRow('', 0, 0); }
   renderSpecTable();
+  // 載入時間設定
+  const startEl = document.getElementById('pm-start-time');
+  const endEl = document.getElementById('pm-end-time');
+  const startHEl = document.getElementById('pm-start-hours');
+  const endHEl = document.getElementById('pm-end-hours');
+  if(startEl) startEl.value = p && p.start_time ? p.start_time.slice(0,16) : '';
+  if(endEl) endEl.value = p && p.end_time ? p.end_time.slice(0,16) : '';
+  if(startHEl) startHEl.value = '';
+  if(endHEl) endHEl.value = '';
   document.getElementById('product-modal').classList.add('open');
 }
 function closeProductModal() { document.getElementById('product-modal').classList.remove('open'); }
@@ -816,10 +850,21 @@ async function saveProduct() {
   const catId = document.getElementById('pm-cat-sel').value;
   const emoji = document.getElementById('pm-emoji').value.trim() || '✨';
   if (!name) { showToast('請填寫商品名稱'); return; }
-  const specs = specRows.map(r => ({ name: String(r.name).trim(), price: parseInt(r.price) || 0, stock: parseInt(r.stock) || 0 })).filter(s => s.name);
+  const specs = specRows.map(r => ({ name: String(r.name).trim(), price: parseInt(r.price) || 0, stock: parseInt(r.stock) || 0, preorder: parseInt(r.preorder)||0 })).filter(s => s.name);
   if (!specs.length) { showToast('請至少新增一個規格'); return; }
   // 不帶 id，讓 Supabase BIGSERIAL 自動產生
-  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: true, sort_order: products.length };
+  // 計算上下架時間
+  const startTimeVal = document.getElementById('pm-start-time')?.value;
+  const endTimeVal = document.getElementById('pm-end-time')?.value;
+  const startHours = parseFloat(document.getElementById('pm-start-hours')?.value||'');
+  const endHours = parseFloat(document.getElementById('pm-end-hours')?.value||'');
+  let startTime = startTimeVal ? new Date(startTimeVal).toISOString() : null;
+  let endTime = endTimeVal ? new Date(endTimeVal).toISOString() : null;
+  if(!startTime && startHours > 0) startTime = new Date(Date.now() + startHours*3600000).toISOString();
+  if(!endTime && endHours > 0) endTime = new Date(Date.now() + endHours*3600000).toISOString();
+  // 如果有設定上架時間且還沒到，先設為 false
+  const onlineNow = startTime ? new Date(startTime) <= new Date() : true;
+  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: products.length, start_time: startTime, end_time: endTime };
   if (pmPhotoData) dbData.photo = pmPhotoData;
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
@@ -908,6 +953,29 @@ function exportExcel() {
   XLSX.writeFile(wb, `星光代購_${date}.xlsx`);
   showToast('Excel 已下載！');
 }
+
+
+// ── 定時上下架自動檢查 ───────────────────────────────────
+async function checkScheduledProducts() {
+  const now = new Date();
+  let changed = false;
+  for (const p of products) {
+    let shouldOnline = p.online;
+    if (p.start_time && new Date(p.start_time) <= now && !p.online) {
+      shouldOnline = true; changed = true;
+    }
+    if (p.end_time && new Date(p.end_time) <= now && p.online) {
+      shouldOnline = false; changed = true;
+    }
+    if (shouldOnline !== p.online) {
+      p.online = shouldOnline;
+      try { await sb.from('products').update({ online: shouldOnline }).eq('id', p.id); } catch(e) {}
+    }
+  }
+  if (changed) { renderProductMgmt(); showToast('已自動更新商品上下架狀態'); }
+}
+// 每 60 秒檢查一次
+setInterval(checkScheduledProducts, 60000);
 
 </script>
 </body>
