@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>星光代購 — 後台管理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
 <style>
 :root{
   --cream:#f5f0e8;--brown:#8b6f47;--dark:#2c2018;--mid:#6b4f35;
@@ -386,6 +388,22 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">每個規格可設定獨立售價與庫存</div>
       <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>初始庫存</th><th>庫存 0 時</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
       <button class="add-spec-btn" onclick="addSpecRow()">+ 新增規格</button>
+
+      <div class="msec" style="margin-top:18px">商品說明</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">支援加粗、換行、插入圖片（貼上或上傳）</div>
+      <div id="pm-desc-editor" style="height:200px;background:var(--white);border-radius:8px;font-size:13px"></div>
+      <input type="file" accept="image/*" id="pm-desc-img-inp" style="display:none" onchange="insertDescImg(this)">
+
+      <div class="msec" style="margin-top:18px">注意事項</div>
+      <div class="mfg">
+        <textarea id="pm-notice" placeholder="例：&#10;・代購商品不接受退換貨&#10;・下單後請勿取消&#10;・預計到貨時間依廠商出貨而定" style="min-height:100px;font-size:13px"></textarea>
+      </div>
+
+      <div class="msec" style="margin-top:18px">詳情圖片（可上傳多張）</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">這些圖片會顯示在商品詳情頁的縮圖列</div>
+      <div id="detail-imgs-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+      <button class="add-spec-btn" onclick="document.getElementById('pm-detail-imgs-inp').click()">+ 新增詳情圖片</button>
+      <input type="file" accept="image/*" multiple id="pm-detail-imgs-inp" style="display:none" onchange="addDetailImgs(this)">
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeProductModal()">取消</button>
@@ -827,6 +845,35 @@ function openProductModal(pid) {
   if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0 })); }
   else { addSpecRow('', 0, 0); addSpecRow('', 0, 0); }
   renderSpecTable();
+  // 載入商品說明（Quill）
+  setTimeout(() => {
+    if (!window.pmQuill) {
+      window.pmQuill = new Quill('#pm-desc-editor', {
+        theme: 'snow',
+        placeholder: '輸入商品說明…（可加粗、換行，或插入圖片）',
+        modules: {
+          toolbar: [
+            ['bold', 'italic'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['image'],
+            ['clean']
+          ]
+        }
+      });
+      // 攔截圖片按鈕改為上傳
+      const toolbar = window.pmQuill.getModule('toolbar');
+      toolbar.addHandler('image', () => {
+        document.getElementById('pm-desc-img-inp').click();
+      });
+    }
+    window.pmQuill.root.innerHTML = p && p.description ? p.description : '';
+  }, 50);
+  // 載入注意事項
+  const noticeEl = document.getElementById('pm-notice');
+  if (noticeEl) noticeEl.value = p && p.notice ? p.notice : '';
+  // 載入詳情圖片
+  window.pmDetailImgs = p && p.detail_images ? [...p.detail_images] : [];
+  renderDetailImgsPreview();
   // 載入時間設定
   const startEl = document.getElementById('pm-start-time');
   const endEl = document.getElementById('pm-end-time');
@@ -864,7 +911,11 @@ async function saveProduct() {
   if(!endTime && endHours > 0) endTime = new Date(Date.now() + endHours*3600000).toISOString();
   // 如果有設定上架時間且還沒到，先設為 false
   const onlineNow = startTime ? new Date(startTime) <= new Date() : true;
-  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: products.length, start_time: startTime, end_time: endTime };
+  // 取得富文本說明
+  const description = window.pmQuill ? window.pmQuill.root.innerHTML.replace(/<p><br><\/p>/g,'').trim() : '';
+  const notice = document.getElementById('pm-notice')?.value.trim() || '';
+  const detailImgs = window.pmDetailImgs || [];
+  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: products.length, start_time: startTime, end_time: endTime, description: description||null, notice: notice||null, detail_images: JSON.stringify(detailImgs) };
   if (pmPhotoData) dbData.photo = pmPhotoData;
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
@@ -976,6 +1027,52 @@ async function checkScheduledProducts() {
 }
 // 每 60 秒檢查一次
 setInterval(checkScheduledProducts, 60000);
+
+
+// ── 富文本 / 詳情圖片輔助 ──────────────────────────────────
+window.pmDetailImgs = [];
+
+function insertDescImg(input) {
+  const file = input.files[0]; if (!file || !window.pmQuill) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const range = window.pmQuill.getSelection(true);
+    window.pmQuill.insertEmbed(range.index, 'image', e.target.result);
+  };
+  r.readAsDataURL(file);
+  input.value = '';
+}
+
+function addDetailImgs(input) {
+  const files = Array.from(input.files);
+  let done = 0;
+  files.forEach(file => {
+    const r = new FileReader();
+    r.onload = e => {
+      window.pmDetailImgs.push(e.target.result);
+      done++;
+      if (done === files.length) renderDetailImgsPreview();
+    };
+    r.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderDetailImgsPreview() {
+  const el = document.getElementById('detail-imgs-preview');
+  if (!el) return;
+  el.innerHTML = (window.pmDetailImgs||[]).map((src, i) =>
+    `<div style="position:relative;width:60px;height:60px">
+      <img src="${src}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border)">
+      <button onclick="removeDetailImg(${i})" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
+    </div>`
+  ).join('');
+}
+
+function removeDetailImg(idx) {
+  window.pmDetailImgs.splice(idx, 1);
+  renderDetailImgsPreview();
+}
 
 </script>
 </body>
