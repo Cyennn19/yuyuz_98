@@ -250,6 +250,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
       <div class="admin-tabs">
         <button class="at active" onclick="sw('orders')">訂單管理</button>
         <button class="at" onclick="sw('arrival')">到貨配貨</button>
+        <button class="at" onclick="sw('surcharge')">二補總表</button>
         <button class="at" onclick="sw('inventory')">庫存</button>
         <button class="at" onclick="sw('customers')">客戶</button>
         <button class="at" onclick="sw('products')">商品管理</button>
@@ -283,7 +284,14 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 
     <!-- ARRIVAL -->
     <div class="pg" id="pg-arrival">
-      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:14px">登記到貨數量</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:15px;font-weight:700;color:var(--dark)">登記到貨數量</div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)">
+        二補費率：每公克
+        <input type="number" id="arrival-rate" value="3" min="0" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
+        NT$
+      </div>
+    </div>
       <div class="apl" id="apl"></div>
       <div class="section-block">
         <div class="sec-hdr">
@@ -303,6 +311,44 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
     </div>
 
     <!-- INVENTORY -->
+
+    <!-- 二補總表 -->
+    <div class="pg" id="pg-surcharge">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark)">二補總表</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">列出所有有二補金額的訂單</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:13px;color:var(--muted)">費率：每公克</span>
+          <input type="number" id="rate-per-gram" value="3" min="0" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
+          <span style="font-size:13px;color:var(--muted)">NT$</span>
+          <button class="new-btn" style="background:#185fa5" onclick="exportSurchargeExcel()">匯出 Excel</button>
+        </div>
+      </div>
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+        <div class="sc"><div class="sl">待收二補筆數</div><div class="sv" id="sc-cnt-pending">0</div></div>
+        <div class="sc"><div class="sl">待收二補總額</div><div class="sv" id="sc-sum-pending">NT$ 0</div></div>
+        <div class="sc"><div class="sl">已收二補筆數</div><div class="sv" id="sc-cnt-paid">0</div></div>
+        <div class="sc"><div class="sl">已收二補總額</div><div class="sv" id="sc-sum-paid">NT$ 0</div></div>
+      </div>
+      <div class="toolbar">
+        <input class="search-box" id="sc-search" placeholder="搜尋訂單號、客戶…" oninput="renderSurcharge()">
+        <select class="filter-sel" id="sc-filter" onchange="renderSurcharge()">
+          <option value="">全部</option>
+          <option value="pending">待收款</option>
+          <option value="paid">已收款</option>
+          <option value="waived">已減免</option>
+        </select>
+      </div>
+      <div class="otable">
+        <div style="display:grid;grid-template-columns:88px 88px 90px 1fr 76px 76px 76px 100px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600">
+          <span>訂單號</span><span>客戶</span><span>電話</span><span>二補明細</span><span>合計</span><span>店號</span><span>狀態</span><span>操作</span>
+        </div>
+        <div id="surcharge-list"></div>
+      </div>
+    </div>
+
     <div class="pg" id="pg-inventory">
       <div class="toolbar">
         <input class="search-box" id="inv-search" placeholder="搜尋商品…" oninput="renderInventory()" style="max-width:240px">
@@ -585,6 +631,7 @@ function buildOrderDetail(o) {
       <span style="font-size:11px;min-width:40px;text-align:right">${i.arrivedQty}/${i.qty}</span>
     </div>`;
   }).join('');
+  setTimeout(() => renderScItems(o), 80);
   return `<div style="display:contents">
     <div class="det-block">
       <div class="det-title">收件資料</div>
@@ -602,7 +649,26 @@ function buildOrderDetail(o) {
       ${iHtml}
       <div class="det-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="det-label">總金額</span><span class="det-val" style="color:var(--brown);font-weight:700">NT$ ${(o.amount||0).toLocaleString()}</span></div>
     </div>
-  </div>`;
+  </div>
+  <div style="padding:0 14px 14px">
+    <div style="background:var(--light);border-radius:10px;border:1px solid var(--border);padding:12px 14px">
+      <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:10px;letter-spacing:0.04em">二補設定</div>
+      <div id="sc-items-${key}"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">載入中…</div></div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <button class="add-spec-btn" style="font-size:12px;padding:5px 10px" onclick="addScItem('${o.order_id||o.id}')">+ 手動新增</button>
+        <button class="add-spec-btn" style="font-size:12px;padding:5px 10px" onclick="addScByWeight('${o.order_id||o.id}')">+ 依重量計算</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;color:var(--dark)">二補合計：<span style="color:var(--brown)" id="sc-tot-${key}">NT$ ${(o.surcharge_total||0).toLocaleString()}</span></div>
+        <select style="font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--white)" onchange="updateScStatus('${o.order_id||o.id}',this.value)">
+          <option value="none"${(!o.surcharge_status||o.surcharge_status==='none')?' selected':''}>無二補</option>
+          <option value="pending"${o.surcharge_status==='pending'?' selected':''}>待收款</option>
+          <option value="paid"${o.surcharge_status==='paid'?' selected':''}>已收款</option>
+          <option value="waived"${o.surcharge_status==='waived'?' selected':''}>已減免</option>
+        </select>
+      </div>
+    </div>
+  </div>\`;
 }
 function toggleOrder(key) {
   const row = document.getElementById('otr-' + key);
@@ -932,11 +998,12 @@ async function saveProduct() {
 }
 
 function sw(tab) {
-  const tabs = ['orders','arrival','inventory','customers','products'];
+  const tabs = ['orders','arrival','surcharge','inventory','customers','products'];
   document.querySelectorAll('.at').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.getElementById('pg-' + tab).classList.add('on');
   if (tab === 'products') renderProductMgmt();
+  if (tab === 'surcharge') renderSurcharge();
 }
 
 function showToast(msg) {
@@ -1072,6 +1139,185 @@ function renderDetailImgsPreview() {
 function removeDetailImg(idx) {
   window.pmDetailImgs.splice(idx, 1);
   renderDetailImgsPreview();
+}
+
+
+// ── 二補功能 ──────────────────────────────────────────────
+const SC_LABEL = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
+const SC_CLS = { none:'', pending:'bw', paid:'bs', waived:'bpr' };
+
+function getRate() {
+  return parseFloat(
+    document.getElementById('arrival-rate')?.value ||
+    document.getElementById('rate-per-gram')?.value || 3
+  ) || 3;
+}
+
+function renderScItems(o) {
+  const key = (o.order_id||String(o.id)||'').replace(/[^a-zA-Z0-9]/g,'');
+  const el = document.getElementById('sc-items-' + key);
+  if (!el) return;
+  const items = o.surcharge_items || [];
+  if (!items.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">尚未設定二補項目</div>';
+    return;
+  }
+  el.innerHTML = items.map((item, idx) => `
+    <div style="display:grid;grid-template-columns:1fr 72px 80px 26px;gap:5px;align-items:center;margin-bottom:6px">
+      <input value="${item.name||''}" placeholder="說明（如：運費補差）" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)"
+        onchange="updateScField('${o.order_id||o.id}',${idx},'name',this.value)">
+      <input type="number" value="${item.weight||''}" placeholder="克" min="0" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);width:100%"
+        onchange="calcScWeight('${o.order_id||o.id}',${idx},this.value)">
+      <input type="number" value="${item.amount||0}" placeholder="NT$" min="0" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);width:100%"
+        onchange="updateScField('${o.order_id||o.id}',${idx},'amount',parseInt(this.value)||0)">
+      <button onclick="removeScItem('${o.order_id||o.id}',${idx})" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center">×</button>
+    </div>`).join('') +
+    `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">← 說明 | 重量(g) | 金額(NT$)</div>`;
+  updateScTotal(o);
+}
+
+function addScItem(oid) {
+  const o = getOrder(oid);
+  if (!o) return;
+  if (!o.surcharge_items) o.surcharge_items = [];
+  o.surcharge_items.push({ name:'', weight:'', amount:0 });
+  if (!o.surcharge_status || o.surcharge_status==='none') o.surcharge_status = 'pending';
+  renderScItems(o); saveScData(oid);
+}
+
+function addScByWeight(oid) {
+  const o = getOrder(oid);
+  if (!o) return;
+  const rate = getRate();
+  const weight = prompt('輸入包裹重量（公克）：');
+  if (!weight || isNaN(parseFloat(weight))) return;
+  const w = parseFloat(weight);
+  const amt = Math.ceil(w * rate);
+  if (!o.surcharge_items) o.surcharge_items = [];
+  o.surcharge_items.push({ name:`運費補差（${w}g × ${rate}NT$/g）`, weight:w, amount:amt });
+  if (!o.surcharge_status || o.surcharge_status==='none') o.surcharge_status = 'pending';
+  renderScItems(o); saveScData(oid);
+  showToast(`已新增二補：NT$ ${amt.toLocaleString()}`);
+}
+
+function calcScWeight(oid, idx, val) {
+  const o = getOrder(oid);
+  if (!o || !o.surcharge_items) return;
+  const rate = getRate();
+  const w = parseFloat(val) || 0;
+  o.surcharge_items[idx].weight = w;
+  if (w > 0) o.surcharge_items[idx].amount = Math.ceil(w * rate);
+  renderScItems(o); saveScData(oid);
+}
+
+function updateScField(oid, idx, field, val) {
+  const o = getOrder(oid);
+  if (!o || !o.surcharge_items) return;
+  o.surcharge_items[idx][field] = field==='amount' ? (parseInt(val)||0) : val;
+  updateScTotal(o); saveScData(oid);
+}
+
+function removeScItem(oid, idx) {
+  const o = getOrder(oid);
+  if (!o || !o.surcharge_items) return;
+  o.surcharge_items.splice(idx, 1);
+  renderScItems(o); saveScData(oid);
+}
+
+function updateScTotal(o) {
+  const total = (o.surcharge_items||[]).reduce((s,i)=>s+(parseInt(i.amount)||0), 0);
+  o.surcharge_total = total;
+  const key = (o.order_id||String(o.id)||'').replace(/[^a-zA-Z0-9]/g,'');
+  const el = document.getElementById('sc-tot-' + key);
+  if (el) el.textContent = 'NT$ ' + total.toLocaleString();
+}
+
+async function updateScStatus(oid, val) {
+  const o = getOrder(oid);
+  if (!o) return;
+  o.surcharge_status = val;
+  await saveScData(oid);
+  renderSurcharge();
+}
+
+async function saveScData(oid) {
+  const o = getOrder(oid);
+  if (!o) return;
+  const total = (o.surcharge_items||[]).reduce((s,i)=>s+(parseInt(i.amount)||0), 0);
+  o.surcharge_total = total;
+  try {
+    await sb.from('orders').update({
+      surcharge_items: JSON.stringify(o.surcharge_items||[]),
+      surcharge_total: total,
+      surcharge_status: o.surcharge_status || 'none'
+    }).eq('order_id', o.order_id || String(o.id));
+  } catch(e) { console.warn('saveScData error:', e); }
+}
+
+function getOrder(oid) {
+  return orders.find(x => (x.order_id||String(x.id)) === String(oid) || String(x.id) === String(oid));
+}
+
+// ── 二補總表 ──────────────────────────────────────────────
+function renderSurcharge() {
+  const ft = document.getElementById('sc-filter')?.value || '';
+  const kw = (document.getElementById('sc-search')?.value || '').toLowerCase();
+  let list = orders.filter(o => (o.surcharge_items||[]).length > 0 || (o.surcharge_status && o.surcharge_status!=='none'));
+  if (ft) list = list.filter(o => (o.surcharge_status||'none') === ft);
+  if (kw) list = list.filter(o => (o.order_id||'').toLowerCase().includes(kw)||(o.customer_name||'').includes(kw));
+
+  const pending = orders.filter(o => o.surcharge_status==='pending');
+  const paid = orders.filter(o => o.surcharge_status==='paid');
+  document.getElementById('sc-cnt-pending').textContent = pending.length;
+  document.getElementById('sc-sum-pending').textContent = 'NT$ ' + pending.reduce((s,o)=>s+(o.surcharge_total||0),0).toLocaleString();
+  document.getElementById('sc-cnt-paid').textContent = paid.length;
+  document.getElementById('sc-sum-paid').textContent = 'NT$ ' + paid.reduce((s,o)=>s+(o.surcharge_total||0),0).toLocaleString();
+
+  const el = document.getElementById('surcharge-list');
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有二補記錄</div>'; return; }
+  el.innerHTML = list.map(o => {
+    const st = o.surcharge_status || 'none';
+    const items = o.surcharge_items || [];
+    const itemsHtml = items.length
+      ? items.map(i=>`<div style="font-size:12px;color:var(--muted)">${i.name||'補差'}${i.weight?` (${i.weight}g)`:''} <span style="color:var(--dark);font-weight:600">NT$ ${(i.amount||0).toLocaleString()}</span></div>`).join('')
+      : '<div style="font-size:12px;color:var(--muted)">—</div>';
+    return `<div style="display:grid;grid-template-columns:88px 88px 90px 1fr 76px 76px 76px 100px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:start">
+      <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}</span>
+      <span>${o.customer_name||''}</span>
+      <span style="font-size:12px;color:var(--muted)">${o.phone||''}</span>
+      <div>${itemsHtml}</div>
+      <span style="font-weight:700;color:var(--brown)">NT$ ${(o.surcharge_total||0).toLocaleString()}</span>
+      <span style="font-size:12px;color:var(--muted)">${o.store_no||'—'}</span>
+      <span><span class="badge ${SC_CLS[st]||''}">${SC_LABEL[st]||st}</span></span>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${st==='pending'?`<button onclick="updateScStatus('${o.order_id||o.id}','paid')" style="padding:4px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">標記已收</button>`:''}
+        ${st==='paid'?`<button onclick="updateScStatus('${o.order_id||o.id}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">取消已收</button>`:''}
+        ${st!=='waived'?`<button onclick="updateScStatus('${o.order_id||o.id}','waived')" style="padding:4px 8px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">減免</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function exportSurchargeExcel() {
+  if (!window.XLSX) { showToast('請稍後再試'); return; }
+  const stMap = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
+  const rows = [['訂單號','客戶姓名','電話','超商店號','二補說明','重量(g)','金額(NT$)','二補合計','狀態']];
+  orders.filter(o=>(o.surcharge_items||[]).length>0||(o.surcharge_status&&o.surcharge_status!=='none')).forEach(o=>{
+    const items = o.surcharge_items||[];
+    if (!items.length) {
+      rows.push([o.order_id||o.id,o.customer_name||'',o.phone||'',o.store_no||'','—','',0,0,stMap[o.surcharge_status||'none']]);
+    } else {
+      items.forEach((item,i)=>{
+        rows.push([i===0?(o.order_id||o.id):'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.store_no||''):'',item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
+      });
+    }
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[12,12,13,10,22,8,10,10,8].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '二補總表');
+  XLSX.writeFile(wb, `星光代購_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
+  showToast('二補 Excel 已下載！');
 }
 
 </script>
