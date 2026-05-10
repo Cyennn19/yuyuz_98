@@ -620,6 +620,7 @@ function renderOrders() {
   }).join('');
 }
 function buildOrderDetail(o) {
+  const key = (o.order_id||String(o.id)||'').replace(/[^a-zA-Z0-9]/g,'');
   const { arr, tot } = orderProgress(o);
   const iHtml = o.items.map(i => {
     const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
