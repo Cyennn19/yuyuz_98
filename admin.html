@@ -58,7 +58,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .bw{background:var(--amber-bg);color:var(--amber)}
 .bp{background:var(--purple-bg);color:var(--purple)}
 .ba{background:#e1f5ee;color:#0f6e56}
-.bs{background:var(--green-bg);color:var(--green)}
+.bs{background:var(--green-bg);color:var(--green)}.bca{background:#f5f5f5;color:#999;text-decoration:line-through}
 .bpr{background:var(--blue-bg);color:var(--blue)}
 
 /* ORDERS TABLE */
@@ -270,8 +270,10 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
           <option value="waiting">等待到貨</option>
           <option value="partial">部分到貨</option>
           <option value="arrived">已到貨</option>
+          <option value="partial_shipped">部分出貨</option>
           <option value="shipped">已出貨</option>
           <option value="processing">處理中</option>
+          <option value="cancelled">已取消</option>
         </select>
         <button class="new-btn" onclick="loadOrders()">重新整理</button>
         <button class="new-btn" style="background:#185fa5" onclick="exportExcel()">匯出 Excel</button>
@@ -287,9 +289,11 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div style="font-size:15px;font-weight:700;color:var(--dark)">登記到貨數量</div>
       <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)">
-        二補費率：每公克
-        <input type="number" id="arrival-rate" value="3" min="0" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
+        二補費率：每公斤
+        <input type="number" id="arrival-rate" value="3" min="0" step="0.001" placeholder="0.0" style="width:68px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
         NT$
+        <button onclick="confirmRate('arrival')" style="padding:5px 11px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">確認費率</button>
+        <span id="arrival-rate-confirm" style="font-size:12px;color:var(--green);display:none">✓ 已套用</span>
       </div>
     </div>
       <div class="apl" id="apl"></div>
@@ -320,9 +324,11 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
           <div style="font-size:12px;color:var(--muted);margin-top:2px">列出所有有二補金額的訂單</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span style="font-size:13px;color:var(--muted)">費率：每公克</span>
+          <span style="font-size:13px;color:var(--muted)">費率：每公斤</span>
           <input type="number" id="rate-per-gram" value="3" min="0" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
           <span style="font-size:13px;color:var(--muted)">NT$</span>
+          <button onclick="confirmRate('surcharge')" style="padding:6px 12px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">確認費率</button>
+          <span id="surcharge-rate-confirm" style="font-size:12px;color:var(--green);display:none">✓ 已套用</span>
           <button class="new-btn" style="background:#185fa5" onclick="exportSurchargeExcel()">匯出 Excel</button>
         </div>
       </div>
@@ -562,10 +568,14 @@ async function loadCustomers() {
 
 // ── 到貨狀態 ──────────────────────────────────────────────
 function getArrivalStatus(o) {
-  if (o.status === 'shipped') return 'shipped';
+  if (o.status === 'cancelled') return 'cancelled';
   if (o.status === 'processing') return 'processing';
-  const allDone = o.items.every(i => i.arrivedQty >= i.qty);
-  if (allDone) return 'arrived';
+  const allShipped = o.items.length > 0 && o.items.every(i => (i.shippedQty||0) >= i.qty);
+  if (allShipped) return 'shipped';
+  const anyShipped = o.items.some(i => (i.shippedQty||0) > 0);
+  if (anyShipped) return 'partial_shipped';
+  const allArrived = o.items.every(i => i.arrivedQty >= i.qty);
+  if (allArrived) return 'arrived';
   const anyArrived = o.items.some(i => i.arrivedQty > 0);
   if (anyArrived) return 'partial';
   return 'waiting';
@@ -575,8 +585,8 @@ function orderProgress(o) {
   const tot = o.items.reduce((s, i) => s + i.qty, 0);
   return { arr, tot };
 }
-const SL = { waiting:'等待到貨', partial:'部分到貨', arrived:'已到貨', shipped:'已出貨', processing:'處理中' };
-const SC = { waiting:'bw', partial:'bp', arrived:'ba', shipped:'bs', processing:'bpr' };
+const SL = { waiting:'等待到貨', partial:'部分到貨', arrived:'已到貨', partial_shipped:'部分出貨', shipped:'已出貨', processing:'處理中', cancelled:'已取消' };
+const SC = { waiting:'bw', partial:'bp', arrived:'ba', partial_shipped:'bpr', shipped:'bs', processing:'bpr', cancelled:'bca' };
 
 function totalStock(p) { return (p.specs||[]).reduce((s, sp) => s + sp.stock, 0); }
 
@@ -593,8 +603,9 @@ function renderOrders() {
     ['等待到貨', all.filter(s=>s==='waiting').length],
     ['部分到貨', all.filter(s=>s==='partial').length],
     ['已到貨', all.filter(s=>s==='arrived').length],
+    ['部分出貨', all.filter(s=>s==='partial_shipped').length],
     ['已出貨', all.filter(s=>s==='shipped').length],
-    ['處理中', all.filter(s=>s==='processing').length],
+    ['已取消', all.filter(s=>s==='cancelled').length],
   ].map(([l,v]) => `<div class="sc"><div class="sl">${l}</div><div class="sv">${v}</div></div>`).join('');
   if (ft) list = list.filter(o => getArrivalStatus(o) === ft);
   const body = document.getElementById('order-list');
@@ -614,7 +625,7 @@ function renderOrders() {
       <span>NT$ ${(o.amount||0).toLocaleString()}</span>
       <span><span class="badge ${SC[st]}">${arr}/${tot}</span></span>
       <span style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${st==='arrived'||st==='shipped'?'#1d9e75':'#ef9f27'};width:${pct}%"></div></div></span>
-      <span onclick="event.stopPropagation()"><select class="status-sel" onchange="changeOrderStatus('${o.order_id||o.id}',this.value)"><option value="" disabled selected>—</option><option value="shipped"${st==='shipped'?' selected':''}>已出貨</option><option value="processing"${st==='processing'?' selected':''}>處理中</option></select></span>
+      <span onclick="event.stopPropagation()"><select class="status-sel" onchange="changeOrderStatus('${o.order_id||o.id}',this.value)"><option value="" disabled selected>—</option><option value="shipped"${st==='shipped'?' selected':''}>已出貨</option><option value="processing"${st==='processing'?' selected':''}>處理中</option><option value="cancelled"${st==='cancelled'?' selected':''}>已取消</option></select></span>
     </div>
     <div class="order-detail" id="odet-${key}">${detHtml}</div>`;
   }).join('');
@@ -622,14 +633,31 @@ function renderOrders() {
 function buildOrderDetail(o) {
   const key = (o.order_id||String(o.id)||'').replace(/[^a-zA-Z0-9]/g,'');
   const { arr, tot } = orderProgress(o);
-  const iHtml = o.items.map(i => {
+  const iHtml = o.items.map((i, iIdx) => {
     const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
-    const dotCls = i.arrivedQty >= i.qty ? 'dot-ok' : i.arrivedQty > 0 ? 'dot-part' : 'dot-wait';
-    return `<div class="item-prog-row">
-      <span class="dot ${dotCls}"></span>
-      <span style="flex:1">${i.product}（${i.spec}）× ${i.qty}</span>
-      <div class="prog-bar-wrap"><div class="prog-bar" style="background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></div></div>
-      <span style="font-size:11px;min-width:40px;text-align:right">${i.arrivedQty}/${i.qty}</span>
+    const shippedQty = i.shippedQty || 0;
+    const spct = i.qty > 0 ? Math.round(shippedQty / i.qty * 100) : 0;
+    const dotCls = shippedQty >= i.qty ? 'dot-ok' : i.arrivedQty >= i.qty ? 'dot-part' : 'dot-wait';
+    const oidStr = o.order_id || String(o.id);
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--dark);margin-bottom:5px">
+        <span class="dot ${dotCls}"></span>
+        <span style="flex:1;${i.cancelled?'text-decoration:line-through;color:var(--muted)':''}">${i.product}（${i.spec}）× ${i.qty}${i.cancelled?' [已取消]':''}</span>
+        <span style="color:var(--brown);font-weight:600;white-space:nowrap">NT$ ${(i.price*i.qty).toLocaleString()}</span>
+      </div>
+      <div style="margin-left:14px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+          <span style="min-width:24px">到貨</span>
+          <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:#ef9f27;width:${ipct}%"></div></div>
+          <span style="min-width:28px;text-align:right">${i.arrivedQty}/${i.qty}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+          <span style="min-width:24px">出貨</span>
+          <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:#1d9e75;width:${spct}%"></div></div>
+          <span style="min-width:28px;text-align:right">${shippedQty}/${i.qty}</span>
+          ${i.cancelled ? '<span style="color:var(--muted);font-size:11px;text-decoration:line-through">已取消</span>' : shippedQty < i.qty ? `<button onclick="shipItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">標記出貨</button><button onclick="cancelItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:#fcebeb;color:var(--red);border:none;border-radius:5px;font-size:11px;cursor:pointer;margin-left:3px">取消此項</button>` : '<span style="color:var(--green);font-size:11px;font-weight:600">✓ 已出貨</span>'}
+        </div>
+      </div>
     </div>`;
   }).join('');
   setTimeout(() => renderScItems(o), 80);
@@ -669,7 +697,11 @@ function buildOrderDetail(o) {
         </select>
       </div>
     </div>
-  </div`;
+  </div>
+  <div class="det-actions" style="padding:0 14px 12px;display:flex;gap:6px;flex-wrap:wrap">
+    <button class="edit-btn" onclick="openAddItemModal('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--brown);border-color:var(--brown)">+ 補加商品</button>
+    ${o.status !== 'cancelled' ? `<button class="edit-btn" onclick="cancelOrder('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--red);border-color:var(--red)">取消訂單</button>` : '<span style="color:var(--muted);font-size:12px;padding:5px 0">此訂單已取消</span>'}
+  </div>`;
 }
 function toggleOrder(key) {
   const row = document.getElementById('otr-' + key);
@@ -690,7 +722,7 @@ async function changeOrderStatus(oid, val) {
 }
 
 // ── 到貨配貨 ──────────────────────────────────────────────
-async function processArrival(pid, specName, inputId, resultId) {
+async function processArrival(pid, specName, inputId, resultId, weightId) {
   const p = products.find(x => x.id == pid);
   const n = parseInt(document.getElementById(inputId).value);
   if (!p || !n || n <= 0) return;
@@ -719,6 +751,26 @@ async function processArrival(pid, specName, inputId, resultId) {
   r.style.display = 'inline'; r.style.color = 'var(--green)';
   r.textContent = log.length > 0 && rem > 0 ? `配給 ${log.length} 筆，剩餘 ${rem} 入庫` : log.length > 0 ? `已配給 ${log.length} 筆：${log.join('、')}` : `全數入庫 ${n} 件，無待配訂單`;
   setTimeout(() => { r.style.display = 'none'; }, 4000);
+  // 自動計算二補
+  if (weightId) {
+    const wEl = document.getElementById(weightId);
+    const kg = parseFloat(wEl ? wEl.value : 0) || 0;
+    if (kg > 0 && log.length > 0) {
+      const rate = parseFloat(document.getElementById('arrival-rate')?.value || 3);
+      const amt = Math.ceil(kg * rate);
+      // 為每個配到的訂單新增二補
+      for (const oid of log.map(l => l.split(' ')[0])) {
+        const o = getOrder(oid);
+        if (!o) continue;
+        if (!o.surcharge_items) o.surcharge_items = [];
+        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt });
+        if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
+        await saveScData(oid);
+      }
+      if (wEl) wEl.value = '';
+      showToast(`已自動新增二補：NT$ ${amt.toLocaleString()}`);
+    }
+  }
   renderOrders(); renderArrival(); renderInventory();
 }
 
@@ -731,7 +783,7 @@ function renderArrival() {
     const rows = (p.specs||[]).map((sp, si) => {
       const swq = needItems.filter(i => i.spec === sp.name).reduce((s, i) => s + i.still, 0);
       const iid = `si-${p.id}-${si}`, rid = `sr-${p.id}-${si}`;
-      return `<div class="spr"><span class="spn">${sp.name}</span><div class="sp-stat"><span>${sp.stock}</span>現有庫存</div><div class="sp-wait"><span style="color:${swq>0?'var(--amber)':'var(--muted)'}">${swq}</span>待配件數</div><div class="sp-inp-wrap"><input class="sp-inp" id="${iid}" type="number" min="1" placeholder="到貨數"><button class="sp-btn" onclick="processArrival(${p.id},'${sp.name.replace(/'/g,"\\'")}','${iid}','${rid}')">確認到貨</button><span class="sp-res" id="${rid}"></span></div></div>`;
+      return `<div class="spr"><span class="spn">${sp.name}</span><div class="sp-stat"><span>${sp.stock}</span>現有庫存</div><div class="sp-wait"><span style="color:${swq>0?'var(--amber)':'var(--muted)'}">${swq}</span>待配件數</div><div class="sp-inp-wrap"><input class="sp-inp" id="${iid}" type="number" min="1" placeholder="到貨數" style="width:60px"><input class="sp-inp" id="sw-${p.id}-${si}" type="number" min="0" step="0.001" placeholder="kg" style="width:58px" title="重量(kg)，自動計算二補"><button class="sp-btn" onclick="processArrival(${p.id},\'${sp.name.replace(/\'/g,\"\\\'\")}\',\'${iid}\',\'${rid}\',\'sw-${p.id}-${si}\')">確認到貨</button><span class="sp-res" id="${rid}"></span></div></div>`;
     }).join('');
     return `<div class="apc"><div class="apch" onclick="toa('${pid}')"><span style="font-size:16px">${p.emoji||'📦'}</span><span class="apcn">${p.name}</span><span style="font-size:12px;color:var(--muted)">${twq>0?'還差 '+twq+' 件':'無待配訂單'}</span><span id="tog-${pid}">▶</span></div><div class="apcb" id="${pid}"><div class="sph"><span>規格</span><span style="text-align:center">現有庫存</span><span style="text-align:center">待配件數</span><span>登記到貨</span></div>${rows}</div></div>`;
   }).join('');
@@ -1144,8 +1196,8 @@ function removeDetailImg(idx) {
 
 
 // ── 二補功能 ──────────────────────────────────────────────
-const SC_LABEL = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
-const SC_CLS = { none:'', pending:'bw', paid:'bs', waived:'bpr' };
+const SC_LABEL = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' }; // surcharge labels
+const SC_CLS = { none:'', pending:'bw', paid:'bs', waived:'bpr' }; // surcharge classes
 
 function getRate() {
   return parseFloat(
@@ -1167,13 +1219,13 @@ function renderScItems(o) {
     <div style="display:grid;grid-template-columns:1fr 72px 80px 26px;gap:5px;align-items:center;margin-bottom:6px">
       <input value="${item.name||''}" placeholder="說明（如：運費補差）" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)"
         onchange="updateScField('${o.order_id||o.id}',${idx},'name',this.value)">
-      <input type="number" value="${item.weight||''}" placeholder="克" min="0" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);width:100%"
+      <input type="number" value="${item.weight||''}" placeholder="公斤" min="0" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);width:100%"
         onchange="calcScWeight('${o.order_id||o.id}',${idx},this.value)">
       <input type="number" value="${item.amount||0}" placeholder="NT$" min="0" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);width:100%"
         onchange="updateScField('${o.order_id||o.id}',${idx},'amount',parseInt(this.value)||0)">
       <button onclick="removeScItem('${o.order_id||o.id}',${idx})" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center">×</button>
     </div>`).join('') +
-    `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">← 說明 | 重量(g) | 金額(NT$)</div>`;
+    `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">← 說明 | 重量(kg) | 金額(NT$)</div>`;
   updateScTotal(o);
 }
 
@@ -1190,12 +1242,12 @@ function addScByWeight(oid) {
   const o = getOrder(oid);
   if (!o) return;
   const rate = getRate();
-  const weight = prompt('輸入包裹重量（公克）：');
+  const weight = prompt('輸入包裹重量（公斤）：');
   if (!weight || isNaN(parseFloat(weight))) return;
   const w = parseFloat(weight);
   const amt = Math.ceil(w * rate);
   if (!o.surcharge_items) o.surcharge_items = [];
-  o.surcharge_items.push({ name:`運費補差（${w}g × ${rate}NT$/g）`, weight:w, amount:amt });
+  o.surcharge_items.push({ name:`運費補差（${w}kg × ${rate}NT$/g）`, weight:w, amount:amt });
   if (!o.surcharge_status || o.surcharge_status==='none') o.surcharge_status = 'pending';
   renderScItems(o); saveScData(oid);
   showToast(`已新增二補：NT$ ${amt.toLocaleString()}`);
@@ -1302,7 +1354,7 @@ function renderSurcharge() {
 function exportSurchargeExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
   const stMap = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
-  const rows = [['訂單號','客戶姓名','電話','超商店號','二補說明','重量(g)','金額(NT$)','二補合計','狀態']];
+  const rows = [['訂單號','客戶姓名','電話','超商店號','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
   orders.filter(o=>(o.surcharge_items||[]).length>0||(o.surcharge_status&&o.surcharge_status!=='none')).forEach(o=>{
     const items = o.surcharge_items||[];
     if (!items.length) {
@@ -1319,6 +1371,135 @@ function exportSurchargeExcel() {
   XLSX.utils.book_append_sheet(wb, ws, '二補總表');
   XLSX.writeFile(wb, `星光代購_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
   showToast('二補 Excel 已下載！');
+}
+
+
+// ── 部分出貨 ──────────────────────────────────────────────
+async function shipItem(oid, itemIdx) {
+  const o = getOrder(oid);
+  if (!o) return;
+  const item = o.items[itemIdx];
+  if (!item) return;
+  if ((item.shippedQty||0) >= item.qty) { showToast('此項目已全部出貨'); return; }
+  item.shippedQty = item.qty; // 整筆標記出貨
+  try {
+    await sb.from('orders').update({ items: JSON.stringify(o.items) }).eq('order_id', o.order_id || String(o.id));
+  } catch(e) { console.warn(e); }
+  showToast(`${item.product}（${item.spec}）已標記出貨`);
+  renderOrders(); renderArrival();
+}
+
+// ── 取消訂單 ──────────────────────────────────────────────
+async function cancelOrder(oid) {
+  if (!confirm('確定要取消這筆訂單嗎？')) return;
+  const o = getOrder(oid);
+  if (!o) return;
+  o.status = 'cancelled';
+  try {
+    await sb.from('orders').update({ status: 'cancelled' }).eq('order_id', o.order_id || String(o.id));
+  } catch(e) { console.warn(e); }
+  showToast('訂單已取消');
+  renderOrders(); renderArrival();
+}
+
+// ── 補加商品到訂單 ─────────────────────────────────────────
+function openAddItemModal(oid) {
+  const o = getOrder(oid);
+  if (!o) return;
+  // 建立一個簡易 prompt 介面
+  const prodList = products.filter(p => p.online);
+  if (!prodList.length) { showToast('目前沒有上架商品'); return; }
+  // 用 select 選商品
+  let html = '<div style="position:fixed;inset:0;background:rgba(44,32,24,0.45);z-index:300;display:flex;align-items:center;justify-content:center" id="add-item-overlay" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:#fff;border-radius:14px;padding:20px;width:380px;max-width:95vw">';
+  html += '<div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:14px">補加商品到訂單</div>';
+  html += '<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">選擇商品</label>';
+  html += '<select id="add-item-prod" onchange="updateAddItemSpecs()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">';
+  html += prodList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  html += '</select></div>';
+  html += '<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">規格</label>';
+  html += '<select id="add-item-spec" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">';
+  const firstProd = prodList[0];
+  html += (firstProd.specs||[]).map(s => `<option value="${s.name}" data-price="${s.price}">${s.name} — NT$ ${s.price.toLocaleString()}</option>`).join('');
+  html += '</select></div>';
+  html += '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">數量</label>';
+  html += '<input type="number" id="add-item-qty" value="1" min="1" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>';
+  html += '<div style="display:flex;gap:8px;justify-content:flex-end">';
+  html += '<button onclick="document.getElementById('add-item-overlay').remove()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">取消</button>';
+  html += `<button onclick="confirmAddItem('${oid}')" style="padding:8px 16px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">確認新增</button>`;
+  html += '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function updateAddItemSpecs() {
+  const pid = document.getElementById('add-item-prod')?.value;
+  const p = products.find(x => String(x.id) === String(pid));
+  const sel = document.getElementById('add-item-spec');
+  if (!p || !sel) return;
+  sel.innerHTML = (p.specs||[]).map(s => `<option value="${s.name}" data-price="${s.price}">${s.name} — NT$ ${s.price.toLocaleString()}</option>`).join('');
+}
+
+async function confirmAddItem(oid) {
+  const o = getOrder(oid);
+  if (!o) return;
+  const pid = document.getElementById('add-item-prod')?.value;
+  const p = products.find(x => String(x.id) === String(pid));
+  const specSel = document.getElementById('add-item-spec');
+  const specName = specSel?.value;
+  const specObj = p?.specs.find(s => s.name === specName);
+  const qty = parseInt(document.getElementById('add-item-qty')?.value) || 1;
+  if (!p || !specObj) return;
+  o.items.push({
+    productId: p.id, product: p.name, spec: specName,
+    qty, price: specObj.price, arrivedQty: 0, shippedQty: 0
+  });
+  o.amount += specObj.price * qty;
+  try {
+    await sb.from('orders').update({ items: JSON.stringify(o.items), amount: o.amount }).eq('order_id', o.order_id || String(o.id));
+  } catch(e) { console.warn(e); }
+  document.getElementById('add-item-overlay')?.remove();
+  showToast(`已補加：${p.name}（${specName}）× ${qty}`);
+  renderOrders(); renderArrival();
+}
+
+
+// ── 費率確認 ──────────────────────────────────────────────
+function confirmRate(source) {
+  const inputId = source === 'arrival' ? 'arrival-rate' : 'rate-per-gram';
+  const confirmId = source === 'arrival' ? 'arrival-rate-confirm' : 'surcharge-rate-confirm';
+  const val = parseFloat(document.getElementById(inputId)?.value);
+  if (!val || val <= 0) { showToast('請輸入有效的費率'); return; }
+  // 同步兩個費率輸入框
+  const otherId = source === 'arrival' ? 'rate-per-gram' : 'arrival-rate';
+  const otherEl = document.getElementById(otherId);
+  if (otherEl) otherEl.value = val;
+  const confirmEl = document.getElementById(confirmId);
+  if (confirmEl) {
+    confirmEl.style.display = 'inline';
+    setTimeout(() => { confirmEl.style.display = 'none'; }, 2000);
+  }
+  showToast(`費率已設定：每公斤 NT$ ${val}`);
+}
+
+// ── 取消單件商品規格 ──────────────────────────────────────
+async function cancelItem(oid, itemIdx) {
+  const o = getOrder(oid);
+  if (!o) return;
+  const item = o.items[itemIdx];
+  if (!item) return;
+  if (item.cancelled) { showToast('此項目已取消'); return; }
+  if (!confirm(`確定取消「${item.product}（${item.spec}）× ${item.qty}」？`)) return;
+  item.cancelled = true;
+  // 重新計算訂單金額（排除已取消項目）
+  o.amount = o.items.filter(i => !i.cancelled).reduce((s, i) => s + i.price * i.qty, 0);
+  try {
+    await sb.from('orders').update({
+      items: JSON.stringify(o.items),
+      amount: o.amount
+    }).eq('order_id', o.order_id || String(o.id));
+  } catch(e) { console.warn(e); }
+  showToast(`已取消：${item.product}（${item.spec}）`);
+  renderOrders(); renderArrival();
 }
 
 </script>
