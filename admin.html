@@ -544,7 +544,11 @@ async function loadProducts() {
 async function loadOrders() {
   try {
     const { data } = await sb.from('orders').select('*').order('created_at', { ascending: false });
-    orders = (data || []).map(o => ({ ...o, items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []) }));
+    orders = (data || []).map(o => ({
+      ...o,
+      items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
+      surcharge_items: typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || [])
+    }));
   } catch(e) {
     orders = [
       {id:1,order_id:'ORD-DEMO1',items:[{productId:1,product:'TWICE 官方手燈',spec:'豪華版',qty:3,price:1500,arrivedQty:1}],customer_name:'陳小美',phone:'0912-345-678',email:'demo@email.com',amount:4500,status:'',store:'全家 台南中正門市',store_no:'123456',ig:'@xiao_mei',line_nickname:'小美',note:'',created_at:new Date(Date.now()-3600000).toISOString()},
@@ -762,7 +766,8 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
       for (const oid of log.map(l => l.split(' ')[0])) {
         const o = getOrder(oid);
         if (!o) continue;
-        if (!o.surcharge_items) o.surcharge_items = [];
+        if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+        if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
         o.surcharge_items.push({ name: `${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt });
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         await saveScData(oid);
@@ -1210,7 +1215,8 @@ function renderScItems(o) {
   const key = (o.order_id||String(o.id)||'').replace(/[^a-zA-Z0-9]/g,'');
   const el = document.getElementById('sc-items-' + key);
   if (!el) return;
-  const items = o.surcharge_items || [];
+  const items = typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []);
+  o.surcharge_items = items;
   if (!items.length) {
     el.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">尚未設定二補項目</div>';
     return;
@@ -1232,7 +1238,8 @@ function renderScItems(o) {
 function addScItem(oid) {
   const o = getOrder(oid);
   if (!o) return;
-  if (!o.surcharge_items) o.surcharge_items = [];
+  if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+  if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
   o.surcharge_items.push({ name:'', weight:'', amount:0 });
   if (!o.surcharge_status || o.surcharge_status==='none') o.surcharge_status = 'pending';
   renderScItems(o); saveScData(oid);
@@ -1246,7 +1253,8 @@ function addScByWeight(oid) {
   if (!weight || isNaN(parseFloat(weight))) return;
   const w = parseFloat(weight);
   const amt = Math.ceil(w * rate);
-  if (!o.surcharge_items) o.surcharge_items = [];
+  if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+  if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
   o.surcharge_items.push({ name:`運費補差（${w}kg × ${rate}NT$/g）`, weight:w, amount:amt });
   if (!o.surcharge_status || o.surcharge_status==='none') o.surcharge_status = 'pending';
   renderScItems(o); saveScData(oid);
@@ -1296,6 +1304,8 @@ async function updateScStatus(oid, val) {
 async function saveScData(oid) {
   const o = getOrder(oid);
   if (!o) return;
+  if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+  if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
   const total = (o.surcharge_items||[]).reduce((s,i)=>s+(parseInt(i.amount)||0), 0);
   o.surcharge_total = total;
   try {
@@ -1330,7 +1340,7 @@ function renderSurcharge() {
   if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有二補記錄</div>'; return; }
   el.innerHTML = list.map(o => {
     const st = o.surcharge_status || 'none';
-    const items = o.surcharge_items || [];
+    const items = typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []);
     const itemsHtml = items.length
       ? items.map(i=>`<div style="font-size:12px;color:var(--muted)">${i.name||'補差'}${i.weight?` (${i.weight}g)`:''} <span style="color:var(--dark);font-weight:600">NT$ ${(i.amount||0).toLocaleString()}</span></div>`).join('')
       : '<div style="font-size:12px;color:var(--muted)">—</div>';
