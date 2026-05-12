@@ -783,7 +783,7 @@ function renderArrival() {
     const rows = (p.specs||[]).map((sp, si) => {
       const swq = needItems.filter(i => i.spec === sp.name).reduce((s, i) => s + i.still, 0);
       const iid = `si-${p.id}-${si}`, rid = `sr-${p.id}-${si}`;
-      return `<div class="spr"><span class="spn">${sp.name}</span><div class="sp-stat"><span>${sp.stock}</span>現有庫存</div><div class="sp-wait"><span style="color:${swq>0?'var(--amber)':'var(--muted)'}">${swq}</span>待配件數</div><div class="sp-inp-wrap"><input class="sp-inp" id="${iid}" type="number" min="1" placeholder="到貨數" style="width:60px"><input class="sp-inp" id="sw-${p.id}-${si}" type="number" min="0" step="0.001" placeholder="kg" style="width:58px" title="重量(kg)，自動計算二補"><button class="sp-btn" onclick="processArrival(${p.id},\'${sp.name.replace(/\'/g,\"\\\'\")}\',\'${iid}\',\'${rid}\',\'sw-${p.id}-${si}\')">確認到貨</button><span class="sp-res" id="${rid}"></span></div></div>`;
+      return `<div class="spr"><span class="spn">${sp.name}</span><div class="sp-stat"><span>${sp.stock}</span>現有庫存</div><div class="sp-wait"><span style="color:${swq>0?'var(--amber)':'var(--muted)'}">${swq}</span>待配件數</div><div class="sp-inp-wrap"><input class="sp-inp" id="${iid}" type="number" min="1" placeholder="到貨數" style="width:60px"><input class="sp-inp" id="sw-${p.id}-${si}" type="number" min="0" step="0.001" placeholder="kg" style="width:58px" title="重量(kg)，自動計算二補"><button class="sp-btn" onclick="processArrival(${p.id},this.dataset.spec,\'${iid}\',\'${rid}\',\'sw-${p.id}-${si}\')" data-spec="${sp.name}">確認到貨</button><span class="sp-res" id="${rid}"></span></div></div>`;
     }).join('');
     return `<div class="apc"><div class="apch" onclick="toa('${pid}')"><span style="font-size:16px">${p.emoji||'📦'}</span><span class="apcn">${p.name}</span><span style="font-size:12px;color:var(--muted)">${twq>0?'還差 '+twq+' 件':'無待配訂單'}</span><span id="tog-${pid}">▶</span></div><div class="apcb" id="${pid}"><div class="sph"><span>規格</span><span style="text-align:center">現有庫存</span><span style="text-align:center">待配件數</span><span>登記到貨</span></div>${rows}</div></div>`;
   }).join('');
@@ -1425,12 +1425,13 @@ function openAddItemModal(oid) {
   html += '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">數量</label>';
   html += '<input type="number" id="add-item-qty" value="1" min="1" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>';
   html += '<div style="display:flex;gap:8px;justify-content:flex-end">';
-  html += '<button onclick="document.getElementById('add-item-overlay').remove()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">取消</button>';
+  html += '<button onclick="closeAddItemOverlay()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">取消</button>';
   html += `<button onclick="confirmAddItem('${oid}')" style="padding:8px 16px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">確認新增</button>`;
   html += '</div></div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
+function closeAddItemOverlay() { document.getElementById('add-item-overlay')?.remove(); }
 function updateAddItemSpecs() {
   const pid = document.getElementById('add-item-prod')?.value;
   const p = products.find(x => String(x.id) === String(pid));
