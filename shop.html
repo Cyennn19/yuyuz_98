@@ -547,16 +547,16 @@ const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── 匯款帳號設定（修改這裡）──────────────────────────────
-window.BANK_ACCOUNT = 'YOUR_BANK_ACCOUNT'; // 例：玉山銀行 808-1234567890123
+window.BANK_ACCOUNT = '台新帳戶 (812)28881012375395 郵局請另外私訊索取'; // 例：玉山銀行 808-1234567890123
 
 // ── 社群連結設定（修改這裡）─────────────────────────────
 const SOCIAL = {
   lineOfficial: { url: 'https://lin.ee/SokCyx4', qrImage: 'https://qr-official.line.me/gs/M_616jbgxw_BW.png?oat_content=qr' }, // QR Code 圖片 base64 或 URL
-  lineGroup:    { url: 'https://line.me/ti/g2/PZ457ERKDgP77xHggNAKKHnwEvd_VbbHSJ45yw?utm_source=invitation&utm_medium=link_copy&utm_campaign=default',    qrImage: 'https://ibb.co/93qT86gP' },
-  ig:           { url: 'https://www.instagram.com/yuyuz_98/',            qrImage: 'https://ibb.co/WpW5xWyN' },
+  lineGroup:    { url: 'https://line.me/ti/g2/PZ457ERKDgP77xHggNAKKHnwEvd_VbbHSJ45yw?utm_source=invitation&utm_medium=link_copy&utm_campaign=default', qrImage: '<a href="https://ibb.co/93qT86gP"><img src="https://i.ibb.co/Qj6NbLQ0/xuj0-No-Vwu-Xb-LVk-Vksf-Bqosgx844-E286p-YU0-DZEy-QTteo1-ZV-5-Ymi-FBjg-GZzf-m2-IIdg-KVK-n-MI4b-ELP7-EFtc-F-D.jpg" alt="xuj0-No-Vwu-Xb-LVk-Vksf-Bqosgx844-E286p-YU0-DZEy-QTteo1-ZV-5-Ymi-FBjg-GZzf-m2-IIdg-KVK-n-MI4b-ELP7-EFtc-F-D" border="0" /></a>' },
+  ig:           { url: 'https://www.instagram.com/yuyuz_98/', qrImage: '<a href="https://imgbb.com/"><img src="https://i.ibb.co/84DsKD5n/qrcode-www-instagram-com.png" alt="qrcode-www-instagram-com" border="0" /></a>' },
 };
 // LOGO 圖片設定
-const LOGO_IMAGE = 'https://ibb.co/KjmR0Y6q'; // 填入圖片 URL 或 base64
+const LOGO_IMAGE = '<a href="https://ibb.co/KjmR0Y6q"><img src="https://i.ibb.co/275mnwqt/IG.png" alt="IG" border="0" /></a>'; // 填入圖片 URL 或 base64
 
 function initBranding() {
   // 套用 LOGO
