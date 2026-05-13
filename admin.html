@@ -153,7 +153,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .cust-amt{font-size:14px;font-weight:700;color:var(--brown)}
 .cust-orders{display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
 .cust-orders.open{display:block}
-.co-row{font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px}
+.co-row{font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .co-row:last-child{border-bottom:none}
 
 /* PRODUCT MANAGEMENT */
@@ -251,6 +251,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <button class="at active" onclick="sw('orders')">訂單管理</button>
         <button class="at" onclick="sw('arrival')">到貨配貨</button>
         <button class="at" onclick="sw('surcharge')">二補總表</button>
+        <button class="at" onclick="sw('discount')">折扣碼</button>
         <button class="at" onclick="sw('inventory')">庫存</button>
         <button class="at" onclick="sw('customers')">客戶</button>
         <button class="at" onclick="sw('products')">商品管理</button>
@@ -365,6 +366,71 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
       <div class="inv-grid" id="inv-grid"></div>
     </div>
 
+
+    <!-- 折扣碼管理 -->
+    <div class="pg" id="pg-discount">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark)">折扣碼管理</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">管理所有折扣碼和專屬優惠</div>
+        </div>
+        <button class="new-btn" onclick="openDiscountModal()">+ 新增折扣碼</button>
+      </div>
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+        <div class="sc"><div class="sl">總折扣碼數</div><div class="sv" id="dc-total">0</div></div>
+        <div class="sc"><div class="sl">啟用中</div><div class="sv" id="dc-active">0</div></div>
+        <div class="sc"><div class="sl">已使用次數</div><div class="sv" id="dc-used">0</div></div>
+        <div class="sc"><div class="sl">折扣總金額</div><div class="sv" id="dc-saved">NT$ 0</div></div>
+      </div>
+      <div class="otable">
+        <div style="display:grid;grid-template-columns:110px 70px 80px 1fr 80px 90px 70px 80px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em">
+          <span>折扣碼</span><span>類型</span><span>折扣金額</span><span>專屬對象</span><span>已用/上限</span><span>有效期限</span><span>狀態</span><span>操作</span>
+        </div>
+        <div id="discount-list"></div>
+      </div>
+    </div>
+
+    <!-- 折扣碼 Modal -->
+    <div class="modal-wrap" id="discount-modal">
+      <div class="modal">
+        <div class="modal-hdr"><span class="modal-title" id="dm-title">新增折扣碼</span><button class="modal-x" onclick="closeDiscountModal()">×</button></div>
+        <div class="modal-body">
+          <div class="m2col">
+            <div class="mfg"><label>折扣碼 *</label><input id="dm-code" placeholder="例：VIP88" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="mfg">
+              <label>類型</label>
+              <select id="dm-type" onchange="updateDiscountTypeUI()">
+                <option value="fixed">固定金額折扣</option>
+                <option value="assigned">專屬碼（指定客人）</option>
+              </select>
+            </div>
+          </div>
+          <div class="m2col">
+            <div class="mfg"><label>折扣金額（NT$）*</label><input type="number" id="dm-amount" placeholder="例：100" min="0"></div>
+            <div class="mfg" id="dm-assigned-wrap">
+              <label>專屬對象 <span style="font-size:11px;color:var(--muted)">（電話或 IG）</span></label>
+              <input id="dm-assigned" placeholder="留空表示所有人可用">
+            </div>
+          </div>
+          <div class="m2col">
+            <div class="mfg"><label>使用次數上限 <span style="font-size:11px;color:var(--muted)">（0 = 不限）</span></label><input type="number" id="dm-max-uses" placeholder="0" min="0" value="0"></div>
+            <div class="mfg"><label>有效期限 <span style="font-size:11px;color:var(--muted)">（留空不限）</span></label><input type="datetime-local" id="dm-valid-until"></div>
+          </div>
+          <div class="mfg">
+            <label>狀態</label>
+            <select id="dm-active">
+              <option value="true">啟用</option>
+              <option value="false">停用</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" onclick="closeDiscountModal()">取消</button>
+          <button class="btn-primary" onclick="saveDiscount()">儲存</button>
+        </div>
+      </div>
+    </div>
+
     <!-- CUSTOMERS -->
     <div class="pg" id="pg-customers">
       <div class="toolbar">
@@ -436,6 +502,14 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
           <input type="number" id="pm-end-hours" placeholder="例：72（留空不設定）" min="0" style="font-size:12px">
         </div>
       </div>
+      <div class="mfg">
+        <label>預計到貨時間 <span style="font-size:11px;color:var(--muted)">（選填，顯示在商品卡片和詳情頁）</span></label>
+        <input id="pm-delivery-time" placeholder="例：預計 3-4 週到貨 / 現貨 / 預計 2025/08 到貨">
+      </div>
+      <div class="mfg">
+        <label>⚠️ 詳情頁提醒文字 <span style="font-size:11px;color:var(--muted)">（選填，顯示在規格選擇上方）</span></label>
+        <textarea id="pm-alert-text" placeholder="例：此商品為預購商品，請確認後再下單&#10;限量商品，售完不補&#10;下單前請確認尺寸" style="min-height:72px"></textarea>
+      </div>
       <div class="msec">規格與定價</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">每個規格可設定獨立售價與庫存</div>
       <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>初始庫存</th><th>庫存 0 時</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
@@ -503,7 +577,7 @@ let categories = [], products = [], orders = [], customers = [];
 let editingProductId = null, pmPhotoData = null, renamingCatId = null, specRows = [];
 
 async function initAdmin() {
-  await Promise.all([loadCategories(), loadProducts(), loadOrders(), loadCustomers()]);
+  await Promise.all([loadCategories(), loadProducts(), loadOrders(), loadCustomers(), loadDiscountCodes()]);
   syncCatFilters();
   renderOrders();
   renderArrival();
@@ -527,7 +601,7 @@ async function loadCategories() {
 async function loadProducts() {
   try {
     const { data } = await sb.from('products').select('*').order('sort_order');
-    products = (data || []).map(p => ({ ...p, specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []) }));
+    products = (data || []).map(p => ({ ...p, specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []), delivery_time: p.delivery_time || '', alert_text: p.alert_text || '', detail_images: typeof p.detail_images === 'string' ? JSON.parse(p.detail_images||'[]') : (p.detail_images||[]) }));
   } catch(e) {
     products = [
       {id:1,cat_id:'twice',name:'TWICE 官方手燈',emoji:'✨',photo:null,specs:[{name:'標準版',price:1200,stock:8},{name:'豪華版',price:1500,stock:7}],sold:42,online:true},
@@ -563,7 +637,7 @@ async function loadOrders() {
 async function loadCustomers() {
   try {
     const { data } = await sb.from('customers').select('*').order('name');
-    customers = data || [];
+    customers = (data || []).map(c => ({ ...c, credits: c.credits || 0 }));
   } catch(e) {
     customers = [
       {phone:'0912-345-678',name:'陳小美',email:'demo@email.com'},
@@ -631,7 +705,7 @@ function renderOrders() {
       <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
       <span>NT$ ${(o.amount||0).toLocaleString()}</span>
       <span style="display:flex;flex-direction:column;gap:2px">
-        <span class="badge ${o.deposit_status==='paid'?'bs':'bw'}" style="font-size:10px">定金${o.deposit_status==='paid'?'✓':'待收'}</span>
+        <span class="badge ${o.deposit_status==='paid'?'bs':o.deposit_status==='filled'?'bpr':'bw'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'✓ 入帳':o.deposit_status==='filled'?'待核對':'待收款'}</span>
         <span class="badge ${o.balance_status==='paid'?'bs':'bw'}" style="font-size:10px">尾款${o.balance_status==='paid'?'✓':'待收'}</span>
       </span>
       <span><span class="badge ${SC[st]}">${arr}/${tot}</span></span>
@@ -687,21 +761,35 @@ function buildOrderDetail(o) {
     <div class="det-block">
       <div class="det-title">訂單明細（到貨 ${arr}/${tot} 件）</div>
       ${iHtml}
+      ${o.discount_code ? `<div class="det-row" style="margin-top:4px"><span class="det-label">折扣碼</span><span class="det-val" style="color:var(--green)">${o.discount_code} (-NT$ ${(o.discount_amount||0).toLocaleString()})</span></div>` : ''}
       <div class="det-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="det-label">總金額</span><span class="det-val" style="color:var(--brown);font-weight:700">NT$ ${(o.amount||0).toLocaleString()}</span></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:11px;font-weight:700;color:var(--brown);margin-bottom:8px;letter-spacing:0.04em">付款狀態</div>
-        ${o.transfer_code ? `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">匯款後五碼：<span style="font-weight:700;color:var(--dark);letter-spacing:0.1em">${o.transfer_code}</span></div>` : '<div style="font-size:12px;color:var(--amber);margin-bottom:6px">⚠ 客人尚未填寫匯款後五碼</div>'}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <div style="margin-bottom:8px">
+          ${o.deposit_status==='pending'
+            ? '<div style="font-size:12px;color:var(--amber)">⚠ 客人尚未填寫匯款後五碼</div>'
+            : `<div style="font-size:12px;color:var(--muted)">匯款後五碼：<span style="font-weight:700;color:var(--dark);letter-spacing:0.12em">${o.transfer_code}</span>
+               <span style="margin-left:6px;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;background:${o.deposit_status==='paid'?'var(--green-bg)':'var(--blue-bg)'};color:${o.deposit_status==='paid'?'var(--green)':'var(--blue)'}">
+                 ${o.deposit_status==='paid'?'✓ 已入帳':'已填，待核對'}
+               </span></div>`
+          }
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:12px;color:var(--muted)">定金</span>
-            <button onclick="updatePayment('${o.order_id||o.id}','deposit','paid')" style="padding:3px 10px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:${o.deposit_status==='paid'?'var(--green-bg)':'var(--light)'};color:${o.deposit_status==='paid'?'var(--green)':'var(--muted)'}">
-              ${o.deposit_status==='paid'?'✓ 已收':'待收款'}
-            </button>
+            <span style="font-size:12px;color:var(--muted)">商品金額</span>
+            ${o.deposit_status==='pending'
+              ? '<span style="font-size:11px;color:var(--muted)">等待填寫後五碼</span>'
+              : `<button onclick="updatePayment('${o.order_id||o.id}','deposit',${o.deposit_status==='paid'?"'pending'":"'paid'"})"
+                   style="padding:4px 12px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;background:${o.deposit_status==='paid'?'var(--green-bg)':'var(--amber-bg)'};color:${o.deposit_status==='paid'?'var(--green)':'var(--amber)'}">
+                   ${o.deposit_status==='paid'?'✓ 已入帳，點選取消':'確認入帳'}
+                 </button>`
+            }
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:12px;color:var(--muted)">尾款</span>
-            <button onclick="updatePayment('${o.order_id||o.id}','balance','paid')" style="padding:3px 10px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:${o.balance_status==='paid'?'var(--green-bg)':'var(--light)'};color:${o.balance_status==='paid'?'var(--green)':'var(--muted)'}">
-              ${o.balance_status==='paid'?'✓ 已收':'待收款'}
+            <button onclick="updatePayment('${o.order_id||o.id}','balance',${o.balance_status==='paid'?"'pending'":"'paid'"})"
+              style="padding:4px 12px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;background:${o.balance_status==='paid'?'var(--green-bg)':'var(--light)'};color:${o.balance_status==='paid'?'var(--green)':'var(--muted)'}">
+              ${o.balance_status==='paid'?'✓ 已入帳，點選取消':'確認入帳'}
             </button>
           </div>
         </div>
@@ -842,6 +930,7 @@ async function shipAll() {
   for (const o of al) {
     o.status = 'shipped';
     try { await sb.from('orders').update({ status: 'shipped' }).eq('order_id', o.order_id || o.id); } catch(e) {}
+    await giveOrderCashback(o.order_id || String(o.id));
   }
   renderOrders(); renderArrival();
   showToast(`已出貨 ${al.length} 筆訂單`);
@@ -887,9 +976,62 @@ function renderCustomers() {
     const key = (c.phone||'').replace(/[^0-9]/g, '');
     const co = custOrders[c.phone] || { orders: 0, total: 0 };
     const cOrders = orders.filter(o => o.phone === c.phone);
+    // 從最新訂單取得 IG / LINE 資訊
+    const latestOrder = cOrders[0] || {};
+    const ig = latestOrder.ig || '';
+    const lineName = latestOrder.line_nickname || '';
+    const email = latestOrder.email || c.email || '';
+    const hasTransfer = cOrders.some(o => o.transfer_code);
+    const allDeposit = cOrders.length > 0 && cOrders.every(o => o.deposit_status === 'paid');
     return `<div class="cust-card" id="cc-${key}" onclick="toggleCust('${key}')">
-      <div class="cust-top"><div class="avatar">${(c.name||'').slice(-2)}</div><div><div class="cust-name">${c.name||''}</div><div class="cust-sub">${c.phone||''} · ${co.orders} 筆訂單</div></div><div class="cust-amt">NT$ ${co.total.toLocaleString()}</div></div>
-      <div class="cust-orders" id="cco-${key}">${cOrders.map(o => { const st = getArrivalStatus(o); return `<div class="co-row"><span style="color:var(--muted)">${o.order_id||o.id}</span><span style="flex:1">${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}（${o.items[0].spec}）</span><span><span class="badge ${SC[st]}" style="font-size:11px">${SL[st]}</span></span><span style="color:var(--brown);font-weight:600">NT$ ${(o.amount||0).toLocaleString()}</span></div>`; }).join('')}</div>
+      <div class="cust-top">
+        <div class="avatar">${(c.name||'').slice(-2)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="cust-name">${c.name||''}</div>
+          <div class="cust-sub" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px">
+            <span>${c.phone||''}</span>
+            ${ig ? `<span style="color:var(--brown)">📷 ${ig}</span>` : ''}
+            ${lineName ? `<span style="color:#3b6d11">💬 ${lineName}</span>` : ''}
+            ${email ? `<span>✉ ${email}</span>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span class="badge" style="font-size:10px;background:var(--light);color:var(--muted)">${co.orders} 筆訂單</span>
+            <span class="badge ${allDeposit?'bs':cOrders.some(o=>o.deposit_status==='filled')?'bpr':'bw'}" style="font-size:10px">商品金額${allDeposit?'全入帳':cOrders.some(o=>o.deposit_status==='filled')?'待核對':'有未收'}</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="cust-amt">NT$ ${co.total.toLocaleString()}</div>
+          ${(c.credits||0) > 0 ? `<div style="font-size:11px;color:var(--brown);margin-top:2px">購物金 NT$ ${(c.credits||0).toLocaleString()}</div>` : ''}
+        </div>
+      </div>
+      <div class="cust-orders" id="cco-${key}">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:8px">
+          <div style="font-size:12px"><span style="color:var(--muted);display:block;margin-bottom:2px">IG 帳號</span><span style="font-weight:600">${ig||'—'}</span></div>
+          <div style="font-size:12px"><span style="color:var(--muted);display:block;margin-bottom:2px">LINE 暱稱</span><span style="font-weight:600">${lineName||'—'}</span></div>
+          <div style="font-size:12px"><span style="color:var(--muted);display:block;margin-bottom:2px">Email</span><span style="font-weight:600">${email||'—'}</span></div>
+        </div>
+        <div style="background:var(--light);border-radius:10px;border:1px solid var(--border);padding:10px 12px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:700;color:var(--brown)">✦ 購物金餘額：NT$ ${(c.credits||0).toLocaleString()}</span>
+            <div style="display:flex;gap:5px">
+              <button onclick="adjustCredits('${c.phone}','add')" style="padding:3px 9px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">+ 發放</button>
+              <button onclick="adjustCredits('${c.phone}','deduct')" style="padding:3px 9px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">- 扣除</button>
+            </div>
+          </div>
+          <div id="credit-log-${key}" style="font-size:11px;color:var(--muted)">點擊展開查看異動記錄 <button onclick="loadCreditLog('${c.phone}','${key}')" style="border:none;background:none;color:var(--brown);cursor:pointer;font-size:11px">載入</button></div>
+        </div>
+        ${cOrders.map(o => {
+          const st = getArrivalStatus(o);
+          return `<div class="co-row">
+            <span style="color:var(--muted);min-width:90px">${o.order_id||o.id}</span>
+            <span style="flex:1">${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}（${o.items[0].spec}）</span>
+            <span class="badge ${o.deposit_status==='paid'?'bs':'bw'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'✓':'待'}</span>
+            <span class="badge ${o.balance_status==='paid'?'bs':'bw'}" style="font-size:10px">尾款${o.balance_status==='paid'?'✓':'待'}</span>
+            <span><span class="badge ${SC[st]}" style="font-size:10px">${SL[st]}</span></span>
+            <span style="color:var(--brown);font-weight:600;white-space:nowrap">NT$ ${(o.amount||0).toLocaleString()}</span>
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
   }).join('');
 }
@@ -994,6 +1136,11 @@ function openProductModal(pid) {
   if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0 })); }
   else { addSpecRow('', 0, 0); addSpecRow('', 0, 0); }
   renderSpecTable();
+  // 載入到貨時間
+  const delivEl = document.getElementById('pm-delivery-time');
+  if (delivEl) delivEl.value = p && p.delivery_time ? p.delivery_time : '';
+  const alertEl = document.getElementById('pm-alert-text');
+  if (alertEl) alertEl.value = p && p.alert_text ? p.alert_text : '';
   // 載入商品說明（Quill）
   setTimeout(() => {
     if (!window.pmQuill) {
@@ -1062,9 +1209,11 @@ async function saveProduct() {
   const onlineNow = startTime ? new Date(startTime) <= new Date() : true;
   // 取得富文本說明
   const description = window.pmQuill ? window.pmQuill.root.innerHTML.replace(/<p><br><\/p>/g,'').trim() : '';
+  const deliveryTime = document.getElementById('pm-delivery-time')?.value.trim() || '';
+  const alertText = document.getElementById('pm-alert-text')?.value.trim() || '';
   const notice = document.getElementById('pm-notice')?.value.trim() || '';
   const detailImgs = window.pmDetailImgs || [];
-  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: products.length, start_time: startTime, end_time: endTime, description: description||null, notice: notice||null, detail_images: JSON.stringify(detailImgs) };
+  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: products.length, start_time: startTime, end_time: endTime, description: description||null, notice: notice||null, detail_images: JSON.stringify(detailImgs), delivery_time: deliveryTime||null, alert_text: alertText||null };
   if (pmPhotoData) dbData.photo = pmPhotoData;
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
@@ -1081,12 +1230,13 @@ async function saveProduct() {
 }
 
 function sw(tab) {
-  const tabs = ['orders','arrival','surcharge','inventory','customers','products'];
+  const tabs = ['orders','arrival','surcharge','discount','inventory','customers','products'];
   document.querySelectorAll('.at').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.getElementById('pg-' + tab).classList.add('on');
   if (tab === 'products') renderProductMgmt();
   if (tab === 'surcharge') renderSurcharge();
+  if (tab === 'discount') renderDiscount();
 }
 
 function showToast(msg) {
@@ -1104,7 +1254,7 @@ function exportExcel() {
   const wb = XLSX.utils.book_new();
 
   // 訂單工作表
-  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','狀態','定金','尾款','匯款後五碼','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
+  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','折扣碼','折扣金額','狀態','商品金額','尾款','匯款後五碼','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
   const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中'};
   orders.forEach(o => {
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
@@ -1114,7 +1264,7 @@ function exportExcel() {
       o.created_at ? new Date(o.created_at).toLocaleDateString('zh-TW') : '',
       o.customer_name||'', o.phone||'', o.email||'',
       o.store||'', o.store_no||'', o.ig||'', o.line_nickname||'', o.note||'',
-      o.amount||0, stMap[st], o.deposit_status==='paid'?'已收':'待收', o.balance_status==='paid'?'已收':'待收', o.transfer_code||''||st
+      o.amount||0, o.discount_code||'', o.discount_amount||0, stMap[st], o.deposit_status==='paid'?'已入帳':o.deposit_status==='filled'?'待核對':'未填', o.balance_status==='paid'?'已收':'待收', o.transfer_code||''||st
     ];
     for (let i = 0; i < 3; i++) {
       const item = items[i];
@@ -1140,7 +1290,7 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws2, '商品庫存');
 
   // 客戶工作表
-  const custRows = [['客戶姓名','電話','Email','訂單數','累積消費(NT$)']];
+  const custRows = [['客戶姓名','電話','Email','IG帳號','LINE暱稱','訂單數','累積消費(NT$)','購物金餘額','商品金額已收筆數','尾款已收筆數']];
   customers.forEach(c => {
     const cOrders = orders.filter(o => o.phone === c.phone);
     const total = cOrders.reduce((s, o) => s + (o.amount||0), 0);
@@ -1540,18 +1690,198 @@ async function cancelItem(oid, itemIdx) {
 
 
 // ── 付款狀態管理 ──────────────────────────────────────────
-async function updatePayment(oid, type, status) {
+async function updatePayment(oid, type, newStatus) {
   const o = getOrder(oid);
   if (!o) return;
   const field = type === 'deposit' ? 'deposit_status' : 'balance_status';
-  const newStatus = o[field] === status ? 'pending' : status; // toggle
   o[field] = newStatus;
   try {
     await sb.from('orders').update({ [field]: newStatus }).eq('order_id', o.order_id || String(o.id));
   } catch(e) { console.warn(e); }
-  const label = type === 'deposit' ? '定金' : '尾款';
-  showToast(`${label}已標記為${newStatus === 'paid' ? '已收款' : '待收款'}`);
+  const label = type === 'deposit' ? '商品金額' : '尾款';
+  const statusLabel = { pending:'待收款', filled:'待核對', paid:'已入帳' };
+  showToast(`${label}已更新為：${statusLabel[newStatus]||newStatus}`);
   renderOrders();
+}
+
+
+// ── 折扣碼管理 ────────────────────────────────────────────
+let discountCodes = [];
+let editingDiscountId = null;
+
+async function loadDiscountCodes() {
+  try {
+    const { data } = await sb.from('discount_codes').select('*').order('created_at', { ascending: false });
+    discountCodes = data || [];
+  } catch(e) { discountCodes = []; }
+}
+
+function renderDiscount() {
+  const list = document.getElementById('discount-list');
+  if (!list) return;
+  document.getElementById('dc-total').textContent = discountCodes.length;
+  document.getElementById('dc-active').textContent = discountCodes.filter(d=>d.active).length;
+  document.getElementById('dc-used').textContent = discountCodes.reduce((s,d)=>s+(d.used_count||0),0);
+  // 計算從訂單裡實際折扣的總金額
+  const totalSaved = orders.reduce((s,o)=>s+(o.discount_amount||0),0);
+  document.getElementById('dc-saved').textContent = 'NT$ ' + totalSaved.toLocaleString();
+
+  if (!discountCodes.length) {
+    list.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">尚未建立任何折扣碼</div>';
+    return;
+  }
+  list.innerHTML = discountCodes.map(d => {
+    const expired = d.valid_until && new Date(d.valid_until) < new Date();
+    const maxed = d.max_uses > 0 && d.used_count >= d.max_uses;
+    const statusOk = d.active && !expired && !maxed;
+    const expStr = d.valid_until ? new Date(d.valid_until).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '不限';
+    return `<div style="display:grid;grid-template-columns:110px 70px 80px 1fr 80px 90px 70px 80px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center">
+      <span style="font-weight:700;letter-spacing:0.05em;color:var(--brown)">${d.code}</span>
+      <span style="font-size:12px;color:var(--muted)">${d.type==='assigned'?'專屬碼':'通用'}</span>
+      <span style="font-weight:600;color:var(--green)">- NT$ ${(d.amount||0).toLocaleString()}</span>
+      <span style="font-size:12px;color:var(--muted)">${d.assigned_to||'所有人'}</span>
+      <span style="font-size:12px">${d.used_count||0} / ${d.max_uses||'∞'}</span>
+      <span style="font-size:11px;color:${expired?'var(--red)':'var(--muted)'}">${expStr}</span>
+      <span><span class="badge ${statusOk?'bs':expired||maxed?'bca':'bw'}">${statusOk?'啟用中':expired?'已過期':maxed?'已上限':'停用'}</span></span>
+      <div style="display:flex;gap:4px">
+        <button onclick="openDiscountModal(${d.id})" style="padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">編輯</button>
+        <button onclick="toggleDiscountActive(${d.id},${!d.active})" style="padding:3px 8px;background:${d.active?'var(--amber-bg)':'var(--green-bg)'};color:${d.active?'var(--amber)':'var(--green)'};border:none;border-radius:6px;font-size:11px;cursor:pointer">${d.active?'停用':'啟用'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateDiscountTypeUI() {
+  const type = document.getElementById('dm-type')?.value;
+  const wrap = document.getElementById('dm-assigned-wrap');
+  if (wrap) wrap.style.opacity = type === 'assigned' ? '1' : '0.5';
+}
+
+function openDiscountModal(id) {
+  editingDiscountId = id || null;
+  const d = id ? discountCodes.find(x => x.id === id) : null;
+  document.getElementById('dm-title').textContent = d ? '編輯折扣碼' : '新增折扣碼';
+  document.getElementById('dm-code').value = d ? d.code : '';
+  document.getElementById('dm-type').value = d ? d.type : 'fixed';
+  document.getElementById('dm-amount').value = d ? d.amount : '';
+  document.getElementById('dm-assigned').value = d ? (d.assigned_to||'') : '';
+  document.getElementById('dm-max-uses').value = d ? (d.max_uses||0) : 0;
+  document.getElementById('dm-valid-until').value = d && d.valid_until ? new Date(d.valid_until).toISOString().slice(0,16) : '';
+  document.getElementById('dm-active').value = d ? String(d.active) : 'true';
+  document.getElementById('discount-modal').classList.add('open');
+}
+
+function closeDiscountModal() {
+  document.getElementById('discount-modal').classList.remove('open');
+}
+
+async function saveDiscount() {
+  const code = document.getElementById('dm-code').value.trim().toUpperCase();
+  const amount = parseInt(document.getElementById('dm-amount').value) || 0;
+  if (!code) { showToast('請輸入折扣碼'); return; }
+  if (!amount) { showToast('請輸入折扣金額'); return; }
+  const validUntilVal = document.getElementById('dm-valid-until').value;
+  const dbData = {
+    code,
+    type: document.getElementById('dm-type').value,
+    amount,
+    assigned_to: document.getElementById('dm-assigned').value.trim() || '',
+    max_uses: parseInt(document.getElementById('dm-max-uses').value) || 0,
+    valid_until: validUntilVal ? new Date(validUntilVal).toISOString() : null,
+    active: document.getElementById('dm-active').value === 'true'
+  };
+  try {
+    if (editingDiscountId) {
+      const { error } = await sb.from('discount_codes').update(dbData).eq('id', editingDiscountId);
+      if (error) { showToast('更新失敗：' + error.message); return; }
+      const idx = discountCodes.findIndex(x => x.id === editingDiscountId);
+      if (idx >= 0) discountCodes[idx] = { ...discountCodes[idx], ...dbData };
+    } else {
+      const { data, error } = await sb.from('discount_codes').insert([dbData]).select().single();
+      if (error) { showToast('新增失敗：' + error.message); return; }
+      discountCodes.unshift(data);
+    }
+  } catch(e) { console.warn(e); }
+  closeDiscountModal();
+  renderDiscount();
+  showToast(editingDiscountId ? '折扣碼已更新' : `折扣碼 ${code} 已建立`);
+}
+
+async function toggleDiscountActive(id, active) {
+  const d = discountCodes.find(x => x.id === id);
+  if (!d) return;
+  d.active = active;
+  try { await sb.from('discount_codes').update({ active }).eq('id', id); } catch(e) {}
+  renderDiscount();
+  showToast(`折扣碼已${active ? '啟用' : '停用'}`);
+}
+
+
+// ── 後台購物金管理 ────────────────────────────────────────
+async function adjustCredits(phone, action) {
+  const label = action === 'add' ? '發放' : '扣除';
+  const amtStr = prompt(`輸入${label}金額（NT$）：`);
+  if (!amtStr || isNaN(parseInt(amtStr))) return;
+  const amt = parseInt(amtStr);
+  if (amt <= 0) { showToast('金額需大於 0'); return; }
+  const note = prompt(`備註（選填）：`) || '';
+  const c = customers.find(x => x.phone === phone);
+  if (!c) return;
+  const change = action === 'add' ? amt : -amt;
+  const newCredits = Math.max(0, (c.credits||0) + change);
+  c.credits = newCredits;
+  try {
+    await sb.from('customers').update({ credits: newCredits }).eq('phone', phone);
+    await sb.from('credit_logs').insert([{
+      phone, amount: change, type: action,
+      note: note || (action==='add'?'後台發放':'後台扣除'),
+      order_id: ''
+    }]);
+  } catch(e) { console.warn(e); }
+  showToast(`已${label} NT$ ${amt}，新餘額：NT$ ${newCredits}`);
+  renderCustomers();
+}
+
+async function loadCreditLog(phone, key) {
+  const el = document.getElementById('credit-log-' + key);
+  if (!el) return;
+  el.textContent = '載入中…';
+  try {
+    const { data } = await sb.from('credit_logs').select('*').eq('phone', phone).order('created_at', { ascending: false }).limit(10);
+    if (!data || !data.length) { el.textContent = '無異動記錄'; return; }
+    el.innerHTML = data.map(l =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span>${new Date(l.created_at).toLocaleDateString('zh-TW')} ${l.note||''}</span>
+        <span style="font-weight:600;color:${l.amount>0?'var(--green)':'var(--red)'}">${l.amount>0?'+':''}NT$ ${l.amount.toLocaleString()}</span>
+      </div>`
+    ).join('');
+  } catch(e) { el.textContent = '載入失敗'; }
+}
+
+// ── 滿額自動回饋（在訂單出貨時觸發）──────────────────────
+async function giveOrderCashback(oid) {
+  const o = getOrder(oid);
+  if (!o || o.cashback_given) return;
+  // 每消費 NT$1000 回饋 NT$50（可調整）
+  const CASHBACK_RATE = 50; // 每 1000 元回饋
+  const CASHBACK_PER = 1000;
+  const cashback = Math.floor((o.amount||0) / CASHBACK_PER) * CASHBACK_RATE;
+  if (cashback <= 0) return;
+  const c = customers.find(x => x.phone === o.phone);
+  if (!c) return;
+  const newCredits = (c.credits||0) + cashback;
+  c.credits = newCredits;
+  o.cashback_given = true;
+  try {
+    await sb.from('customers').update({ credits: newCredits }).eq('phone', o.phone);
+    await sb.from('credit_logs').insert([{
+      phone: o.phone, amount: cashback, type: 'cashback',
+      note: `訂單 ${o.order_id||o.id} 消費回饋`,
+      order_id: o.order_id || String(o.id)
+    }]);
+    await sb.from('orders').update({ cashback_given: true }).eq('order_id', o.order_id||String(o.id));
+  } catch(e) { console.warn(e); }
+  showToast(`已回饋購物金 NT$ ${cashback} 給 ${o.customer_name}`);
 }
 
 </script>
