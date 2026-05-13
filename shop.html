@@ -285,12 +285,33 @@ a{color:inherit;text-decoration:none}
 .pay-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
 .pb-paid{background:#eaf3de;color:#3b6d11}
 .pb-pending{background:#faeeda;color:#854f0b}
+
+/* LOGO */
+#nav-logo-img img { width:100%; height:100%; object-fit:cover; }
+#nav-logo-img { cursor:pointer; transition:opacity 0.15s; }
+#nav-logo-img:hover { opacity:0.85; }
+
+/* SOCIAL QR SECTION */
+.social-section { background:#fff; border-top:1px solid var(--border); padding:28px 24px; text-align:center; }
+.social-title { font-size:15px; font-weight:700; color:var(--dark); margin-bottom:6px; }
+.social-sub { font-size:13px; color:var(--text-muted); margin-bottom:20px; }
+.social-cards { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+.social-card { display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; text-decoration:none; }
+.social-card:hover .social-qr { transform:scale(1.03); box-shadow:0 4px 16px rgba(44,32,24,0.12); }
+.social-qr { width:120px; height:120px; border-radius:12px; border:1px solid var(--border); overflow:hidden; background:var(--light); display:flex; align-items:center; justify-content:center; transition:transform 0.15s, box-shadow 0.15s; }
+.social-qr img { width:100%; height:100%; object-fit:cover; }
+.social-qr-placeholder { font-size:32px; }
+.social-label { font-size:12px; font-weight:600; color:var(--dark); }
+.social-link { font-size:11px; color:var(--brown); }
 </style>
 </head>
 <body>
 
 <nav class="nav">
-  <div class="nav-logo">✦ <span>星光代購</span></div>
+  <div class="nav-logo" style="display:flex;align-items:center;gap:10px">
+    <div id="nav-logo-img" style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">✦</div>
+    <span>星光代購</span>
+  </div>
   <div style="display:flex;align-items:center;gap:8px">
     <button class="nav-lookup-btn" onclick="openLookup()">查詢訂單</button>
     <button class="nav-cart" onclick="openCart()">
@@ -316,10 +337,34 @@ a{color:inherit;text-decoration:none}
   <div class="success-page" id="success-page">
     <div class="success-icon">🎉</div>
     <div class="success-title">下單成功！</div>
-    <div class="success-msg">感謝你的訂購，我們會盡快處理你的訂單。<br>請保留你的訂單編號方便查詢。</div>
+    <div class="success-msg">感謝你的訂購！請保留訂單編號，並完成匯款。</div>
     <div class="success-order-id" id="success-order-id"></div>
-    <br>
-    <button class="back-btn" onclick="backToShop()">繼續購物</button>
+    <div style="background:#faf7f3;border-radius:12px;border:1px solid #e8d8b8;padding:16px 20px;margin:16px auto;max-width:340px;text-align:left">
+      <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:10px">💳 請完成匯款</div>
+      <div style="font-size:13px;color:var(--dark);line-height:1.8">
+        <div>匯款帳號請至「<strong>查詢訂單</strong>」頁面查看</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:6px">查詢時請輸入訂單編號 + 電話號碼，匯款完成後可在查詢頁面填寫後五碼</div>
+      </div>
+    </div>
+    <div style="margin:20px auto 16px;max-width:400px">
+      <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:12px">📲 加入我們，掌握最新消息</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap" id="success-social-cards">
+        <a class="social-card" href="YOUR_LINE_OFFICIAL_URL" target="_blank" rel="noopener" style="text-decoration:none">
+          <div class="social-qr" style="width:90px;height:90px"><div id="success-line-official-qr" class="social-qr-placeholder" style="font-size:26px">💬</div></div>
+          <div class="social-label" style="font-size:11px">LINE 官方帳號</div>
+        </a>
+        <a class="social-card" href="YOUR_LINE_GROUP_URL" target="_blank" rel="noopener" style="text-decoration:none">
+          <div class="social-qr" style="width:90px;height:90px"><div id="success-line-group-qr" class="social-qr-placeholder" style="font-size:26px">👥</div></div>
+          <div class="social-label" style="font-size:11px">LINE 社群</div>
+        </a>
+        <a class="social-card" href="YOUR_IG_URL" target="_blank" rel="noopener" style="text-decoration:none">
+          <div class="social-qr" style="width:90px;height:90px"><div id="success-ig-qr" class="social-qr-placeholder" style="font-size:26px">📸</div></div>
+          <div class="social-label" style="font-size:11px">Instagram</div>
+        </a>
+      </div>
+    </div>
+    <button class="back-btn" onclick="backToShop()" style="margin-right:8px">繼續購物</button>
+    <button class="back-btn" onclick="backToShop();setTimeout(openLookup,300)" style="background:transparent;color:var(--brown);border:1px solid var(--brown)">前往查詢訂單</button>
   </div>
 </div>
 
@@ -327,7 +372,7 @@ a{color:inherit;text-decoration:none}
 <!-- 商品詳情頁 -->
 <div class="detail-page" id="detail-page">
   <div class="detail-nav">
-    <button class="detail-back" onclick="closeDetail()">← 返回</button>
+    <button class="detail-back" onclick="closeDetail()"><span style="font-size:15px">←</span> 返回商品列表</button>
     <span class="detail-breadcrumb" id="detail-breadcrumb">商品詳情</span>
   </div>
   <div class="detail-wrap">
@@ -342,6 +387,13 @@ a{color:inherit;text-decoration:none}
       <div class="detail-name" id="detail-name"></div>
       <div class="detail-price" id="detail-price"></div>
       <hr class="detail-divider">
+      <!-- 提醒文字區塊 -->
+      <div id="detail-alert-box" style="display:none;background:#fff8e6;border-radius:10px;border:1px solid #f0d080;padding:10px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <span style="font-size:16px;flex-shrink:0">⚠️</span>
+          <div id="detail-alert-text" style="font-size:13px;color:#7a5800;line-height:1.6"></div>
+        </div>
+      </div>
       <div class="detail-spec-label">選擇規格</div>
       <div class="detail-chips" id="detail-chips"></div>
       <div class="detail-qty-row">
@@ -350,6 +402,15 @@ a{color:inherit;text-decoration:none}
           <button class="detail-qb" onclick="detailQty(-1)">−</button>
           <span class="detail-qn" id="detail-qty">1</span>
           <button class="detail-qb" onclick="detailQty(1)">+</button>
+        </div>
+      </div>
+      <div id="detail-delivery-time" style="display:none;background:#faf7f3;border-radius:10px;border:1px solid #e8d8b8;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--dark)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:16px">🕐</span>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">預計到貨時間</div>
+            <div id="detail-delivery-text" style="font-weight:600"></div>
+          </div>
         </div>
       </div>
       <button class="detail-add-btn" id="detail-add-btn" onclick="detailAddToCart()">加入購物車</button>
@@ -377,6 +438,37 @@ a{color:inherit;text-decoration:none}
   <img id="lightbox-img" src="" alt="">
 </div>
 
+<!-- SOCIAL SECTION -->
+<div class="social-section" id="social-section">
+  <div class="social-title">加入我們</div>
+  <div class="social-sub">追蹤官方帳號，第一時間掌握新品與優惠資訊</div>
+  <div class="social-cards">
+    <!-- LINE 官方帳號 -->
+    <a class="social-card" id="line-official-card" href="YOUR_LINE_OFFICIAL_URL" target="_blank" rel="noopener">
+      <div class="social-qr">
+        <div id="line-official-qr" class="social-qr-placeholder">💬</div>
+      </div>
+      <div class="social-label">LINE 官方帳號</div>
+      <div class="social-link">點擊加入好友</div>
+    </a>
+    <!-- LINE 社群 -->
+    <a class="social-card" id="line-group-card" href="YOUR_LINE_GROUP_URL" target="_blank" rel="noopener">
+      <div class="social-qr">
+        <div id="line-group-qr" class="social-qr-placeholder">👥</div>
+      </div>
+      <div class="social-label">LINE 社群</div>
+      <div class="social-link">點擊加入社群</div>
+    </a>
+    <!-- IG -->
+    <a class="social-card" id="ig-card" href="YOUR_IG_URL" target="_blank" rel="noopener">
+      <div class="social-qr">
+        <div id="ig-qr" class="social-qr-placeholder">📸</div>
+      </div>
+      <div class="social-label">Instagram</div>
+      <div class="social-link">點擊追蹤</div>
+    </a>
+  </div>
+</div>
 <div class="footer">© 星光代購 · 所有商品皆為正品代購</div>
 
 <!-- CART DRAWER -->
@@ -408,19 +500,37 @@ a{color:inherit;text-decoration:none}
       <div class="form-section">收件人資料</div>
       <div class="form-row">
         <div class="form-group"><label>姓名 *</label><input id="f-name" placeholder="請輸入姓名"></div>
-        <div class="form-group"><label>電話 *</label><input id="f-phone" placeholder="09xxxxxxxx"></div>
+        <div class="form-group"><label>電話 *</label><input id="f-phone" placeholder="09xxxxxxxx" oninput="checkCreditsOnPhoneInput(this.value)"></div>
       </div>
-      <div class="form-group"><label>Email</label><input id="f-email" placeholder="example@email.com" type="email"></div>
+      <div class="form-group"><label>Email *</label><input id="f-email" placeholder="example@email.com" type="email"></div>
       <div class="form-row">
-        <div class="form-group"><label>超商門市</label><input id="f-store" placeholder="7-11 台南成功門市"></div>
-        <div class="form-group"><label>超商店號</label><input id="f-storeno" placeholder="門市店號"></div>
+        <div class="form-group"><label>7-11 超商門市 *</label><input id="f-store" placeholder="台南成功門市"></div>
+        <div class="form-group"><label>超商店號 *</label><input id="f-storeno" placeholder="門市店號"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>IG 帳號</label><input id="f-ig" placeholder="@yourname"></div>
-        <div class="form-group"><label>LINE 社群暱稱</label><input id="f-line" placeholder="你在社群的暱稱"></div>
+        <div class="form-group"><label>IG 帳號 *</label><input id="f-ig" placeholder="@yourname"></div>
+        <div class="form-group"><label>LINE 社群暱稱 *</label><input id="f-line" placeholder="你在社群的暱稱"></div>
       </div>
-      <div class="form-group"><label>備註</label><textarea id="f-note" placeholder="特殊需求請備註"></textarea></div>
+      <div class="form-group">
+        <label>折扣碼 <span style="color:var(--text-muted);font-size:11px">（選填）</span></label>
+        <div style="display:flex;gap:8px">
+          <input id="f-discount" placeholder="輸入折扣碼" style="flex:1;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          <button type="button" onclick="applyDiscount()" style="padding:0 14px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">套用</button>
+        </div>
+        <div id="discount-msg" style="font-size:12px;margin-top:5px;display:none"></div>
+      </div>
+      <div class="form-group"><label>備註 <span style="color:var(--text-muted);font-size:11px">（選填）</span></label><textarea id="f-note" placeholder="特殊需求請備註"></textarea></div>
       <div class="form-group"><label>匯款帳號後五碼 <span style="color:var(--text-muted);font-size:11px">（轉帳後填入，方便核對）</span></label><input id="f-transfer" placeholder="例：12345" maxlength="5" pattern="[0-9]{5}" style="letter-spacing:0.15em;font-size:16px"></div>
+      <div id="credits-section" style="display:none;background:var(--light);border-radius:10px;border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--brown)">✦ 購物金餘額：<span id="credits-balance">NT$ 0</span></span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="use-credits" onchange="toggleUseCredits()" style="width:16px;height:16px;cursor:pointer">
+            折抵購物金
+          </label>
+        </div>
+        <div id="credits-deduct-row" style="display:none;font-size:12px;color:#3b6d11">折抵金額：<span id="credits-deduct">NT$ 0</span></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeCheckout()">取消</button>
@@ -436,6 +546,44 @@ a{color:inherit;text-decoration:none}
 const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ── 匯款帳號設定（修改這裡）──────────────────────────────
+window.BANK_ACCOUNT = 'YOUR_BANK_ACCOUNT'; // 例：玉山銀行 808-1234567890123
+
+// ── 社群連結設定（修改這裡）─────────────────────────────
+const SOCIAL = {
+  lineOfficial: { url: 'https://lin.ee/SokCyx4', qrImage: 'https://qr-official.line.me/gs/M_616jbgxw_BW.png?oat_content=qr' }, // QR Code 圖片 base64 或 URL
+  lineGroup:    { url: 'https://line.me/ti/g2/PZ457ERKDgP77xHggNAKKHnwEvd_VbbHSJ45yw?utm_source=invitation&utm_medium=link_copy&utm_campaign=default',    qrImage: 'https://drive.google.com/file/d/1kUA7u-rb3oiiLA78e4i6cucnyT9ZeE-z/view?usp=drive_link' },
+  ig:           { url: 'https://www.instagram.com/yuyuz_98/',            qrImage: '' },
+};
+// LOGO 圖片設定
+const LOGO_IMAGE = 'https://drive.google.com/file/d/1L4rHxDg9Da090kaxUL9Ya_4oX4iIEhyG/view?usp=drive_link'; // 填入圖片 URL 或 base64
+
+function initBranding() {
+  // 套用 LOGO
+  if (LOGO_IMAGE) {
+    const el = document.getElementById('nav-logo-img');
+    if (el) el.innerHTML = `<img src="${LOGO_IMAGE}" alt="Logo">`;
+  }
+  // 套用社群 QR Code 圖片
+  const pairs = [
+    ['line-official-qr', 'success-line-official-qr', SOCIAL.lineOfficial],
+    ['line-group-qr',    'success-line-group-qr',    SOCIAL.lineGroup],
+    ['ig-qr',            'success-ig-qr',            SOCIAL.ig],
+  ];
+  pairs.forEach(([mainId, successId, social]) => {
+    if (social.qrImage) {
+      const imgTag = `<img src="${social.qrImage}" alt="QR Code" style="width:100%;height:100%;object-fit:cover">`;
+      const mainEl = document.getElementById(mainId);
+      const successEl = document.getElementById(successId);
+      if (mainEl) mainEl.innerHTML = imgTag;
+      if (successEl) successEl.innerHTML = imgTag;
+    }
+    if (social.url && social.url !== 'YOUR_LINE_OFFICIAL_URL' && social.url !== 'YOUR_LINE_GROUP_URL' && social.url !== 'YOUR_IG_URL') {
+      // 更新連結
+      document.querySelectorAll(`a[href="${social.url === SOCIAL.lineOfficial.url ? 'YOUR_LINE_OFFICIAL_URL' : social.url === SOCIAL.lineGroup.url ? 'YOUR_LINE_GROUP_URL' : 'YOUR_IG_URL'}"]`).forEach(a => { a.href = social.url; });
+    }
+  });
+}
 // ──────────────────────────────────────────────────────────
 
 let categories = [];
@@ -449,6 +597,27 @@ async function init() {
   await loadData();
   renderCatBar();
   renderProducts();
+  initBranding();
+  // 瀏覽器返回/前進鍵監聽
+  window.addEventListener('popstate', (e) => {
+    const state = e.state;
+    if (state && state.page === 'detail' && state.productId) {
+      openDetail(state.productId);
+    } else {
+      // 回到主頁
+      document.getElementById('detail-page').classList.remove('show');
+      document.querySelector('.hero').style.display = '';
+      document.querySelector('.cat-bar').style.display = '';
+      document.querySelector('.main').style.display = '';
+      document.querySelector('.footer').style.display = '';
+      document.querySelector('.social-section') && (document.querySelector('.social-section').style.display = '');
+    }
+  });
+  // 頁面載入時如果有 hash，自動開啟對應商品
+  if (location.hash && location.hash.startsWith('#product-')) {
+    const pid = parseInt(location.hash.replace('#product-', ''));
+    if (pid) setTimeout(() => openDetail(pid), 300);
+  }
 }
 
 async function loadData() {
@@ -533,10 +702,11 @@ function renderCard(p) {
     return `<option value="${s.name}"${s.name===curSpec?' selected':''}${soldOut?' disabled':''}>${label}</option>`;
   }).join('');
   return `<div class="product-card${inCart>0?' in-cart':''}">
-    <div class="pc-img">${imgContent}${inCart>0?`<span class="cart-dot">${inCart}</span>`:''}</div>
+    <div class="pc-img" onclick="openDetail(${p.id})" style="cursor:pointer" title="查看詳情">${imgContent}${inCart>0?`<span class="cart-dot">${inCart}</span>`:''}<div class="pc-img-ov" style="display:none">🔍 查看詳情</div></div>
     <div class="pc-info">
       <div class="pc-name">${p.name}</div>
       <div class="pc-price">${priceRange(p)}</div>
+    ${p.delivery_time ? `<div style="font-size:11px;color:var(--brown);margin-top:3px;display:flex;align-items:center;gap:3px"><span>🕐</span><span>${p.delivery_time}</span></div>` : ''}
     ${p.specs.every(s=>s.stock<=0&&!s.preorder)?'<div style="font-size:11px;color:#c0392b;font-weight:600;margin-top:2px">已售罄</div>':p.specs.some(s=>s.stock<=0&&s.preorder)?'<div style="font-size:11px;color:#185fa5;font-weight:600;margin-top:2px">部分規格預購中</div>':''}
     </div>
     <div class="pc-controls">
@@ -549,10 +719,7 @@ function renderCard(p) {
         </div>
         <span class="qty-price" id="qprice-${p.id}">NT$ ${(curPrice*qty).toLocaleString()}</span>
       </div>
-      <div style="display:flex;gap:6px;padding:0 0 2px">
-      <button class="pc-add" style="flex:1;background:var(--light);color:var(--brown);border:1px solid var(--border)" onclick="event.stopPropagation();openDetail(${p.id})">查看詳情</button>
-      <button class="pc-add" style="flex:1" onclick="event.stopPropagation();addToCart(${p.id})">加入購物車</button>
-    </div>
+      <button class="pc-add" onclick="event.stopPropagation();addToCart(${p.id})">加入購物車</button>
     </div>
   </div>`;
 }
@@ -654,9 +821,13 @@ function closeCart() {
 function openCheckout() {
   if (!cart.length) return;
   const summary = document.getElementById('order-summary');
+  const discAmt = window.appliedDiscount || 0;
+  const finalTotal = Math.max(0, cartTotal() - discAmt);
   summary.innerHTML = cart.map(i =>
     `<div class="os-row"><span>${i.product}（${i.spec}）× ${i.qty}</span><span>NT$ ${(i.price*i.qty).toLocaleString()}</span></div>`
-  ).join('') + `<div class="os-row os-total"><span>合計 ${cartCount()} 件</span><span>NT$ ${cartTotal().toLocaleString()}</span></div>`;
+  ).join('') +
+  (discAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>折扣碼 ${window.appliedCode||''}</span><span>- NT$ ${discAmt.toLocaleString()}</span></div>` : '') +
+  `<div class="os-row os-total"><span>合計 ${cartCount()} 件</span><span>NT$ ${finalTotal.toLocaleString()}</span></div>`;
   document.getElementById('checkout-modal').classList.add('open');
   closeCart();
 }
@@ -678,13 +849,16 @@ async function submitOrder() {
   const line = document.getElementById('f-line').value.trim();
   const note = document.getElementById('f-note').value.trim();
   const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
-  const amount = cartTotal();
+  const discAmt = window.appliedDiscount || 0;
+  const creditsUsed = window.useCreditsAmt || 0;
+  const amount = Math.max(0, cartTotal() - discAmt - creditsUsed);
+  const discCode = window.appliedCode || '';
   const items = cart.map(i => ({ productId: i.productId, product: i.product, spec: i.spec, qty: i.qty, price: i.price, arrivedQty: 0 }));
   try {
     await sb.from('orders').insert([{
       order_id: orderId, customer_name: name, phone, email,
       store, store_no: storeno, ig, line_nickname: line, note,
-      amount, items: JSON.stringify(items), status: '', transfer_code: transferCode||null, deposit_status: transferCode ? 'paid' : 'pending', balance_status: 'pending',
+      amount, items: JSON.stringify(items), status: '', transfer_code: transferCode||null, deposit_status: transferCode ? 'filled' : 'pending', balance_status: 'pending', discount_code: discCode||null, discount_amount: discAmt||0, credits_used: creditsUsed||0,
       created_at: new Date().toISOString()
     }]);
     // upsert customer
@@ -696,8 +870,24 @@ async function submitOrder() {
   closeCheckout();
   cart = [];
   renderCart(); renderProducts();
-  ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line','f-note','f-transfer'].forEach(id => { document.getElementById(id).value = ''; });
+  ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line','f-note','f-transfer','f-discount'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  window.appliedDiscount = 0; window.appliedCode = '';
+  window.useCreditsAmt = 0; window.availableCredits = 0;
+  const dm = document.getElementById('discount-msg'); if(dm) dm.style.display='none';
   btn.textContent = '確認下單'; btn.disabled = false;
+  // 扣除購物金
+  if (creditsUsed > 0) {
+    try {
+      const { data: custData } = await sb.from('customers').select('credits').eq('phone', phone).single();
+      const newCredits = Math.max(0, (custData?.credits||0) - creditsUsed);
+      await sb.from('customers').update({ credits: newCredits }).eq('phone', phone);
+      await sb.from('credit_logs').insert([{ phone, amount: -creditsUsed, type: 'used', note: `訂單 ${orderId} 折抵`, order_id: orderId }]);
+    } catch(e) { console.warn(e); }
+    window.useCreditsAmt = 0;
+    window.availableCredits = 0;
+    const cb = document.getElementById('use-credits'); if(cb) cb.checked = false;
+    const cs = document.getElementById('credits-section'); if(cs) cs.style.display='none';
+  }
   document.getElementById('success-order-id').textContent = orderId;
   document.getElementById('product-area').style.display = 'none';
   document.getElementById('success-page').classList.add('show');
@@ -725,13 +915,20 @@ function closeLookup() {
   document.getElementById('lookup-result').innerHTML = '';
   document.getElementById('lookup-input').value = '';
 }
-let lookupMode = 'id';
+let lookupMode = 'phone';
 function setLookupMode(mode) {
   lookupMode = mode;
   document.getElementById('ltab-id').classList.toggle('active', mode === 'id');
   document.getElementById('ltab-phone').classList.toggle('active', mode === 'phone');
   const inp = document.getElementById('lookup-input');
-  inp.placeholder = mode === 'id' ? '輸入訂單編號（例：ORD-ABC123）' : '輸入電話號碼（例：0912345678）';
+  const hint = document.getElementById('lookup-hint');
+  if (mode === 'phone') {
+    inp.placeholder = '輸入電話號碼（例：0912345678）';
+    if (hint) hint.textContent = '輸入電話號碼，查看所有訂單記錄與購物金餘額';
+  } else {
+    inp.placeholder = '輸入訂單編號（例：ORD-ABC123）';
+    if (hint) hint.textContent = '輸入訂單編號，可查看匯款帳號並填寫後五碼';
+  }
   inp.value = '';
   document.getElementById('lookup-result').innerHTML = '';
 }
@@ -758,6 +955,7 @@ async function doLookup() {
   try {
     let query = sb.from('orders').select('*');
     if (lookupMode === 'id') {
+      // 訂單編號查詢：同時要輸入電話才能看到填後五碼按鈕
       query = query.ilike('order_id', `%${val}%`);
     } else {
       query = query.eq('phone', val);
@@ -768,22 +966,64 @@ async function doLookup() {
       result.innerHTML = '<div class="lookup-empty">找不到符合的訂單，請確認輸入是否正確</div>';
       return;
     }
-    result.innerHTML = data.map(o => {
+    // 電話查詢時顯示購物金餘額
+    let creditsHtml = '';
+    if (lookupMode === 'phone') {
+      try {
+        const { data: custData } = await sb.from('customers').select('credits, name').eq('phone', val).single();
+        const credits = custData?.credits || 0;
+        const custName = custData?.name || '';
+        creditsHtml = `<div style="background:linear-gradient(135deg,#8b6f47,#6b4f35);border-radius:12px;padding:14px 16px;margin-bottom:12px;color:#fff">
+          <div style="font-size:11px;opacity:0.8;margin-bottom:3px">✦ 星光代購會員</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:6px">${custName || val}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:11px;opacity:0.8">購物金餘額</div><div style="font-size:22px;font-weight:700">NT$ ${credits.toLocaleString()}</div></div>
+            <div style="text-align:right"><div style="font-size:11px;opacity:0.8">共 ${data.length} 筆訂單</div>
+              ${credits > 0 ? '<div style="font-size:12px;margin-top:3px;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:10px">結帳可折抵</div>' : ''}
+            </div>
+          </div>
+        </div>`;
+        // 查購物金異動記錄
+        const { data: logs } = await sb.from('credit_logs').select('*').eq('phone', val).order('created_at', { ascending: false }).limit(5);
+        if (logs && logs.length > 0) {
+          creditsHtml += `<div style="background:var(--light);border-radius:10px;border:1px solid var(--border);padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--brown);margin-bottom:8px">購物金異動記錄</div>
+            ${logs.map(l => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">${new Date(l.created_at).toLocaleDateString('zh-TW')} ${l.note||''}</span><span style="font-weight:600;color:${l.amount>0?'#3b6d11':'#c0392b'}">${l.amount>0?'+':''}NT$ ${l.amount.toLocaleString()}</span></div>`).join('')}
+          </div>`;
+        }
+      } catch(e) { /* demo mode */ }
+    }
+    result.innerHTML = creditsHtml + data.map(o => {
       const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
       const st = getOrderStatus(o);
       const date = new Date(o.created_at).toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' });
       const hasTransfer = o.transfer_code && o.transfer_code.length > 0;
-      const depositPaid = o.deposit_status === 'paid';
+      const lookupPhone = lookupMode === 'phone' ? val : '';
+      const lookupId = lookupMode === 'id' ? val : '';
+      // 雙重驗證：只有輸入訂單編號時才能看到填後五碼（防亂填）
+      // 只有訂單編號查詢才顯示匯款帳號和填後五碼按鈕
+      const canFill = lookupMode === 'id';
+      const showBankInfo = lookupMode === 'id';
+      const tcKey = (o.order_id||'').replace(/[^a-zA-Z0-9]/g,'');
+      const BANK_INFO = window.BANK_ACCOUNT || '請聯繫賣家取得匯款帳號';
       const payHtml = hasTransfer
-        ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">匯款後五碼：<span style="font-weight:600;color:var(--dark);letter-spacing:0.1em">${o.transfer_code}</span> <span class="pay-badge pb-paid">已確認</span></div>`
-        : `<div class="pay-fill-box">
-            <div class="pay-fill-title">💳 請填入匯款帳號後五碼</div>
-            <div class="pay-fill-row">
-              <input class="pay-fill-input" id="tc-${(o.order_id||'').replace(/[^a-zA-Z0-9]/g,'')}" maxlength="5" pattern="[0-9]*" inputmode="numeric" placeholder="12345">
-              <button class="pay-fill-btn" onclick="submitTransferCode('${o.order_id}','${(o.order_id||'').replace(/[^a-zA-Z0-9]/g,'')}')">確認送出</button>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:6px">填寫後將無法更改，請確認正確再送出</div>
-          </div>`;
+        ? `<div style="background:#f0faf4;border-radius:10px;border:1px solid #c0dd97;padding:12px 14px;margin-bottom:8px">
+            <div style="font-size:12px;color:#3b6d11;font-weight:600;margin-bottom:4px">✓ 已填寫匯款後五碼</div>
+            <div style="font-size:12px;color:var(--text-muted)">後五碼：<span style="font-weight:700;color:var(--dark);letter-spacing:0.12em">${o.transfer_code}</span></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${o.deposit_status==='paid'?'✓ 已確認入帳':'等待賣家確認中…'}</div>
+           </div>`
+        : canFill
+          ? `<div class="pay-fill-box">
+              <div class="pay-fill-title">💳 匯款資訊</div>
+              <div style="font-size:13px;color:var(--dark);margin-bottom:10px;padding:8px 10px;background:#fff;border-radius:8px;letter-spacing:0.05em;font-weight:600">${BANK_INFO}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">匯款完成後，請填入帳號後五碼：</div>
+              <div class="pay-fill-row">
+                <input class="pay-fill-input" id="tc-${tcKey}" maxlength="5" pattern="[0-9]*" inputmode="numeric" placeholder="12345">
+                <button class="pay-fill-btn" onclick="submitTransferCode('${o.order_id}','${tcKey}')">我已匯款，送出後五碼</button>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px">⚠ 填寫後無法更改，請確認正確再送出</div>
+             </div>`
+          : `<div style="background:#faf7f3;border-radius:10px;border:1px solid #e8d8b8;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--text-muted)">💡 以「訂單編號」查詢可查看匯款帳號並填寫後五碼</div>`;
       const itemsHtml = items.map(i => {
         const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
         return `<div class="lookup-item">
@@ -870,6 +1110,28 @@ function openDetail(pid) {
     thumbs.innerHTML = '';
   }
 
+  // 到貨時間
+  const deliveryDiv = document.getElementById('detail-delivery-time');
+  const deliveryText = document.getElementById('detail-delivery-text');
+  if (deliveryDiv && deliveryText) {
+    if (p.delivery_time) {
+      deliveryDiv.style.display = 'block';
+      deliveryText.textContent = p.delivery_time;
+    } else {
+      deliveryDiv.style.display = 'none';
+    }
+  }
+  // 提醒文字
+  const alertBox = document.getElementById('detail-alert-box');
+  const alertText = document.getElementById('detail-alert-text');
+  if (alertBox && alertText) {
+    if (p.alert_text) {
+      alertBox.style.display = 'block';
+      alertText.innerHTML = p.alert_text.replace(/\n/g, '<br>');
+    } else {
+      alertBox.style.display = 'none';
+    }
+  }
   // 規格選項
   const chipsEl = document.getElementById('detail-chips');
   const defaultSpec = p.specs.find(s => !(s.stock <= 0 && !s.preorder)) || p.specs[0];
@@ -909,6 +1171,9 @@ function openDetail(pid) {
   document.querySelector('.cat-bar').style.display = 'none';
   document.querySelector('.main').style.display = 'none';
   document.querySelector('.footer').style.display = 'none';
+  document.querySelector('.social-section') && (document.querySelector('.social-section').style.display = 'none');
+  // 設定 URL hash，讓瀏覽器返回鍵可以用
+  history.pushState({ page: 'detail', productId: pid }, '', `#product-${pid}`);
   window.scrollTo(0, 0);
 }
 
@@ -918,6 +1183,11 @@ function closeDetail() {
   document.querySelector('.cat-bar').style.display = '';
   document.querySelector('.main').style.display = '';
   document.querySelector('.footer').style.display = '';
+  document.querySelector('.social-section') && (document.querySelector('.social-section').style.display = '');
+  // 如果是由返回鍵觸發就不再 pushState
+  if (location.hash && location.hash.startsWith('#product-')) {
+    history.pushState({ page: 'home' }, '', location.pathname);
+  }
 }
 
 function setDetailImg(src, el) {
@@ -998,13 +1268,112 @@ async function submitTransferCode(orderId, key) {
   try {
     await sb.from('orders').update({
       transfer_code: code,
-      deposit_status: 'paid'
+      deposit_status: 'filled'
     }).eq('order_id', orderId);
     showToast('後五碼已送出！');
     doLookup(); // 重新查詢更新畫面
   } catch(e) {
     showToast('送出失敗，請稍後再試');
   }
+}
+
+
+// ── 折扣碼 ────────────────────────────────────────────────
+window.appliedDiscount = 0;
+window.appliedCode = '';
+
+async function applyDiscount() {
+  const code = document.getElementById('f-discount')?.value.trim().toUpperCase();
+  const msg = document.getElementById('discount-msg');
+  if (!code) { showToast('請輸入折扣碼'); return; }
+  try {
+    const { data, error } = await sb.from('discount_codes')
+      .select('*').eq('code', code).eq('active', true).single();
+    if (error || !data) {
+      msg.style.display = 'block'; msg.style.color = '#c0392b';
+      msg.textContent = '❌ 折扣碼無效或已停用'; return;
+    }
+    // 檢查有效期
+    if (data.valid_until && new Date(data.valid_until) < new Date()) {
+      msg.style.display = 'block'; msg.style.color = '#c0392b';
+      msg.textContent = '❌ 折扣碼已過期'; return;
+    }
+    // 檢查使用次數
+    if (data.max_uses > 0 && data.used_count >= data.max_uses) {
+      msg.style.display = 'block'; msg.style.color = '#c0392b';
+      msg.textContent = '❌ 折扣碼已達使用上限'; return;
+    }
+    // 專屬碼檢查（assigned_to 有值就只能特定人用）
+    // 這裡先套用，讓後台對帳時確認
+    window.appliedDiscount = data.amount;
+    window.appliedCode = code;
+    msg.style.display = 'block'; msg.style.color = '#3b6d11';
+    msg.textContent = `✓ 已套用！折扣 NT$ ${data.amount.toLocaleString()}`;
+    // 更新 checkout summary
+    const summaryEl = document.getElementById('modal-summary');
+    if (summaryEl) openCheckout();
+  } catch(e) {
+    // demo mode
+    msg.style.display = 'block'; msg.style.color = '#c0392b';
+    msg.textContent = '查詢失敗，請稍後再試';
+  }
+}
+
+
+// ── 購物金 ────────────────────────────────────────────────
+window.availableCredits = 0;
+window.useCreditsAmt = 0;
+
+async function checkCreditsOnPhoneInput(phone) {
+  if (phone.replace(/[^0-9]/g,'').length < 10) return;
+  try {
+    const { data } = await sb.from('customers').select('credits').eq('phone', phone.trim()).single();
+    const credits = data?.credits || 0;
+    window.availableCredits = credits;
+    const section = document.getElementById('credits-section');
+    const balance = document.getElementById('credits-balance');
+    if (section && balance) {
+      if (credits > 0) {
+        section.style.display = 'block';
+        balance.textContent = 'NT$ ' + credits.toLocaleString();
+      } else {
+        section.style.display = 'none';
+      }
+    }
+  } catch(e) { /* no credits or demo mode */ }
+}
+
+function toggleUseCredits() {
+  const checked = document.getElementById('use-credits')?.checked;
+  const row = document.getElementById('credits-deduct-row');
+  const deductEl = document.getElementById('credits-deduct');
+  if (checked) {
+    // 最多折抵訂單金額，不超過購物金餘額
+    const discAmt = window.appliedDiscount || 0;
+    const orderAmt = Math.max(0, cartTotal() - discAmt);
+    window.useCreditsAmt = Math.min(window.availableCredits, orderAmt);
+    if (row) row.style.display = 'block';
+    if (deductEl) deductEl.textContent = 'NT$ ' + window.useCreditsAmt.toLocaleString();
+  } else {
+    window.useCreditsAmt = 0;
+    if (row) row.style.display = 'none';
+  }
+  // 更新 modal summary
+  updateCheckoutSummary();
+}
+
+function updateCheckoutSummary() {
+  const summary = document.getElementById('modal-summary');
+  if (!summary) return;
+  const discAmt = window.appliedDiscount || 0;
+  const creditsAmt = window.useCreditsAmt || 0;
+  const finalTotal = Math.max(0, cartTotal() - discAmt - creditsAmt);
+  summary.innerHTML = cart.map(i =>
+    `<div class="os-row"><span>${i.product}（${i.spec}）× ${i.qty}</span><span>NT$ ${(i.price*i.qty).toLocaleString()}</span></div>`
+  ).join('') +
+  (discAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>折扣碼 ${window.appliedCode||''}</span><span>- NT$ ${discAmt.toLocaleString()}</span></div>` : '') +
+  (creditsAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>購物金折抵</span><span>- NT$ ${creditsAmt.toLocaleString()}</span></div>` : '') +
+  `<div class="os-row os-total"><span>合計 ${cartCount()} 件</span><span>NT$ ${finalTotal.toLocaleString()}</span></div>`;
 }
 
 </script>
