@@ -63,8 +63,8 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 
 /* ORDERS TABLE */
 .otable{background:var(--white);border-radius:12px;border:1px solid var(--border);overflow:hidden}
-.oth{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 110px 90px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em}
-.otr{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 76px 110px 90px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center;cursor:pointer}
+.oth{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 72px 76px 110px 90px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em}
+.otr{display:grid;grid-template-columns:90px minmax(0,1fr) 90px 90px 72px 76px 110px 90px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center;cursor:pointer}
 .otr:last-child{border-bottom:none}
 .otr:hover{background:var(--light)}
 .otr.exp{border-color:var(--brown)}
@@ -279,7 +279,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <button class="new-btn" style="background:#185fa5" onclick="exportExcel()">匯出 Excel</button>
       </div>
       <div class="otable">
-        <div class="oth"><span>訂單編號</span><span>商品</span><span>客戶</span><span>金額</span><span>到貨</span><span>進度</span><span>狀態</span></div>
+        <div class="oth" style="grid-template-columns:90px minmax(0,1fr) 90px 90px 72px 76px 110px 90px"><span>訂單編號</span><span>商品</span><span>客戶</span><span>金額</span><span>付款</span><span>到貨</span><span>進度</span><span>狀態</span></div>
         <div id="order-list"></div>
       </div>
     </div>
@@ -547,7 +547,10 @@ async function loadOrders() {
     orders = (data || []).map(o => ({
       ...o,
       items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
-      surcharge_items: typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || [])
+      surcharge_items: typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []),
+      transfer_code: o.transfer_code || '',
+      deposit_status: o.deposit_status || 'pending',
+      balance_status: o.balance_status || 'pending'
     }));
   } catch(e) {
     orders = [
@@ -627,6 +630,10 @@ function renderOrders() {
       <span>${f.product}${multi}</span>
       <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
       <span>NT$ ${(o.amount||0).toLocaleString()}</span>
+      <span style="display:flex;flex-direction:column;gap:2px">
+        <span class="badge ${o.deposit_status==='paid'?'bs':'bw'}" style="font-size:10px">定金${o.deposit_status==='paid'?'✓':'待收'}</span>
+        <span class="badge ${o.balance_status==='paid'?'bs':'bw'}" style="font-size:10px">尾款${o.balance_status==='paid'?'✓':'待收'}</span>
+      </span>
       <span><span class="badge ${SC[st]}">${arr}/${tot}</span></span>
       <span style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${st==='arrived'||st==='shipped'?'#1d9e75':'#ef9f27'};width:${pct}%"></div></div></span>
       <span onclick="event.stopPropagation()"><select class="status-sel" onchange="changeOrderStatus('${o.order_id||o.id}',this.value)"><option value="" disabled selected>—</option><option value="shipped"${st==='shipped'?' selected':''}>已出貨</option><option value="processing"${st==='processing'?' selected':''}>處理中</option><option value="cancelled"${st==='cancelled'?' selected':''}>已取消</option></select></span>
@@ -681,6 +688,24 @@ function buildOrderDetail(o) {
       <div class="det-title">訂單明細（到貨 ${arr}/${tot} 件）</div>
       ${iHtml}
       <div class="det-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="det-label">總金額</span><span class="det-val" style="color:var(--brown);font-weight:700">NT$ ${(o.amount||0).toLocaleString()}</span></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--brown);margin-bottom:8px;letter-spacing:0.04em">付款狀態</div>
+        ${o.transfer_code ? `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">匯款後五碼：<span style="font-weight:700;color:var(--dark);letter-spacing:0.1em">${o.transfer_code}</span></div>` : '<div style="font-size:12px;color:var(--amber);margin-bottom:6px">⚠ 客人尚未填寫匯款後五碼</div>'}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;color:var(--muted)">定金</span>
+            <button onclick="updatePayment('${o.order_id||o.id}','deposit','paid')" style="padding:3px 10px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:${o.deposit_status==='paid'?'var(--green-bg)':'var(--light)'};color:${o.deposit_status==='paid'?'var(--green)':'var(--muted)'}">
+              ${o.deposit_status==='paid'?'✓ 已收':'待收款'}
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;color:var(--muted)">尾款</span>
+            <button onclick="updatePayment('${o.order_id||o.id}','balance','paid')" style="padding:3px 10px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:${o.balance_status==='paid'?'var(--green-bg)':'var(--light)'};color:${o.balance_status==='paid'?'var(--green)':'var(--muted)'}">
+              ${o.balance_status==='paid'?'✓ 已收':'待收款'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div style="padding:0 14px 14px">
@@ -1079,7 +1104,7 @@ function exportExcel() {
   const wb = XLSX.utils.book_new();
 
   // 訂單工作表
-  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','狀態','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
+  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','狀態','定金','尾款','匯款後五碼','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
   const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中'};
   orders.forEach(o => {
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
@@ -1089,7 +1114,7 @@ function exportExcel() {
       o.created_at ? new Date(o.created_at).toLocaleDateString('zh-TW') : '',
       o.customer_name||'', o.phone||'', o.email||'',
       o.store||'', o.store_no||'', o.ig||'', o.line_nickname||'', o.note||'',
-      o.amount||0, stMap[st]||st
+      o.amount||0, stMap[st], o.deposit_status==='paid'?'已收':'待收', o.balance_status==='paid'?'已收':'待收', o.transfer_code||''||st
     ];
     for (let i = 0; i < 3; i++) {
       const item = items[i];
@@ -1511,6 +1536,22 @@ async function cancelItem(oid, itemIdx) {
   } catch(e) { console.warn(e); }
   showToast(`已取消：${item.product}（${item.spec}）`);
   renderOrders(); renderArrival();
+}
+
+
+// ── 付款狀態管理 ──────────────────────────────────────────
+async function updatePayment(oid, type, status) {
+  const o = getOrder(oid);
+  if (!o) return;
+  const field = type === 'deposit' ? 'deposit_status' : 'balance_status';
+  const newStatus = o[field] === status ? 'pending' : status; // toggle
+  o[field] = newStatus;
+  try {
+    await sb.from('orders').update({ [field]: newStatus }).eq('order_id', o.order_id || String(o.id));
+  } catch(e) { console.warn(e); }
+  const label = type === 'deposit' ? '定金' : '尾款';
+  showToast(`${label}已標記為${newStatus === 'paid' ? '已收款' : '待收款'}`);
+  renderOrders();
 }
 
 </script>
