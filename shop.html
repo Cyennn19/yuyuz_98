@@ -273,6 +273,18 @@ a{color:inherit;text-decoration:none}
   .detail-wrap{padding:16px 14px}
   .detail-main-img{aspect-ratio:1;max-height:300px}
 }
+
+/* PAYMENT CODE FILL */
+.pay-fill-box{background:#faf7f3;border-radius:12px;border:1px solid #e8d8b8;padding:14px 16px;margin-top:10px}
+.pay-fill-title{font-size:13px;font-weight:600;color:var(--brown);margin-bottom:8px}
+.pay-fill-row{display:flex;gap:8px;align-items:center}
+.pay-fill-input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:16px;letter-spacing:0.15em;background:#fff;color:var(--dark);max-width:140px}
+.pay-fill-btn{padding:9px 16px;background:var(--brown);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.pay-fill-btn:hover{background:var(--mid)}
+.pay-done{font-size:13px;color:#3b6d11;font-weight:500}
+.pay-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.pb-paid{background:#eaf3de;color:#3b6d11}
+.pb-pending{background:#faeeda;color:#854f0b}
 </style>
 </head>
 <body>
@@ -408,6 +420,7 @@ a{color:inherit;text-decoration:none}
         <div class="form-group"><label>LINE 社群暱稱</label><input id="f-line" placeholder="你在社群的暱稱"></div>
       </div>
       <div class="form-group"><label>備註</label><textarea id="f-note" placeholder="特殊需求請備註"></textarea></div>
+      <div class="form-group"><label>匯款帳號後五碼 <span style="color:var(--text-muted);font-size:11px">（轉帳後填入，方便核對）</span></label><input id="f-transfer" placeholder="例：12345" maxlength="5" pattern="[0-9]{5}" style="letter-spacing:0.15em;font-size:16px"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeCheckout()">取消</button>
@@ -658,6 +671,7 @@ async function submitOrder() {
   const btn = document.getElementById('submit-btn');
   btn.textContent = '處理中…'; btn.disabled = true;
   const email = document.getElementById('f-email').value.trim();
+  const transferCode = document.getElementById('f-transfer').value.trim();
   const store = document.getElementById('f-store').value.trim();
   const storeno = document.getElementById('f-storeno').value.trim();
   const ig = document.getElementById('f-ig').value.trim();
@@ -670,7 +684,7 @@ async function submitOrder() {
     await sb.from('orders').insert([{
       order_id: orderId, customer_name: name, phone, email,
       store, store_no: storeno, ig, line_nickname: line, note,
-      amount, items: JSON.stringify(items), status: '',
+      amount, items: JSON.stringify(items), status: '', transfer_code: transferCode||null, deposit_status: transferCode ? 'paid' : 'pending', balance_status: 'pending',
       created_at: new Date().toISOString()
     }]);
     // upsert customer
@@ -682,7 +696,7 @@ async function submitOrder() {
   closeCheckout();
   cart = [];
   renderCart(); renderProducts();
-  ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line','f-note'].forEach(id => { document.getElementById(id).value = ''; });
+  ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line','f-note','f-transfer'].forEach(id => { document.getElementById(id).value = ''; });
   btn.textContent = '確認下單'; btn.disabled = false;
   document.getElementById('success-order-id').textContent = orderId;
   document.getElementById('product-area').style.display = 'none';
@@ -758,6 +772,18 @@ async function doLookup() {
       const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
       const st = getOrderStatus(o);
       const date = new Date(o.created_at).toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' });
+      const hasTransfer = o.transfer_code && o.transfer_code.length > 0;
+      const depositPaid = o.deposit_status === 'paid';
+      const payHtml = hasTransfer
+        ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">匯款後五碼：<span style="font-weight:600;color:var(--dark);letter-spacing:0.1em">${o.transfer_code}</span> <span class="pay-badge pb-paid">已確認</span></div>`
+        : `<div class="pay-fill-box">
+            <div class="pay-fill-title">💳 請填入匯款帳號後五碼</div>
+            <div class="pay-fill-row">
+              <input class="pay-fill-input" id="tc-${(o.order_id||'').replace(/[^a-zA-Z0-9]/g,'')}" maxlength="5" pattern="[0-9]*" inputmode="numeric" placeholder="12345">
+              <button class="pay-fill-btn" onclick="submitTransferCode('${o.order_id}','${(o.order_id||'').replace(/[^a-zA-Z0-9]/g,'')}')">確認送出</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px">填寫後將無法更改，請確認正確再送出</div>
+          </div>`;
       const itemsHtml = items.map(i => {
         const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
         return `<div class="lookup-item">
@@ -778,6 +804,7 @@ async function doLookup() {
           </div>
           <span class="lookup-status ${STATUS_CLASS[st]}">${STATUS_LABEL[st]}</span>
         </div>
+        ${payHtml}
         <div class="lookup-items">${itemsHtml}</div>
         <div class="lookup-total"><span>合計</span><span>NT$ ${(o.amount||0).toLocaleString()}</span></div>
       </div>`;
@@ -956,6 +983,28 @@ function openLightbox(src) {
 }
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
+}
+
+
+// ── 補填匯款後五碼 ────────────────────────────────────────
+async function submitTransferCode(orderId, key) {
+  const input = document.getElementById('tc-' + key);
+  const code = input ? input.value.trim() : '';
+  if (!/^[0-9]{5}$/.test(code)) {
+    showToast('請輸入正確的五位數字');
+    return;
+  }
+  if (!confirm('確認送出匯款後五碼：' + code + '\n送出後無法更改！')) return;
+  try {
+    await sb.from('orders').update({
+      transfer_code: code,
+      deposit_status: 'paid'
+    }).eq('order_id', orderId);
+    showToast('後五碼已送出！');
+    doLookup(); // 重新查詢更新畫面
+  } catch(e) {
+    showToast('送出失敗，請稍後再試');
+  }
 }
 
 </script>
