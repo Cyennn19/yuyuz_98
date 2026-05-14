@@ -546,6 +546,11 @@ const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
 const ADMIN_PASSWORD = 'uu2101619'; // 換成你的密碼
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ── 通知設定 ─────────────────────────────────────────────
+const NOTIFY_CONFIG = {
+  lineToken: '+e9kDmgt18+acQn9FN1NwHhq9MNJVh0jRTghxCkErOkymbESci1kIsg4qWwFbc+YySaPV5n9tK3bQyup9s+ZFx9EeXUkcziPfY+H0yrIeCJ06U2Hd4aLDclfOmAtKVTgPq2nKcqX7iQCdzcvWLQhUwdB04t89/1O/w1cDnyilFU=',
+  lineUserId: 'U77cb3c28d9be071f50a58de3bd2f77d2',
+};
 // ──────────────────────────────────────────────────────────
 
 // ── 登入 ──────────────────────────────────────────────────
@@ -1342,6 +1347,9 @@ async function checkScheduledProducts() {
     if (shouldOnline !== p.online) {
       p.online = shouldOnline;
       try { await sb.from('products').update({ online: shouldOnline }).eq('id', p.id); } catch(e) {}
+      if (!shouldOnline) {
+        sendLineMsg(`⚠️ 商品自動下架通知\n\n商品：${p.name}\n已達設定下架時間，已自動下架。\n請至後台確認。`);
+      }
     }
   }
   if (changed) { renderProductMgmt(); showToast('已自動更新商品上下架狀態'); }
@@ -1915,6 +1923,24 @@ async function giveOrderCashback(oid) {
     await sb.from('orders').update({ cashback_given: true }).eq('order_id', o.order_id||String(o.id));
   } catch(e) { console.warn(e); }
   showToast(`已回饋購物金 NT$ ${cashback} 給 ${o.customer_name}`);
+}
+
+
+// ── 管理後台通知 ──────────────────────────────────────────
+async function sendLineMsg(text) {
+  try {
+    await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${NOTIFY_CONFIG.lineToken}`
+      },
+      body: JSON.stringify({
+        to: NOTIFY_CONFIG.lineUserId,
+        messages: [{ type: 'text', text }]
+      })
+    });
+  } catch(e) { console.warn('LINE 通知失敗:', e); }
 }
 
 </script>
