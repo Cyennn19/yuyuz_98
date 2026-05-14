@@ -546,6 +546,13 @@ a{color:inherit;text-decoration:none}
 const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ── 通知設定 ─────────────────────────────────────────────
+const NOTIFY_CONFIG = {
+  lineToken: '+e9kDmgt18+acQn9FN1NwHhq9MNJVh0jRTghxCkErOkymbESci1kIsg4qWwFbc+YySaPV5n9tK3bQyup9s+ZFx9EeXUkcziPfY+H0yrIeCJ06U2Hd4aLDclfOmAtKVTgPq2nKcqX7iQCdzcvWLQhUwdB04t89/1O/w1cDnyilFU=',
+  lineUserId: 'U77cb3c28d9be071f50a58de3bd2f77d2',
+  email: 'yuyuz98210@gmail.com',
+};
+
 // ── 匯款帳號設定（修改這裡）──────────────────────────────
 window.BANK_ACCOUNT = '台新帳戶 (812) 2888-1012-3753-95\n郵局請另外私訊索取'; // 例：玉山銀行 808-1234567890123
 
@@ -873,6 +880,8 @@ async function submitOrder() {
   const dm = document.getElementById('discount-msg'); if(dm) dm.style.display='none';
   btn.textContent = '確認下單'; btn.disabled = false;
   document.getElementById('success-order-id').textContent = orderId;
+  // 發送新訂單通知
+  sendOrderNotify(orderId, name, amount, items).catch(e => console.warn(e));
   // 扣除購物金（在訂單成功後才扣，避免訂單失敗但已扣款）
   if (creditsUsed > 0) {
     try {
@@ -1388,6 +1397,30 @@ function updateCheckoutSummary() {
   (discAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>折扣碼 ${window.appliedCode||''}</span><span>- NT$ ${discAmt.toLocaleString()}</span></div>` : '') +
   (creditsAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>購物金折抵</span><span>- NT$ ${creditsAmt.toLocaleString()}</span></div>` : '') +
   `<div class="os-row os-total"><span>合計 ${cartCount()} 件</span><span>NT$ ${finalTotal.toLocaleString()}</span></div>`;
+}
+
+
+// ── 訂單通知 ──────────────────────────────────────────────
+async function sendOrderNotify(orderId, name, amount, items) {
+  const itemsText = items.map(i => `・${i.product}（${i.spec}）× ${i.qty}`).join('\n');
+  const msg = `🛒 新訂單通知\n\n訂單編號：${orderId}\n客戶姓名：${name}\n訂單金額：NT$ ${amount.toLocaleString()}\n\n商品明細：\n${itemsText}\n\n請至後台查看詳情。`;
+  // 傳 LINE 訊息
+  try {
+    await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${NOTIFY_CONFIG.lineToken}`
+      },
+      body: JSON.stringify({
+        to: NOTIFY_CONFIG.lineUserId,
+        messages: [{ type: 'text', text: msg }]
+      })
+    });
+    console.log('LINE 通知已發送');
+  } catch(e) {
+    console.warn('LINE 通知失敗:', e);
+  }
 }
 
 </script>
