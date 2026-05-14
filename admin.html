@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>星光代購 — 後台管理</title>
+<title>yuyuz_98 — 後台管理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
@@ -234,7 +234,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 <!-- LOGIN -->
 <div id="login-screen" class="login-wrap">
   <div class="login-box">
-    <div class="login-logo">✦ <span>星光代購</span></div>
+    <div class="login-logo">✦ <span>yuyuz_98</span></div>
     <div class="login-sub">後台管理系統</div>
     <input type="password" class="login-input" id="pw-input" placeholder="請輸入管理員密碼" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">登入</button>
@@ -245,7 +245,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 <!-- ADMIN -->
 <div id="admin-screen" class="admin">
   <nav class="admin-nav">
-    <div class="admin-logo">✦ <span>星光代購</span> 後台</div>
+    <div class="admin-logo">✦ <span>yuyuz_98</span> 後台</div>
     <div class="admin-nav-right">
       <div class="admin-tabs">
         <button class="at active" onclick="sw('orders')">訂單管理</button>
@@ -579,6 +579,7 @@ let editingProductId = null, pmPhotoData = null, renamingCatId = null, specRows 
 async function initAdmin() {
   await Promise.all([loadCategories(), loadProducts(), loadOrders(), loadCustomers(), loadDiscountCodes()]);
   syncCatFilters();
+  loadSavedRate();
   renderOrders();
   renderArrival();
   renderInventory();
@@ -600,8 +601,14 @@ async function loadCategories() {
 }
 async function loadProducts() {
   try {
-    const { data } = await sb.from('products').select('*').order('sort_order');
-    products = (data || []).map(p => ({ ...p, specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []), delivery_time: p.delivery_time || '', alert_text: p.alert_text || '', detail_images: typeof p.detail_images === 'string' ? JSON.parse(p.detail_images||'[]') : (p.detail_images||[]) }));
+    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice,detail_images').order('sort_order');
+    products = (data || []).map(p => ({
+      ...p,
+      specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []),
+      delivery_time: p.delivery_time || '',
+      alert_text: p.alert_text || '',
+      detail_images: typeof p.detail_images === 'string' ? JSON.parse(p.detail_images||'[]') : (p.detail_images||[])
+    }));
   } catch(e) {
     products = [
       {id:1,cat_id:'twice',name:'TWICE 官方手燈',emoji:'✨',photo:null,specs:[{name:'標準版',price:1200,stock:8},{name:'豪華版',price:1500,stock:7}],sold:42,online:true},
@@ -617,7 +624,11 @@ async function loadProducts() {
 }
 async function loadOrders() {
   try {
-    const { data } = await sb.from('orders').select('*').order('created_at', { ascending: false });
+    const limitEl = document.getElementById('o-limit');
+    const limit = limitEl ? parseInt(limitEl.value) : 50;
+    let query = sb.from('orders').select('*').order('created_at', { ascending: false });
+    if (limit > 0) query = query.limit(limit);
+    const { data } = await query;
     orders = (data || []).map(o => ({
       ...o,
       items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
@@ -787,10 +798,7 @@ function buildOrderDetail(o) {
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:12px;color:var(--muted)">尾款</span>
-            <button onclick="updatePayment('${o.order_id||o.id}','balance',${o.balance_status==='paid'?"'pending'":"'paid'"})"
-              style="padding:4px 12px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;background:${o.balance_status==='paid'?'var(--green-bg)':'var(--light)'};color:${o.balance_status==='paid'?'var(--green)':'var(--muted)'}">
-              ${o.balance_status==='paid'?'✓ 已入帳，點選取消':'確認入帳'}
-            </button>
+            <span style="font-size:12px;color:var(--muted)">賣貨便代收</span>
           </div>
         </div>
       </div>
@@ -1026,7 +1034,7 @@ function renderCustomers() {
             <span style="color:var(--muted);min-width:90px">${o.order_id||o.id}</span>
             <span style="flex:1">${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}（${o.items[0].spec}）</span>
             <span class="badge ${o.deposit_status==='paid'?'bs':'bw'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'✓':'待'}</span>
-            <span class="badge ${o.balance_status==='paid'?'bs':'bw'}" style="font-size:10px">尾款${o.balance_status==='paid'?'✓':'待'}</span>
+
             <span><span class="badge ${SC[st]}" style="font-size:10px">${SL[st]}</span></span>
             <span style="color:var(--brown);font-weight:600;white-space:nowrap">NT$ ${(o.amount||0).toLocaleString()}</span>
           </div>`;
@@ -1059,11 +1067,20 @@ async function addCat() {
   const inp = document.getElementById('new-cat-inp');
   const val = inp?.value.trim();
   if (!val) { inp?.focus(); return; }
+  const btn = document.querySelector('.pm-section .new-btn');
+  if (btn) { btn.textContent = '新增中…'; btn.disabled = true; }
   const newId = 'cat_' + Date.now();
   const newCat = { id: newId, label: val, sort_order: categories.length };
   categories.push(newCat);
   if (inp) inp.value = '';
-  try { await sb.from('categories').insert([newCat]); } catch(e) {}
+  try {
+    await sb.from('categories').insert([newCat]);
+    showToast(`✓ 分類「${val}」新增成功`);
+  } catch(e) {
+    showToast('新增失敗，請再試一次');
+    categories.pop();
+  }
+  if (btn) { btn.textContent = '+ 新增分類'; btn.disabled = false; }
   renderCatMgmt(); syncCatFilters();
 }
 async function deleteCat(id) {
@@ -1184,6 +1201,10 @@ function openProductModal(pid) {
 function closeProductModal() { document.getElementById('product-modal').classList.remove('open'); }
 function previewPhoto(input) {
   const file = input.files[0]; if (!file) return;
+  // 警告大圖
+  if (file.size > 500 * 1024) {
+    if (!confirm(`圖片大小 ${(file.size/1024).toFixed(0)}KB，建議壓縮到 500KB 以下再上傳，否則會影響載入速度。要繼續嗎？`)) { input.value = ''; return; }
+  }
   const r = new FileReader();
   r.onload = e => { pmPhotoData = e.target.result; document.getElementById('pm-photo-prev').innerHTML = `<img src="${pmPhotoData}" style="width:100%;height:100%;object-fit:cover">`; };
   r.readAsDataURL(file);
@@ -1254,7 +1275,7 @@ function exportExcel() {
   const wb = XLSX.utils.book_new();
 
   // 訂單工作表
-  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','折扣碼','折扣金額','狀態','商品金額','尾款','匯款後五碼','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
+  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','折扣碼','折扣金額','狀態','商品金額','匯款後五碼','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
   const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中'};
   orders.forEach(o => {
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
@@ -1264,7 +1285,7 @@ function exportExcel() {
       o.created_at ? new Date(o.created_at).toLocaleDateString('zh-TW') : '',
       o.customer_name||'', o.phone||'', o.email||'',
       o.store||'', o.store_no||'', o.ig||'', o.line_nickname||'', o.note||'',
-      o.amount||0, o.discount_code||'', o.discount_amount||0, stMap[st], o.deposit_status==='paid'?'已入帳':o.deposit_status==='filled'?'待核對':'未填', o.balance_status==='paid'?'已收':'待收', o.transfer_code||''||st
+      o.amount||0, o.discount_code||'', o.discount_amount||0, stMap[st], o.deposit_status==='paid'?'已入帳':o.deposit_status==='filled'?'待核對':'未填', o.transfer_code||''||st
     ];
     for (let i = 0; i < 3; i++) {
       const item = items[i];
@@ -1301,7 +1322,7 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws3, '客戶資料');
 
   const date = new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
-  XLSX.writeFile(wb, `星光代購_${date}.xlsx`);
+  XLSX.writeFile(wb, `yuyuz_98_${date}.xlsx`);
   showToast('Excel 已下載！');
 }
 
@@ -1554,7 +1575,7 @@ function exportSurchargeExcel() {
   ws['!cols']=[12,12,13,10,22,8,10,10,8].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '二補總表');
-  XLSX.writeFile(wb, `星光代購_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
+  XLSX.writeFile(wb, `yuyuz_98_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
   showToast('二補 Excel 已下載！');
 }
 
@@ -1656,15 +1677,27 @@ function confirmRate(source) {
   const val = parseFloat(document.getElementById(inputId)?.value);
   if (!val || val <= 0) { showToast('請輸入有效的費率'); return; }
   // 同步兩個費率輸入框
-  const otherId = source === 'arrival' ? 'rate-per-gram' : 'arrival-rate';
-  const otherEl = document.getElementById(otherId);
-  if (otherEl) otherEl.value = val;
+  ['arrival-rate', 'rate-per-gram'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+  // 存到 localStorage 下次自動帶入
+  localStorage.setItem('surcharge_rate', val);
   const confirmEl = document.getElementById(confirmId);
   if (confirmEl) {
     confirmEl.style.display = 'inline';
     setTimeout(() => { confirmEl.style.display = 'none'; }, 2000);
   }
-  showToast(`費率已設定：每公斤 NT$ ${val}`);
+  showToast(`費率已設定並儲存：每公斤 NT$ ${val}`);
+}
+function loadSavedRate() {
+  const saved = localStorage.getItem('surcharge_rate');
+  if (saved) {
+    ['arrival-rate', 'rate-per-gram'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = saved;
+    });
+  }
 }
 
 // ── 取消單件商品規格 ──────────────────────────────────────
