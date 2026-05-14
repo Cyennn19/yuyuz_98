@@ -252,6 +252,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <button class="at" onclick="sw('arrival')">到貨配貨</button>
         <button class="at" onclick="sw('surcharge')">二補總表</button>
         <button class="at" onclick="sw('discount')">折扣碼</button>
+        <button class="at" onclick="sw('siteconfig')">網站設定</button>
         <button class="at" onclick="sw('inventory')">庫存</button>
         <button class="at" onclick="sw('customers')">客戶</button>
         <button class="at" onclick="sw('products')">商品管理</button>
@@ -353,6 +354,35 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
           <span>訂單號</span><span>客戶</span><span>電話</span><span>二補明細</span><span>合計</span><span>店號</span><span>狀態</span><span>操作</span>
         </div>
         <div id="surcharge-list"></div>
+      </div>
+    </div>
+
+
+    <!-- 網站設定 -->
+    <div class="pg" id="pg-siteconfig">
+      <div style="font-size:16px;font-weight:700;color:var(--dark);margin-bottom:4px">網站設定</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">設定前台 Banner 圖片與公告文字</div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;max-width:600px">
+        <!-- Banner -->
+        <div style="background:var(--white);border-radius:12px;border:1px solid var(--border);padding:16px 18px">
+          <div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px">🖼 Banner 圖片</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">貼上 Imgur 圖片連結，建議尺寸 750×300px，留空則不顯示</div>
+          <input id="cfg-banner" type="text" placeholder="https://i.imgur.com/xxxxx.jpg" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
+          <div id="cfg-banner-preview" style="margin-top:10px;display:none">
+            <img id="cfg-banner-img" src="" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+          </div>
+          <button onclick="previewBanner()" style="margin-top:8px;padding:5px 12px;background:var(--light);border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer">預覽</button>
+        </div>
+
+        <!-- 公告文字 -->
+        <div style="background:var(--white);border-radius:12px;border:1px solid var(--border);padding:16px 18px">
+          <div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px">📢 公告文字</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">顯示在 Banner 下方，支援換行，留空則不顯示</div>
+          <textarea id="cfg-announcement" placeholder="例：🎉 本月活動：消費滿 NT$2000 享九折優惠！&#10;預計出貨時間：每週三、五統一出貨" style="width:100%;min-height:80px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)"></textarea>
+        </div>
+
+        <button onclick="saveSiteConfig()" style="padding:12px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;width:100%">儲存設定</button>
       </div>
     </div>
 
@@ -1256,12 +1286,13 @@ async function saveProduct() {
 }
 
 function sw(tab) {
-  const tabs = ['orders','arrival','surcharge','discount','inventory','customers','products'];
+  const tabs = ['orders','arrival','surcharge','discount','siteconfig','inventory','customers','products'];
   document.querySelectorAll('.at').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.getElementById('pg-' + tab).classList.add('on');
   if (tab === 'products') renderProductMgmt();
   if (tab === 'surcharge') renderSurcharge();
+  if (tab === 'siteconfig') loadSiteConfig();
   if (tab === 'discount') renderDiscount();
 }
 
@@ -1942,6 +1973,49 @@ async function sendLineMsg(text) {
       })
     });
   } catch(e) { console.warn('LINE 通知失敗:', e); }
+}
+
+
+// ── 網站設定 ──────────────────────────────────────────────
+async function loadSiteConfig() {
+  try {
+    const { data } = await sb.from('settings').select('key,value');
+    if (!data) return;
+    const banner = data.find(s => s.key === 'banner_image')?.value || '';
+    const announcement = data.find(s => s.key === 'announcement')?.value || '';
+    const bannerEl = document.getElementById('cfg-banner');
+    const annEl = document.getElementById('cfg-announcement');
+    if (bannerEl) bannerEl.value = banner;
+    if (annEl) annEl.value = announcement;
+    if (banner) {
+      document.getElementById('cfg-banner-img').src = banner;
+      document.getElementById('cfg-banner-preview').style.display = 'block';
+    }
+  } catch(e) { console.warn(e); }
+}
+
+function previewBanner() {
+  const url = document.getElementById('cfg-banner')?.value.trim();
+  const preview = document.getElementById('cfg-banner-preview');
+  const img = document.getElementById('cfg-banner-img');
+  if (url && preview && img) {
+    img.src = url;
+    preview.style.display = 'block';
+  }
+}
+
+async function saveSiteConfig() {
+  const banner = document.getElementById('cfg-banner')?.value.trim() || '';
+  const announcement = document.getElementById('cfg-announcement')?.value.trim() || '';
+  try {
+    await sb.from('settings').upsert([
+      { key: 'banner_image', value: banner, updated_at: new Date().toISOString() },
+      { key: 'announcement', value: announcement, updated_at: new Date().toISOString() }
+    ], { onConflict: 'key' });
+    showToast('✓ 網站設定已儲存！前台將立即生效');
+  } catch(e) {
+    showToast('儲存失敗：' + e.message);
+  }
 }
 
 </script>
