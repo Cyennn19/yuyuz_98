@@ -1127,7 +1127,7 @@ async function toggleProduct(pid) {
   renderProductMgmt();
 }
 
-function addSpecRow(name='', price='', stock='', preorder=0) { specRows.push({ id: Date.now() + Math.random(), name, price, stock, preorder }); renderSpecTable(); }
+function addSpecRow(name='', price='', stock='', preorder=1) { specRows.push({ id: Date.now() + Math.random(), name, price, stock, preorder }); renderSpecTable(); }
 function removeSpecRow(id) { specRows = specRows.filter(r => r.id !== id); renderSpecTable(); }
 function renderSpecTable() {
   document.getElementById('spec-tbody').innerHTML = specRows.map(r =>
@@ -1156,7 +1156,7 @@ function openProductModal(pid) {
   else { prev.innerHTML = `<span style="font-size:18px">${p ? (p.emoji||'📦') : '✨'}</span>`; }
   document.getElementById('pm-cat-sel').innerHTML = categories.map(c => `<option value="${c.id}"${p&&p.cat_id===c.id?' selected':''}>${c.label}</option>`).join('');
   if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0 })); }
-  else { addSpecRow('', 0, 0); addSpecRow('', 0, 0); }
+  else { addSpecRow('', 0, 0, 1); addSpecRow('', 0, 0, 1); }
   renderSpecTable();
   // 載入到貨時間
   const delivEl = document.getElementById('pm-delivery-time');
@@ -1929,15 +1929,16 @@ async function giveOrderCashback(oid) {
 // ── 管理後台通知 ──────────────────────────────────────────
 async function sendLineMsg(text) {
   try {
-    await fetch('https://api.line.me/v2/bot/message/push', {
+    await fetch('https://yxlpqbbugkbxcklmtkfx.supabase.co/functions/v1/notify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${NOTIFY_CONFIG.lineToken}`
+        'apikey': SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({
-        to: NOTIFY_CONFIG.lineUserId,
-        messages: [{ type: 'text', text }]
+        lineToken: NOTIFY_CONFIG.lineToken,
+        lineUserId: NOTIFY_CONFIG.lineUserId,
+        message: text
       })
     });
   } catch(e) { console.warn('LINE 通知失敗:', e); }
