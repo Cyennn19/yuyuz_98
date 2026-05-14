@@ -138,6 +138,11 @@ a{color:inherit;text-decoration:none}
 .back-btn{padding:12px 28px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
 
 @media(max-width:600px){
+  .nav{padding:0 10px;height:50px}.cart-label{display:inline}
+  .nav-logo span{font-size:13px;white-space:nowrap}
+  #nav-logo-img{width:36px;height:36px}
+  #lookup-btn{padding:6px 8px;font-size:11px}
+  .cart-btn{padding:6px 10px;font-size:12px}
   .product-grid{grid-template-columns:repeat(2,1fr);gap:10px}
   .main{padding:16px}
   .cart-drawer{width:100vw}
@@ -222,8 +227,19 @@ a{color:inherit;text-decoration:none}
 .detail-breadcrumb{font-size:13px;color:var(--text-muted)}
 .detail-wrap{max-width:720px;margin:0 auto;padding:24px 20px}
 .detail-img-area{margin-bottom:20px}
-.detail-main-img{width:100%;aspect-ratio:1;max-height:400px;background:var(--light);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:80px;overflow:hidden;margin-bottom:10px;cursor:zoom-in}
-.detail-main-img img{width:100%;height:100%;object-fit:cover}
+.detail-main-img{width:100%;aspect-ratio:1/1;background:var(--light);border-radius:14px;overflow:hidden;margin-bottom:10px;position:relative;touch-action:pan-y}
+.detail-main-img img{width:100%;height:100%;object-fit:cover;display:block}
+.detail-img-slider{display:flex;width:100%;height:100%;transition:transform 0.3s ease}
+.detail-img-slide{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--light);font-size:80px;cursor:zoom-in;overflow:hidden}
+.detail-img-slide img{width:100%;height:100%;object-fit:cover}
+.detail-img-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.85);border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--dark);box-shadow:0 2px 8px rgba(0,0,0,0.12);z-index:5;transition:opacity 0.15s}
+.detail-img-nav:hover{background:#fff}
+.detail-img-nav.prev{left:8px}
+.detail-img-nav.next{right:8px}
+.detail-img-nav.hidden{opacity:0;pointer-events:none}
+.detail-img-dots{display:flex;justify-content:center;gap:5px;margin-bottom:10px}
+.detail-img-dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:all 0.2s;border:none;padding:0}
+.detail-img-dot.active{background:var(--brown);width:16px;border-radius:3px}
 .detail-thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
 .detail-thumbs::-webkit-scrollbar{display:none}
 .detail-thumb{width:64px;height:64px;border-radius:10px;border:2px solid transparent;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;flex-shrink:0;overflow:hidden}
@@ -303,7 +319,18 @@ a{color:inherit;text-decoration:none}
 .social-qr-placeholder { font-size:32px; }
 .social-label { font-size:12px; font-weight:600; color:var(--dark); }
 .social-link { font-size:11px; color:var(--brown); }
+
+/* 字體精細設定 */
+:lang(zh), .zh { font-family: 'Noto Sans TC', sans-serif; }
+.nav-logo span { font-family: 'DM Sans', 'Noto Sans TC', sans-serif; letter-spacing: -0.02em; }
+.hero-title { font-family: 'DM Sans', 'Noto Sans TC', sans-serif; letter-spacing: -0.02em; }
+.pc-price, .detail-price, .os-total span:last-child { font-family: 'DM Sans', sans-serif; font-variant-numeric: tabular-nums; }
+.cart-count { font-family: 'DM Sans', sans-serif; }
+input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-serif; }
 </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -339,11 +366,15 @@ a{color:inherit;text-decoration:none}
     <div class="success-title">下單成功！</div>
     <div class="success-msg">感謝你的訂購！請保留訂單編號，並完成匯款。</div>
     <div class="success-order-id" id="success-order-id"></div>
-    <div style="background:#faf7f3;border-radius:12px;border:1px solid #e8d8b8;padding:16px 20px;margin:16px auto;max-width:340px;text-align:left">
-      <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:10px">💳 請完成匯款</div>
-      <div style="font-size:13px;color:var(--dark);line-height:1.8">
-        <div>匯款帳號請至「<strong>查詢訂單</strong>」頁面查看</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:6px">查詢時請輸入訂單編號 + 電話號碼，匯款完成後可在查詢頁面填寫後五碼</div>
+    <div style="background:#faf7f3;border-radius:12px;border:1px solid #e8d8b8;padding:16px 20px;margin:16px auto;max-width:360px;text-align:left">
+      <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:10px">💳 付款資訊</div>
+      <div style="font-size:13px;color:var(--dark);line-height:2;background:#fff;border-radius:8px;padding:10px 14px;margin-bottom:10px;border:1px solid #e8d8b8">
+        ${window.BANK_ACCOUNT ? window.BANK_ACCOUNT.replace(/\n/g,'<br>') : '請私訊賣家取得匯款帳號'}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:6px">⏰ 請於 24 小時內完成付款</div>
+      <div style="font-size:12px;color:var(--dark);line-height:1.8">
+        <div>✦ 付款完成後請至「<strong>查詢訂單</strong>」填寫匯款後五碼</div>
+        <div style="color:var(--text-muted);margin-top:4px">※ 部分團務確定購買後再通知付款者除外</div>
       </div>
     </div>
     <div style="margin:20px auto 16px;max-width:400px">
@@ -377,9 +408,12 @@ a{color:inherit;text-decoration:none}
   </div>
   <div class="detail-wrap">
     <div class="detail-img-area">
-      <div class="detail-main-img" id="detail-main-img" onclick="openLightbox(currentDetailImg)">
-        <span id="detail-main-emoji" style="font-size:80px"></span>
+      <div class="detail-main-img" id="detail-main-img">
+        <div class="detail-img-slider" id="detail-img-slider"></div>
+        <button class="detail-img-nav prev hidden" id="detail-prev" onclick="slideDetail(-1)">&#8249;</button>
+        <button class="detail-img-nav next hidden" id="detail-next" onclick="slideDetail(1)">&#8250;</button>
       </div>
+      <div class="detail-img-dots" id="detail-img-dots"></div>
       <div class="detail-thumbs" id="detail-thumbs"></div>
     </div>
     <div class="detail-info">
@@ -497,10 +531,11 @@ a{color:inherit;text-decoration:none}
     </div>
     <div class="modal-body">
       <div class="order-summary" id="order-summary"></div>
+      <div id="autofill-hint" style="display:none;background:#faf7f3;border-radius:10px;border:1px solid #e8d8b8;padding:12px 14px;margin-bottom:12px"></div>
       <div class="form-section">收件人資料</div>
       <div class="form-row">
         <div class="form-group"><label>姓名 *</label><input id="f-name" placeholder="請輸入姓名"></div>
-        <div class="form-group"><label>電話 *</label><input id="f-phone" placeholder="09xxxxxxxx" oninput="checkCreditsOnPhoneInput(this.value)"></div>
+        <div class="form-group"><label>電話 *</label><input id="f-phone" placeholder="09xxxxxxxx" oninput="checkCreditsOnPhoneInput(this.value)" onblur="checkPhoneHistory(this.value)"></div>
       </div>
       <div class="form-group"><label>Email *</label><input id="f-email" placeholder="example@email.com" type="email"></div>
       <div class="form-row">
@@ -531,6 +566,12 @@ a{color:inherit;text-decoration:none}
         </div>
         <div id="credits-deduct-row" style="display:none;font-size:12px;color:#3b6d11">折抵金額：<span id="credits-deduct">NT$ 0</span></div>
       </div>
+    </div>
+    <div style="padding:0 20px 12px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--dark);line-height:1.6">
+        <input type="checkbox" id="agree-checkbox" style="width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:var(--brown);cursor:pointer">
+        <span>我已閱讀並同意：本服務為受託代購，下單後即開始採買流程，<strong>不適用 7 天鑑賞期</strong>。本系統會記錄配送資訊以利下次快速填寫。</span>
+      </label>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeCheckout()">取消</button>
@@ -602,6 +643,8 @@ async function init() {
   renderCatBar();
   renderProducts();
   initBranding();
+  // 自動帶入上次填寫的資料
+  setTimeout(loadFormFromLocal, 100);
   // 瀏覽器返回/前進鍵監聽
   window.addEventListener('popstate', (e) => {
     const state = e.state;
@@ -824,6 +867,7 @@ function closeCart() {
 
 function openCheckout() {
   if (!cart.length) return;
+  saveFormToLocal();
   const summary = document.getElementById('order-summary');
   const discAmt = window.appliedDiscount || 0;
   const finalTotal = Math.max(0, cartTotal() - discAmt);
@@ -843,6 +887,12 @@ async function submitOrder() {
   const name = document.getElementById('f-name').value.trim();
   const phone = document.getElementById('f-phone').value.trim();
   if (!name || !phone) { showToast('請填寫姓名與電話'); return; }
+  // 確認已勾選同意條款
+  const agreeEl = document.getElementById('agree-checkbox');
+  if (!agreeEl || !agreeEl.checked) {
+    showToast('請先閱讀並勾選同意條款');
+    return;
+  }
   const btn = document.getElementById('submit-btn');
   btn.textContent = '處理中…'; btn.disabled = true;
   const email = document.getElementById('f-email').value.trim();
@@ -875,11 +925,15 @@ async function submitOrder() {
   cart = [];
   renderCart(); renderProducts();
   ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line','f-note','f-transfer','f-discount'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const agreeBox = document.getElementById('agree-checkbox');
+  if (agreeBox) agreeBox.checked = false;
   window.appliedDiscount = 0; window.appliedCode = '';
   window.useCreditsAmt = 0; window.availableCredits = 0;
   const dm = document.getElementById('discount-msg'); if(dm) dm.style.display='none';
   btn.textContent = '確認下單'; btn.disabled = false;
   document.getElementById('success-order-id').textContent = orderId;
+  // 儲存表單資料到 localStorage
+  saveFormToLocal();
   // 發送新訂單通知
   sendOrderNotify(orderId, name, amount, items).catch(e => console.warn(e));
   // 扣除購物金（在訂單成功後才扣，避免訂單失敗但已扣款）
@@ -901,9 +955,35 @@ async function submitOrder() {
   document.getElementById('success-page').classList.add('show');
   window.scrollTo(0, 0);
 }
+function showSuccessPage() {
+  // 先關掉詳情頁（如果在詳情頁的話）
+  const detailPage = document.getElementById('detail-page');
+  if (detailPage && detailPage.classList.contains('show')) {
+    detailPage.classList.remove('show');
+    // 清除 hash
+    history.pushState({ page: 'home' }, '', location.pathname);
+  }
+  // 確保主頁元素都隱藏
+  document.querySelector('.hero').style.display = 'none';
+  document.querySelector('.cat-bar').style.display = 'none';
+  document.querySelector('.footer') && (document.querySelector('.footer').style.display = 'none');
+  document.querySelector('.social-section') && (document.querySelector('.social-section').style.display = 'none');
+  // 隱藏商品區，顯示成功頁
+  document.getElementById('product-area').style.display = 'none';
+  document.getElementById('success-page').classList.add('show');
+  document.querySelector('.main').style.display = '';
+  window.scrollTo(0, 0);
+}
+
 function backToShop() {
   document.getElementById('product-area').style.display = '';
   document.getElementById('success-page').classList.remove('show');
+  // 恢復所有隱藏的元素
+  document.querySelector('.hero').style.display = '';
+  document.querySelector('.cat-bar').style.display = '';
+  document.querySelector('.footer') && (document.querySelector('.footer').style.display = '');
+  document.querySelector('.social-section') && (document.querySelector('.social-section').style.display = '');
+  window.scrollTo(0, 0);
 }
 
 function showToast(msg) {
@@ -979,11 +1059,14 @@ async function doLookup() {
     if (lookupMode === 'phone') {
       try {
         const { data: custData } = await sb.from('customers').select('credits, name').eq('phone', val).single();
+        const { data: igData } = await sb.from('orders').select('ig').eq('phone', val).order('created_at', { ascending: false }).limit(1);
+        const latestIG = igData && igData.length ? igData[0].ig : '';
         const credits = custData?.credits || 0;
         const custName = custData?.name || '';
         creditsHtml = `<div style="background:linear-gradient(135deg,#8b6f47,#6b4f35);border-radius:12px;padding:14px 16px;margin-bottom:12px;color:#fff">
           <div style="font-size:11px;opacity:0.8;margin-bottom:3px">yuyuz代購會員</div>
           <div style="font-size:16px;font-weight:700;margin-bottom:6px">${custName || val}</div>
+          ${latestIG ? `<div style="font-size:12px;opacity:0.85;margin-bottom:4px">${maskIG(latestIG)}</div>` : ''}
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:11px;opacity:0.8">購物金餘額</div><div style="font-size:22px;font-weight:700">NT$ ${credits.toLocaleString()}</div></div>
             <div style="text-align:right"><div style="font-size:11px;opacity:0.8">共 ${data.length} 筆訂單</div>
@@ -1107,28 +1190,23 @@ async function openDetail(pid) {
   document.getElementById('detail-name').textContent = p.name;
   document.getElementById('detail-price').textContent = priceRange(p);
 
-  // 主圖
-  const mainImg = document.getElementById('detail-main-img');
-  const mainEmoji = document.getElementById('detail-main-emoji');
-  if (p.photo) {
-    mainImg.innerHTML = `<img src="${p.photo}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover">`;
-    currentDetailImg = p.photo;
-  } else {
-    mainImg.innerHTML = `<span style="font-size:80px">${p.emoji||'📦'}</span>`;
-    currentDetailImg = '';
-  }
-
-  // 縮圖列（主圖 + 詳情圖）
-  const thumbs = document.getElementById('detail-thumbs');
+  // 所有圖片（主圖 + 詳情圖）
   const allImgs = [p.photo, ...(p.detail_images||[])].filter(Boolean);
+  window._detailImgs = allImgs;
+  window._detailImgIdx = 0;
+  currentDetailImg = allImgs[0] || '';
+  renderDetailSlider();
+
+  // 縮圖列
+  const thumbs = document.getElementById('detail-thumbs');
   if (allImgs.length > 1) {
     thumbs.innerHTML = allImgs.map((img, i) =>
-      `<div class="detail-thumb${i===0?' active':''}" onclick="setDetailImg('${img}',this)">
+      `<div class="detail-thumb${i===0?' active':''}" onclick="goDetailSlide(${i})">
         <img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover">
       </div>`
     ).join('');
   } else if (!p.photo && p.emoji) {
-    thumbs.innerHTML = '';
+    thumbs.innerHTML = `<div class="detail-thumb active"><span style="font-size:26px">${p.emoji||'📦'}</span></div>`;
   } else {
     thumbs.innerHTML = '';
   }
@@ -1213,12 +1291,61 @@ function closeDetail() {
   }
 }
 
+function renderDetailSlider() {
+  const imgs = window._detailImgs || [];
+  const idx = window._detailImgIdx || 0;
+  const slider = document.getElementById('detail-img-slider');
+  const dots = document.getElementById('detail-img-dots');
+  const prevBtn = document.getElementById('detail-prev');
+  const nextBtn = document.getElementById('detail-next');
+  if (!slider) return;
+
+  if (imgs.length === 0) {
+    // 只有 emoji
+    slider.innerHTML = `<div class="detail-img-slide" onclick="openLightbox('')"><span style="font-size:80px">${window._detailEmoji||'📦'}</span></div>`;
+  } else {
+    slider.innerHTML = imgs.map(img =>
+      `<div class="detail-img-slide" onclick="openLightbox('${img}')">
+        <img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover">
+      </div>`
+    ).join('');
+  }
+  slider.style.transform = `translateX(-${idx * 100}%)`;
+
+  // 更新導覽按鈕
+  if (prevBtn) prevBtn.classList.toggle('hidden', idx === 0 || imgs.length <= 1);
+  if (nextBtn) nextBtn.classList.toggle('hidden', idx >= imgs.length - 1 || imgs.length <= 1);
+
+  // 更新圓點
+  if (dots) {
+    dots.innerHTML = imgs.length > 1
+      ? imgs.map((_, i) => `<button class="detail-img-dot${i===idx?' active':''}" onclick="goDetailSlide(${i})"></button>`).join('')
+      : '';
+  }
+
+  // 更新縮圖 active
+  document.querySelectorAll('.detail-thumb').forEach((t, i) => t.classList.toggle('active', i === idx));
+  currentDetailImg = imgs[idx] || '';
+}
+
+function goDetailSlide(idx) {
+  const imgs = window._detailImgs || [];
+  window._detailImgIdx = Math.max(0, Math.min(idx, imgs.length - 1));
+  renderDetailSlider();
+}
+
+function slideDetail(dir) {
+  const imgs = window._detailImgs || [];
+  const newIdx = (window._detailImgIdx || 0) + dir;
+  if (newIdx < 0 || newIdx >= imgs.length) return;
+  window._detailImgIdx = newIdx;
+  renderDetailSlider();
+}
+
 function setDetailImg(src, el) {
-  currentDetailImg = src;
-  const mainImg = document.getElementById('detail-main-img');
-  mainImg.innerHTML = `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover">`;
-  document.querySelectorAll('.detail-thumb').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
+  const imgs = window._detailImgs || [];
+  const idx = imgs.indexOf(src);
+  if (idx >= 0) goDetailSlide(idx);
 }
 
 function selectDetailSpec(el, specName, pid) {
@@ -1422,6 +1549,136 @@ async function sendOrderNotify(orderId, name, amount, items) {
     console.warn('LINE 通知失敗:', e);
   }
 }
+
+
+// ── 自動帶入上次訂購資料 ──────────────────────────────────
+function maskName(name) {
+  if (!name || name.length <= 1) return name;
+  if (name.length === 2) return name[0] + '*';
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+}
+
+function maskIG(ig) {
+  if (!ig) return '';
+  // @yuyuz_98 → @yu***98
+  const clean = ig.startsWith('@') ? ig : '@' + ig;
+  const body = clean.slice(1); // 去掉 @
+  if (body.length <= 4) return clean;
+  const show = 2; // 前後各顯示幾個字
+  return '@' + body.slice(0, show) + '*'.repeat(Math.max(1, body.length - show * 2)) + body.slice(-show);
+}
+
+let _lastOrderData = null; // 暫存查到的資料
+
+async function checkPhoneHistory(phone) {
+  const cleaned = phone.replace(/[^0-9]/g, '');
+  if (cleaned.length < 10) return;
+  // 清除舊的提示
+  const hint = document.getElementById('autofill-hint');
+  if (hint) hint.style.display = 'none';
+  try {
+    // 從 customers 表查資料
+    const { data: cust } = await sb.from('customers').select('name, email').eq('phone', phone.trim()).single();
+    // 從最新一筆訂單查超商資訊和 IG
+    const { data: orders } = await sb.from('orders').select('store, store_no, ig, line_nickname').eq('phone', phone.trim()).order('created_at', { ascending: false }).limit(1);
+    if (!cust && (!orders || !orders.length)) return;
+    const lastOrder = orders && orders.length ? orders[0] : {};
+    _lastOrderData = {
+      name: cust?.name || '',
+      email: cust?.email || '',
+      store: lastOrder.store || '',
+      store_no: lastOrder.store_no || '',
+      ig: lastOrder.ig || '',
+      line_nickname: lastOrder.line_nickname || '',
+    };
+    if (!_lastOrderData.name && !_lastOrderData.store) return;
+    // 顯示提示
+    const maskedName = maskName(_lastOrderData.name);
+    const maskedIG = maskIG(_lastOrderData.ig);
+    const storeText = _lastOrderData.store || '上次門市';
+    let hintText = `偵測到您上次的訂購紀錄，收件人為 <strong>${maskedName}</strong>`;
+    if (maskedIG) hintText += `（${maskedIG}）`;
+    if (storeText) hintText += `，是否沿用上次的 <strong>${storeText}</strong> 取貨資訊？`;
+    if (hint) {
+      hint.innerHTML = `<div style="font-size:13px;color:var(--dark);margin-bottom:10px">${hintText}</div>
+        <div style="display:flex;gap:8px">
+          <button type="button" onclick="applyLastOrder()" style="flex:1;padding:8px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✓ 是，沿用上次資料</button>
+          <button type="button" onclick="dismissAutofill()" style="flex:1;padding:8px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--dark)">✕ 否，重新填寫</button>
+        </div>`;
+      hint.style.display = 'block';
+    }
+  } catch(e) { /* 查無資料，正常 */ }
+}
+
+function applyLastOrder() {
+  if (!_lastOrderData) return;
+  const fields = {
+    'f-name': _lastOrderData.name,
+    'f-email': _lastOrderData.email,
+    'f-store': _lastOrderData.store,
+    'f-storeno': _lastOrderData.store_no,
+    'f-ig': _lastOrderData.ig,
+    'f-line': _lastOrderData.line_nickname,
+  };
+  Object.entries(fields).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el && val) el.value = val;
+  });
+  dismissAutofill();
+  showToast('已帶入上次訂購資料，請確認後送出');
+}
+
+function dismissAutofill() {
+  const hint = document.getElementById('autofill-hint');
+  if (hint) hint.style.display = 'none';
+  _lastOrderData = null;
+}
+
+// ── localStorage 記憶 ─────────────────────────────────────
+function saveFormToLocal() {
+  const fields = ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line'];
+  const data = {};
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value.trim()) data[id] = el.value.trim();
+  });
+  if (Object.keys(data).length > 0) {
+    localStorage.setItem('yuyuz_form', JSON.stringify(data));
+  }
+}
+
+function loadFormFromLocal() {
+  try {
+    const saved = localStorage.getItem('yuyuz_form');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    Object.entries(data).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && !el.value) el.value = val;
+    });
+  } catch(e) {}
+}
+
+
+// ── 詳情頁圖片觸控滑動 ────────────────────────────────────
+(function() {
+  let touchStartX = 0, touchStartY = 0;
+  document.addEventListener('touchstart', e => {
+    const slider = document.getElementById('detail-img-slider');
+    if (!slider || !slider.closest('#detail-page.show')) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const slider = document.getElementById('detail-img-slider');
+    if (!slider || !slider.closest('#detail-page.show')) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      slideDetail(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+})();
 
 </script>
 
