@@ -311,14 +311,14 @@ a{color:inherit;text-decoration:none}
 .social-section { background:#fff; border-top:1px solid var(--border); padding:28px 24px; text-align:center; }
 .social-title { font-size:15px; font-weight:700; color:var(--dark); margin-bottom:6px; }
 .social-sub { font-size:13px; color:var(--text-muted); margin-bottom:20px; }
-.social-cards { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
-.social-card { display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; text-decoration:none; }
+.social-cards { display:flex; gap:8px; justify-content:center; flex-wrap:nowrap; }
+.social-card { display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; text-decoration:none; flex:1; min-width:0; }
 .social-card:hover .social-qr { transform:scale(1.03); box-shadow:0 4px 16px rgba(44,32,24,0.12); }
-.social-qr { width:120px; height:120px; border-radius:12px; border:1px solid var(--border); overflow:hidden; background:var(--light); display:flex; align-items:center; justify-content:center; transition:transform 0.15s, box-shadow 0.15s; }
+.social-qr { width:100%; aspect-ratio:1; max-width:110px; border-radius:12px; border:1px solid var(--border); overflow:hidden; background:var(--light); display:flex; align-items:center; justify-content:center; transition:transform 0.15s, box-shadow 0.15s; }
 .social-qr img { width:100%; height:100%; object-fit:cover; }
 .social-qr-placeholder { font-size:32px; }
-.social-label { font-size:12px; font-weight:600; color:var(--dark); }
-.social-link { font-size:11px; color:var(--brown); }
+.social-label { font-size:11px; font-weight:600; color:var(--dark); white-space:nowrap; }
+.social-link { font-size:10px; color:var(--brown); white-space:nowrap; }
 
 /* 字體精細設定 */
 :lang(zh), .zh { font-family: 'Noto Sans TC', sans-serif; }
@@ -327,6 +327,25 @@ a{color:inherit;text-decoration:none}
 .pc-price, .detail-price, .os-total span:last-child { font-family: 'DM Sans', sans-serif; font-variant-numeric: tabular-nums; }
 .cart-count { font-family: 'DM Sans', sans-serif; }
 input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-serif; }
+
+/* 漢堡選單 */
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border:none;background:none}
+.hamburger span{display:block;width:22px;height:2px;background:var(--dark);border-radius:2px;transition:all 0.25s}
+.mobile-menu{display:none;position:fixed;top:50px;left:0;right:0;background:#fff;border-bottom:1px solid var(--border);z-index:99;padding:8px 0;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.mobile-menu.open{display:block}
+.mobile-menu-item{display:block;width:100%;padding:13px 20px;font-size:14px;color:var(--dark);border:none;background:none;text-align:left;cursor:pointer;border-bottom:1px solid var(--border)}
+.mobile-menu-item:last-child{border-bottom:none}
+.mobile-menu-item:active{background:var(--light)}
+@media(max-width:600px){
+  .hamburger{display:flex}
+  .cat-bar{display:none !important}
+  .cart-text{display:none}
+}
+@media(min-width:601px){
+  .hamburger{display:none !important}
+  .mobile-menu{display:none !important}
+  .cart-text{display:inline}
+}
 </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -335,18 +354,27 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 <body>
 
 <nav class="nav">
-  <div class="nav-logo" style="display:flex;align-items:center;gap:10px">
-    <div id="nav-logo-img" style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">✦</div>
-    <span>yuyuz代購</span>
+  <div class="nav-logo" style="display:flex;align-items:center">
+    <div id="nav-logo-img" style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;cursor:pointer" onclick="window.scrollTo(0,0)">✦</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
-    <button class="nav-lookup-btn" onclick="openLookup()">查詢訂單</button>
+    <button class="nav-lookup-btn" onclick="openLookup()" id="lookup-btn">查詢訂單</button>
+    <!-- 電腦版：圖示+文字 / 手機版：只有圖示+數字 -->
     <button class="nav-cart" onclick="openCart()">
-      🛒 購物車
+      <span style="font-size:16px">🛒</span>
+      <span class="cart-text">購物車</span>
       <span class="cart-count" id="cart-count">0</span>
+    </button>
+    <!-- 漢堡：手機版才顯示，點開顯示商品分類 -->
+    <button class="hamburger" onclick="toggleMobileMenu()" aria-label="分類選單">
+      <span></span><span></span><span></span>
     </button>
   </div>
 </nav>
+<!-- 手機版分類下拉選單 -->
+<div class="mobile-menu" id="mobile-menu">
+  <div id="mobile-cat-list"></div>
+</div>
 
 <div class="hero">
   <div class="hero-title">yuyuz代購</div>
@@ -674,6 +702,23 @@ async function loadData() {
       sb.from('products').select('*').eq('online', true).order('sort_order')
     ]);
     categories = catRes.data || [];
+    // 載入網站設定
+    try {
+      const { data: settings } = await sb.from('settings').select('key,value');
+      if (settings) {
+        const banner = settings.find(s => s.key === 'banner_image')?.value;
+        const announcement = settings.find(s => s.key === 'announcement')?.value;
+        if (banner) {
+          document.getElementById('banner-img').src = banner;
+          document.getElementById('banner-link').href = banner;
+          document.getElementById('banner-area').style.display = 'block';
+        }
+        if (announcement) {
+          document.getElementById('announcement-text').innerHTML = announcement.replace(/\n/g,'<br>');
+          document.getElementById('announcement-area').style.display = 'block';
+        }
+      }
+    } catch(e) {}
     const now = new Date();
     products = (prodRes.data || [])
       .filter(p => {
@@ -723,6 +768,7 @@ function renderCatBar() {
     `<span class="cat-tab${activeCat===c.id?' active':''}" onclick="setCat('${c.id}')">${c.label}</span>`
   ).join('');
 }
+function filterCat(id) { setCat(id); window.scrollTo(0,0); }
 function setCat(id) { activeCat = id; renderCatBar(); renderProducts(); }
 
 function renderProducts() {
@@ -1678,6 +1724,30 @@ function loadFormFromLocal() {
     }
   }, { passive: true });
 })();
+
+
+// ── 漢堡選單 ──────────────────────────────────────────────
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobile-menu');
+  if (!menu) return;
+  // 動態產生分類列表
+  const catList = document.getElementById('mobile-cat-list');
+  if (catList && categories.length) {
+    catList.innerHTML = [
+      { id: 'all', label: '✦ 全部商品' },
+      ...categories.map(c => ({ id: c.id, label: c.label }))
+    ].map(c => `<button class="mobile-menu-item" onclick="filterCat('${c.id}');toggleMobileMenu()">${c.label}</button>`).join('');
+  }
+  menu.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('mobile-menu');
+  const hamburger = document.querySelector('.hamburger');
+  if (menu && menu.classList.contains('open') &&
+      !menu.contains(e.target) && !hamburger?.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
 
 </script>
 
