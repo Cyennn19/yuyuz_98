@@ -831,7 +831,7 @@ async function loadData() {
       sb.from('categories').select('id,label,sort_order').order('sort_order'),
       sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text').eq('online', true).order('sort_order')
     ]);
-    categories = catRes.data || [];
+    categories = (catRes.data || []).filter(c => !c.hidden);
     // 載入網站設定
     try {
       const { data: settings } = await sb.from('settings').select('key,value');
