@@ -1235,8 +1235,9 @@ function renderProductMgmt() {
     const cat = categories.find(c => c.id === p.cat_id);
     const tot = totalStock(p);
     const sp = (p.specs||[]).map(s => `${s.name} NT$${s.price}`).join('、');
-    return `<div class="pm-card${p.online?'':' offline'}"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':'已下架'}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
+    return `<div class="pm-card${p.online?'':' offline'}" draggable="true" data-prod-id="${p.id}" style="cursor:default"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':'已下架'}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
   }).join('');
+  initProdDrag();
 }
 async function toggleProduct(pid) {
   const p = products.find(x => x.id == pid);
@@ -2395,7 +2396,7 @@ function initCatDrag() {
 // ── 商品拖拉排序 ──────────────────────────────────────────
 let dragProdId = null;
 function initProdDrag() {
-  const rows = document.querySelectorAll('#prod-list .pm-item[draggable]');
+  const rows = document.querySelectorAll('#pm-list .pm-card[draggable]');
   rows.forEach(row => {
     row.addEventListener('dragstart', e => {
       dragProdId = row.dataset.prodId;
