@@ -401,8 +401,8 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
     <div class="success-order-id" id="success-order-id"></div>
     <div style="background:#faf7f3;border-radius:12px;border:1px solid #e8d8b8;padding:16px 20px;margin:16px auto;max-width:360px;text-align:left">
       <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:10px">💳 付款資訊</div>
-      <div style="font-size:13px;color:var(--dark);line-height:2;background:#fff;border-radius:8px;padding:10px 14px;margin-bottom:10px;border:1px solid #e8d8b8;word-break:break-all;letter-spacing:0.02em">
-        ${window.BANK_ACCOUNT ? window.BANK_ACCOUNT.replace(/\n/g,'<br>') : '請私訊賣家取得匯款帳號'}
+      <div id="success-bank-info" style="font-size:13px;color:var(--dark);line-height:2;background:#fff;border-radius:8px;padding:10px 14px;margin-bottom:10px;border:1px solid #e8d8b8;word-break:break-all;letter-spacing:0.02em">
+        請私訊賣家取得匯款帳號
       </div>
       <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:6px">⏰ 請於 24 小時內完成付款</div>
       <div style="font-size:12px;color:var(--dark);line-height:1.8">
