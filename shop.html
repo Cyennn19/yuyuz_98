@@ -349,27 +349,48 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 .mobile-menu-item{display:block;width:100%;padding:13px 20px;font-size:14px;color:var(--dark);border:none;background:none;text-align:left;cursor:pointer;border-bottom:1px solid var(--border)}
 .mobile-menu-item:last-child{border-bottom:none}
 .mobile-menu-item:active{background:var(--light)}
-@media(max-width:768px){
-  .nav-maincats{display:none !important}
-}
 @media(max-width:600px){
   .nav{padding:0 14px;height:56px}
-  .hamburger{display:flex}
   .cat-bar{display:flex}
   .cart-text{display:none}
   .nav-cart{background:#111 !important;color:#fff !important;border:none !important;min-width:44px;padding:5px 10px;border-radius:4px}
   .nav-cart .cart-count{font-size:12px;font-weight:700}
-}
-@media(min-width:601px){
-  .hamburger{display:none !important}
-  .mobile-menu{display:none !important}
-  .cart-text{display:inline}
 }
 
 .nav-maincats{display:flex;gap:2px;z-index:1}
 .nav-maincat{padding:6px 14px;font-size:13px;color:#888;cursor:pointer;border-radius:4px;transition:all 0.15s;border:none;background:none;font-family:inherit}
 .nav-maincat:hover{color:#111;background:#f5f5f5}
 .nav-maincat.active{color:#111;font-weight:700;background:#f0f0f0}
+
+/* ── 導覽列 LOGO 切換 ─────────────────────── */
+.nav-logo-center{display:flex;align-items:center}
+.nav-logo-mobile{display:none;align-items:center}
+@media(max-width:600px){
+  .nav-logo-center{display:none !important}
+  .nav-logo-mobile{display:flex !important}
+  .nav-maincats{display:none !important}
+}
+@media(min-width:601px){
+  .hamburger{display:none !important}
+  .mobile-menu{display:none !important}
+  .cart-text{display:inline}
+  .nav-logo-mobile{display:none !important}
+}
+
+/* ── 詳情頁左右版面 ──────────────────────── */
+.detail-top{display:flex;gap:40px;margin-bottom:32px}
+.detail-img-col{width:420px;flex-shrink:0}
+.detail-info-col{flex:1;min-width:0;padding-top:4px}
+@media(max-width:768px){
+  .detail-top{flex-direction:column;gap:0}
+  .detail-img-col{width:100%}
+  .detail-info-col{padding:16px}
+  .detail-bottom{margin:0}
+}
+@media(max-width:600px){
+  .detail-wrap{padding:0}
+  .detail-info-col{padding:14px}
+}
 </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
