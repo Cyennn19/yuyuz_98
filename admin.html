@@ -253,6 +253,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <button class="at" onclick="sw('surcharge')">二補總表</button>
         <button class="at" onclick="sw('discount')">折扣碼</button>
         <button class="at" onclick="sw('siteconfig')">網站設定</button>
+        <button class="at" onclick="sw('order-list')">叫貨表單</button>
         <button class="at" onclick="sw('inventory')">庫存</button>
         <button class="at" onclick="sw('customers')">客戶</button>
         <button class="at" onclick="sw('products')">商品管理</button>
@@ -358,6 +359,50 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
     </div>
 
 
+
+    <!-- 叫貨表單 -->
+    <div class="pg" id="pg-order-list">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark)">叫貨表單</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">統計所有訂單的商品數量，方便向廠商叫貨</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="font-size:13px;color:var(--muted)">篩選狀態</div>
+          <select id="ol-status-filter" onchange="renderOrderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
+            <option value="active">排除已取消</option>
+            <option value="all">全部訂單</option>
+            <option value="waiting">等待到貨</option>
+            <option value="partial">部分到貨</option>
+            <option value="arrived">已到貨</option>
+            <option value="shipped">已出貨</option>
+          </select>
+          <button class="new-btn" style="background:#185fa5" onclick="exportOrderListExcel()">匯出 Excel</button>
+        </div>
+      </div>
+
+      <!-- 統計卡片 -->
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+        <div class="sc"><div class="sl">商品種類</div><div class="sv" id="ol-products">0</div></div>
+        <div class="sc"><div class="sl">規格總數</div><div class="sv" id="ol-specs">0</div></div>
+        <div class="sc"><div class="sl">訂購總件數</div><div class="sv" id="ol-total-qty">0</div></div>
+        <div class="sc"><div class="sl">未到貨件數</div><div class="sv" id="ol-pending-qty">0</div></div>
+      </div>
+
+      <!-- 叫貨表 -->
+      <div class="otable">
+        <div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.03em">
+          <span>商品 / 規格</span>
+          <span>分類</span>
+          <span style="text-align:center">訂購數</span>
+          <span style="text-align:center">已取消</span>
+          <span style="text-align:center">實際需求</span>
+          <span style="text-align:center">已到貨</span>
+        </div>
+        <div id="order-list-body"></div>
+      </div>
+    </div>
+
     <!-- 網站設定 -->
     <div class="pg" id="pg-siteconfig">
       <div style="font-size:16px;font-weight:700;color:var(--dark);margin-bottom:4px">網站設定</div>
@@ -367,7 +412,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <!-- Banner -->
         <div style="background:var(--white);border-radius:12px;border:1px solid var(--border);padding:16px 18px">
           <div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px">🖼 Banner 圖片</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">貼上 Imgur 圖片連結，建議尺寸 750×300px，留空則不顯示</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">貼上 Imgur 圖片連結，建議尺寸 750×300px（寬:高 = 2.5:1），留空則不顯示</div>
           <input id="cfg-banner" type="text" placeholder="https://i.imgur.com/xxxxx.jpg" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
           <div id="cfg-banner-preview" style="margin-top:10px;display:none">
             <img id="cfg-banner-img" src="" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
@@ -1308,13 +1353,14 @@ async function saveProduct() {
 }
 
 function sw(tab) {
-  const tabs = ['orders','arrival','surcharge','discount','siteconfig','inventory','customers','products'];
+  const tabs = ['orders','arrival','surcharge','discount','siteconfig','order-list','inventory','customers','products'];
   document.querySelectorAll('.at').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.getElementById('pg-' + tab).classList.add('on');
   if (tab === 'products') renderProductMgmt();
   if (tab === 'surcharge') renderSurcharge();
   if (tab === 'siteconfig') loadSiteConfig();
+  if (tab === 'order-list') renderOrderList();
   if (tab === 'discount') renderDiscount();
 }
 
@@ -2054,6 +2100,164 @@ async function saveSiteConfig() {
   } catch(e) {
     showToast('儲存失敗：' + e.message);
   }
+}
+
+
+// ── 叫貨表單 ──────────────────────────────────────────────
+function renderOrderList() {
+  const filter = document.getElementById('ol-status-filter')?.value || 'active';
+
+  // 篩選訂單
+  let filtered = orders.filter(o => {
+    const st = getArrivalStatus(o);
+    if (filter === 'active') return st !== 'cancelled' && o.status !== 'cancelled';
+    if (filter === 'all') return true;
+    return st === filter;
+  });
+
+  // 統計每個商品規格的數量
+  const specMap = {}; // key: `productId_specName`
+
+  filtered.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (item.cancelled) return; // 排除已取消的單項
+      const key = `${item.productId || item.product}_|||_${item.spec}`;
+      if (!specMap[key]) {
+        specMap[key] = {
+          product: item.product,
+          productId: item.productId,
+          spec: item.spec,
+          price: item.price,
+          orderedQty: 0,
+          cancelledQty: 0,
+          arrivedQty: 0,
+          cat: '',
+        };
+        // 找分類
+        const p = products.find(x => String(x.id) === String(item.productId));
+        if (p) {
+          const cat = categories.find(c => c.id === p.cat_id);
+          specMap[key].cat = cat?.label || '';
+        }
+      }
+      specMap[key].orderedQty += item.qty || 0;
+      specMap[key].arrivedQty += item.arrivedQty || 0;
+    });
+  });
+
+  // 計算已取消件數（從所有訂單，包含已取消的）
+  orders.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (!item.cancelled) return;
+      const key = `${item.productId || item.product}_|||_${item.spec}`;
+      if (specMap[key]) {
+        specMap[key].cancelledQty += item.qty || 0;
+      }
+    });
+  });
+
+  const specs = Object.values(specMap);
+
+  // 統計卡片
+  const productNames = new Set(specs.map(s => s.product));
+  const totalQty = specs.reduce((sum, s) => sum + s.orderedQty, 0);
+  const pendingQty = specs.reduce((sum, s) => sum + Math.max(0, (s.orderedQty - s.cancelledQty) - s.arrivedQty), 0);
+  document.getElementById('ol-products').textContent = productNames.size;
+  document.getElementById('ol-specs').textContent = specs.length;
+  document.getElementById('ol-total-qty').textContent = totalQty;
+  document.getElementById('ol-pending-qty').textContent = pendingQty;
+
+  const el = document.getElementById('order-list-body');
+  if (!el) return;
+
+  if (!specs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有訂單資料</div>';
+    return;
+  }
+
+  // 按商品分組排序
+  specs.sort((a, b) => a.product.localeCompare(b.product) || a.spec.localeCompare(b.spec));
+
+  let html = '';
+  let lastProduct = '';
+
+  specs.forEach(s => {
+    const actual = Math.max(0, s.orderedQty - s.cancelledQty);
+    const pending = Math.max(0, actual - s.arrivedQty);
+    const isNew = s.product !== lastProduct;
+    lastProduct = s.product;
+
+    if (isNew) {
+      html += `<div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;padding:10px 13px 4px;background:var(--light);border-bottom:1px solid var(--border)">
+        <span style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</span>
+        <span style="font-size:12px;color:var(--muted)">${s.cat}</span>
+        <span></span><span></span><span></span><span></span>
+      </div>`;
+    }
+
+    html += `<div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;padding:8px 13px 8px 26px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center">
+      <span style="color:var(--muted)">└ ${s.spec}</span>
+      <span></span>
+      <span style="text-align:center;font-weight:600">${s.orderedQty}</span>
+      <span style="text-align:center;color:${s.cancelledQty>0?'var(--red)':'var(--muted)'}">${s.cancelledQty > 0 ? '-'+s.cancelledQty : '—'}</span>
+      <span style="text-align:center;font-weight:700;color:${actual<=0?'var(--muted)':'var(--dark)'}">${actual}</span>
+      <span style="text-align:center;color:${s.arrivedQty>=actual&&actual>0?'var(--green)':'var(--amber)'}">${s.arrivedQty}/${actual}</span>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function exportOrderListExcel() {
+  if (!window.XLSX) { showToast('請稍後再試'); return; }
+  const filter = document.getElementById('ol-status-filter')?.value || 'active';
+
+  let filtered = orders.filter(o => {
+    const st = getArrivalStatus(o);
+    if (filter === 'active') return st !== 'cancelled' && o.status !== 'cancelled';
+    if (filter === 'all') return true;
+    return st === filter;
+  });
+
+  const specMap = {};
+  filtered.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (item.cancelled) return;
+      const key = `${item.productId || item.product}_|||_${item.spec}`;
+      if (!specMap[key]) {
+        const p = products.find(x => String(x.id) === String(item.productId));
+        const cat = p ? (categories.find(c => c.id === p.cat_id)?.label || '') : '';
+        specMap[key] = { product: item.product, spec: item.spec, cat, price: item.price, orderedQty: 0, cancelledQty: 0, arrivedQty: 0 };
+      }
+      specMap[key].orderedQty += item.qty || 0;
+      specMap[key].arrivedQty += item.arrivedQty || 0;
+    });
+  });
+
+  orders.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (!item.cancelled) return;
+      const key = `${item.productId || item.product}_|||_${item.spec}`;
+      if (specMap[key]) specMap[key].cancelledQty += item.qty || 0;
+    });
+  });
+
+  const specs = Object.values(specMap).sort((a,b) => a.product.localeCompare(b.product) || a.spec.localeCompare(b.spec));
+
+  const rows = [['商品名稱','規格','分類','單價(NT$)','訂購數','已取消','實際需求','已到貨','待到貨']];
+  specs.forEach(s => {
+    const actual = Math.max(0, s.orderedQty - s.cancelledQty);
+    const pending = Math.max(0, actual - s.arrivedQty);
+    rows.push([s.product, s.spec, s.cat, s.price||0, s.orderedQty, s.cancelledQty, actual, s.arrivedQty, pending]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [20,16,12,10,8,8,8,8,8].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '叫貨表單');
+  const date = new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  XLSX.writeFile(wb, `yuyuz_98_叫貨_${date}.xlsx`);
+  showToast('叫貨表單 Excel 已下載！');
 }
 
 </script>
