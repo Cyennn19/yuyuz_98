@@ -723,8 +723,8 @@ async function init() {
 async function loadData() {
   try {
     const [catRes, prodRes] = await Promise.all([
-      sb.from('categories').select('*').order('sort_order'),
-      sb.from('products').select('*').eq('online', true).order('sort_order')
+      sb.from('categories').select('id,label,sort_order').order('sort_order'),
+      sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text').eq('online', true).order('sort_order')
     ]);
     categories = catRes.data || [];
     // 載入網站設定
@@ -1062,8 +1062,6 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
-
-init();
 
 // ── ORDER LOOKUP ──────────────────────────────────────────
 function openLookup() {
@@ -1764,6 +1762,10 @@ document.addEventListener('click', e => {
     menu.classList.remove('open');
   }
 });
+
+
+// 頁面載入完成後初始化
+document.addEventListener('DOMContentLoaded', () => { init(); });
 
 </script>
 
