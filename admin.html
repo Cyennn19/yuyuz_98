@@ -2451,7 +2451,7 @@ function initProdDrag() {
       const [moved] = products.splice(fromIdx, 1);
       products.splice(toIdx, 0, moved);
       products.forEach((p, i) => p.sort_order = i);
-      renderProdList();
+      renderProductMgmt();
       try {
         await Promise.all(products.map(p =>
           sb.from('products').update({ sort_order: p.sort_order }).eq('id', p.id)
