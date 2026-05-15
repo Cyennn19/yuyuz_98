@@ -378,8 +378,29 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <!-- 公告文字 -->
         <div style="background:var(--white);border-radius:12px;border:1px solid var(--border);padding:16px 18px">
           <div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px">📢 公告文字</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">顯示在 Banner 下方，支援換行，留空則不顯示</div>
-          <textarea id="cfg-announcement" placeholder="例：🎉 本月活動：消費滿 NT$2000 享九折優惠！&#10;預計出貨時間：每週三、五統一出貨" style="width:100%;min-height:80px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)"></textarea>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">白底顯示在分類列上方，留空則不顯示</div>
+          <textarea id="cfg-announcement" placeholder="例：🎉 本月活動：消費滿 NT$2000 享九折優惠！&#10;預計出貨時間：每週三、五統一出貨" style="width:100%;min-height:80px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);margin-bottom:10px"></textarea>
+          <div class="m2col">
+            <div class="mfg">
+              <label>文字顏色</label>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="color" id="cfg-ann-color" value="#2c2018" style="width:44px;height:36px;border:1px solid var(--border);border-radius:7px;cursor:pointer;padding:2px">
+                <input type="text" id="cfg-ann-color-hex" value="#2c2018" placeholder="#2c2018" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:7px;font-size:13px" oninput="document.getElementById('cfg-ann-color').value=this.value">
+              </div>
+            </div>
+            <div class="mfg">
+              <label>文字粗細</label>
+              <select id="cfg-ann-weight" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:7px;font-size:13px">
+                <option value="400">一般</option>
+                <option value="600">粗體</option>
+                <option value="700" selected>超粗</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding:10px 14px;background:var(--light);border-radius:8px;text-align:center" id="cfg-ann-preview">
+            <span id="cfg-ann-preview-text" style="font-size:15px;font-weight:700;color:#2c2018">預覽公告文字</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">💡 顏色設定會以 &lt;span style="color:...;font-weight:..."&gt; 方式套用</div>
         </div>
 
         <button onclick="saveSiteConfig()" style="padding:12px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;width:100%">儲存設定</button>
@@ -546,7 +567,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
       <button class="add-spec-btn" onclick="addSpecRow()">+ 新增規格</button>
 
       <div class="msec" style="margin-top:18px">商品說明</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">支援加粗、換行、插入圖片（貼上或上傳）</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">支援加粗、換行、插入圖片。若要改變顏色，可在 Quill 工具列選文字後按自訂顏色按鈕。</div>
       <div id="pm-desc-editor" style="height:200px;background:var(--white);border-radius:8px;font-size:13px"></div>
       <input type="file" accept="image/*" id="pm-desc-img-inp" style="display:none" onchange="insertDescImg(this)">
 
@@ -1198,10 +1219,11 @@ function openProductModal(pid) {
     if (!window.pmQuill) {
       window.pmQuill = new Quill('#pm-desc-editor', {
         theme: 'snow',
-        placeholder: '輸入商品說明…（可加粗、換行，或插入圖片）',
+        placeholder: '輸入商品說明…（可加粗、換行、改顏色或插入圖片）',
         modules: {
           toolbar: [
             ['bold', 'italic'],
+            [{ color: [] }, { background: [] }],
             [{ list: 'ordered' }, { list: 'bullet' }],
             ['image'],
             ['clean']
@@ -2004,13 +2026,29 @@ function previewBanner() {
   }
 }
 
+// 公告預覽
+document.addEventListener('input', e => {
+  if (['cfg-announcement','cfg-ann-color','cfg-ann-color-hex','cfg-ann-weight'].includes(e.target.id)) {
+    const text = document.getElementById('cfg-announcement')?.value || '預覽公告文字';
+    const color = document.getElementById('cfg-ann-color')?.value || '#2c2018';
+    const weight = document.getElementById('cfg-ann-weight')?.value || '700';
+    const preview = document.getElementById('cfg-ann-preview-text');
+    const colorHex = document.getElementById('cfg-ann-color-hex');
+    if (preview) { preview.style.color = color; preview.style.fontWeight = weight; preview.textContent = text.split('\n')[0] || '預覽公告文字'; }
+    if (e.target.id === 'cfg-ann-color' && colorHex) colorHex.value = color;
+  }
+});
+
 async function saveSiteConfig() {
   const banner = document.getElementById('cfg-banner')?.value.trim() || '';
-  const announcement = document.getElementById('cfg-announcement')?.value.trim() || '';
+  const annText = document.getElementById('cfg-announcement')?.value.trim() || '';
+  const annColor = document.getElementById('cfg-ann-color')?.value || '#2c2018';
+  const annWeight = document.getElementById('cfg-ann-weight')?.value || '700';
+  const announcement = annText ? `<span style="color:${annColor};font-weight:${annWeight}">${annText.replace(/\n/g,'<br>')}</span>` : '';
   try {
     await sb.from('settings').upsert([
       { key: 'banner_image', value: banner, updated_at: new Date().toISOString() },
-      { key: 'announcement', value: announcement, updated_at: new Date().toISOString() }
+      { key: 'announcement', value: annText ? `<span style="color:${annColor};font-weight:${annWeight}">${annText.replace(/\n/g,'<br>')}</span>` : '', updated_at: new Date().toISOString() }
     ], { onConflict: 'key' });
     showToast('✓ 網站設定已儲存！前台將立即生效');
   } catch(e) {
