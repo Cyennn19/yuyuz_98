@@ -28,7 +28,7 @@ body{background:#fafafa;color:#111;font-family:'DM Sans','Noto Sans TC',-apple-s
 a{color:inherit;text-decoration:none}
 
 /* NAV */
-.nav{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative}
+.nav{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 28px;height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative}
 .nav-logo{font-size:18px;font-weight:700;color:var(--dark);letter-spacing:0.05em}
 .nav-logo span{color:var(--brown)}
 .nav-cart{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--brown);color:#fff;border:none;border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s}
@@ -41,7 +41,7 @@ a{color:inherit;text-decoration:none}
 .hero-sub{font-size:14px;color:var(--text-muted)}
 
 /* CAT TABS */
-.cat-bar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 28px;display:flex;gap:0;overflow-x:auto;height:44px;align-items:flex-end}
+.cat-bar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 28px;display:flex;gap:0;overflow-x:auto;height:46px;align-items:center}
 .cat-bar::-webkit-scrollbar{display:none}
 .cat-tab{display:inline-block;padding:14px 16px;font-size:13px;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s}
 .cat-tab.active{color:var(--brown);border-bottom-color:var(--brown)}
@@ -350,7 +350,8 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 .mobile-menu-item:last-child{border-bottom:none}
 .mobile-menu-item:active{background:var(--light)}
 @media(max-width:600px){
-  .nav{padding:0 14px;height:56px}
+  .nav{padding:0 14px;height:60px}
+  .hamburger{display:flex !important}
   .cat-bar{display:flex}
   .cart-text{display:none}
   .nav-cart{background:#111 !important;color:#fff !important;border:none !important;min-width:44px;padding:5px 10px;border-radius:4px}
@@ -405,7 +406,7 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
       <span></span><span></span><span></span>
     </button>
     <!-- 手機版才顯示的 LOGO（左側） -->
-    <div id="nav-logo-mobile" class="nav-logo-mobile" style="height:52px;display:flex;align-items:center;cursor:pointer" onclick="window.scrollTo(0,0)"><span style="font-size:26px">✦</span></div>
+    <div id="nav-logo-mobile" class="nav-logo-mobile" style="height:60px;display:flex;align-items:center;cursor:pointer" onclick="window.scrollTo(0,0)"><span style="font-size:34px">✦</span></div>
   </div>
   <!-- 電腦版 LOGO 絕對置中 -->
   <div id="nav-logo-img" class="nav-logo-center" style="position:absolute;left:50%;transform:translateX(-50%);height:52px;display:flex;align-items:center;cursor:pointer" onclick="window.scrollTo(0,0)"><span style="font-size:28px">✦</span></div>
@@ -484,8 +485,20 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 <!-- 商品詳情頁 -->
 <div class="detail-page" id="detail-page">
   <div class="detail-nav">
-    <button class="detail-back" onclick="closeDetail()">← 返回</button>
-    <span class="detail-breadcrumb" id="detail-breadcrumb">商品詳情</span>
+    <div style="display:flex;align-items:center;gap:10px;flex:1">
+      <button class="detail-back" onclick="closeDetail()">←</button>
+      <span class="detail-breadcrumb" id="detail-breadcrumb">商品詳情</span>
+    </div>
+    <div id="detail-nav-logo" style="position:absolute;left:50%;transform:translateX(-50%);height:100%;display:flex;align-items:center;cursor:pointer" onclick="closeDetail()">
+      <span style="font-size:26px;color:#111;font-weight:700">✦</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="nav-cart" onclick="closeDetail();openCart()" style="padding:6px 12px;font-size:12px">
+        <span>🛒</span>
+        <span class="cart-text">購物車</span>
+        <span class="cart-count" id="detail-cart-count">0</span>
+      </button>
+    </div>
   </div>
   <div class="detail-wrap">
     <div class="detail-top">
@@ -686,7 +699,7 @@ function initBranding() {
   // 套用 LOGO
   if (LOGO_IMAGE) {
     const imgTag = `<img src="${LOGO_IMAGE}" alt="Logo" style="height:52px;width:auto;object-fit:contain">`;
-    ['nav-logo-img','nav-logo-mobile'].forEach(id => {
+    ['nav-logo-img','nav-logo-mobile','detail-nav-logo'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = imgTag;
     });
@@ -911,6 +924,9 @@ function cartTotal() { return cart.reduce((s, i) => s + i.price * i.qty, 0); }
 function cartCount() { return cart.reduce((s, i) => s + i.qty, 0); }
 
 function renderCart() {
+  // 同步詳情頁購物車數字
+  const dcc = document.getElementById('detail-cart-count');
+  if (dcc) dcc.textContent = cartCount();
   const cnt = cartCount();
   document.getElementById('cart-count').textContent = cnt;
   document.getElementById('checkout-btn').disabled = cart.length === 0;
