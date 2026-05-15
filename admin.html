@@ -707,7 +707,7 @@ async function loadCategories() {
 }
 async function loadProducts() {
   try {
-    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice,detail_images').order('sort_order');
+    const { data } = await sb.from('products').select('id,cat_id,name,emoji,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice').order('sort_order');
     products = (data || []).map(p => ({
       ...p,
       specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []),
@@ -1279,6 +1279,7 @@ function openProductModal(pid) {
   else { addSpecRow('', 0, 0, 1); addSpecRow('', 0, 0, 1); }
   renderSpecTable();
   // 載入到貨時間
+  window._uploadedPhotoUrl = null; // 清除上次暫存
   const delivEl = document.getElementById('pm-delivery-time');
   if (delivEl) delivEl.value = p && p.delivery_time ? p.delivery_time : '';
   const alertEl = document.getElementById('pm-alert-text');
@@ -1325,15 +1326,43 @@ function openProductModal(pid) {
   document.getElementById('product-modal').classList.add('open');
 }
 function closeProductModal() { document.getElementById('product-modal').classList.remove('open'); }
-function previewPhoto(input) {
+async function previewPhoto(input) {
   const file = input.files[0]; if (!file) return;
-  // 警告大圖
-  if (file.size > 500 * 1024) {
-    if (!confirm(`圖片大小 ${(file.size/1024).toFixed(0)}KB，建議壓縮到 500KB 以下再上傳，否則會影響載入速度。要繼續嗎？`)) { input.value = ''; return; }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('圖片不能超過 5MB，請壓縮後再上傳'); input.value = ''; return;
   }
-  const r = new FileReader();
-  r.onload = e => { pmPhotoData = e.target.result; document.getElementById('pm-photo-prev').innerHTML = `<img src="${pmPhotoData}" style="width:100%;height:100%;object-fit:cover">`; };
-  r.readAsDataURL(file);
+  showToast('上傳中...');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const fileName = `product_${Date.now()}.${ext}`;
+    const { data, error } = await sb.storage.from('product-images').upload(fileName, file, { upsert: true });
+    if (error) throw error;
+    const { data: urlData } = sb.storage.from('product-images').getPublicUrl(fileName);
+    const url = urlData.publicUrl;
+    // 顯示預覽
+    const preview = document.getElementById('pm-photo-preview');
+    if (preview) { preview.src = url; preview.style.display = 'block'; }
+    window._uploadedPhotoUrl = url;
+    showToast('✓ 圖片上傳成功！');
+  } catch(e) {
+    showToast('上傳失敗：' + e.message);
+    input.value = '';
+    return;
+  }
+  showToast('上傳中...');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const fileName = `product_${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('product-images').upload(fileName, file, { upsert: true });
+    if (error) throw error;
+    const { data: urlData } = sb.storage.from('product-images').getPublicUrl(fileName);
+    pmPhotoData = urlData.publicUrl;
+    document.getElementById('pm-photo-prev').innerHTML = `<img src="${pmPhotoData}" style="width:100%;height:100%;object-fit:cover">`;
+    showToast('✓ 圖片上傳成功！');
+  } catch(e) {
+    showToast('上傳失敗：' + e.message);
+    input.value = '';
+  }
 }
 async function saveProduct() {
   const name = document.getElementById('pm-name').value.trim();
@@ -1495,19 +1524,26 @@ function insertDescImg(input) {
   input.value = '';
 }
 
-function addDetailImgs(input) {
+async function addDetailImgs(input) {
   const files = Array.from(input.files);
+  if (!files.length) return;
+  showToast(`上傳 ${files.length} 張詳情圖中...`);
   let done = 0;
-  files.forEach(file => {
-    const r = new FileReader();
-    r.onload = e => {
-      window.pmDetailImgs.push(e.target.result);
+  for (const file of files) {
+    if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} 超過 5MB，跳過`); continue; }
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const fileName = `detail_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await sb.storage.from('product-images').upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = sb.storage.from('product-images').getPublicUrl(fileName);
+      window.pmDetailImgs.push(urlData.publicUrl);
       done++;
-      if (done === files.length) renderDetailImgsPreview();
-    };
-    r.readAsDataURL(file);
-  });
+    } catch(e) { showToast('上傳失敗：' + e.message); }
+  }
   input.value = '';
+  renderDetailImgsPreview();
+  if (done > 0) showToast(`✓ ${done} 張詳情圖上傳成功！`);
 }
 
 function renderDetailImgsPreview() {
