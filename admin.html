@@ -58,7 +58,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 .bw{background:var(--amber-bg);color:var(--amber)}
 .bp{background:var(--purple-bg);color:var(--purple)}
 .ba{background:#e1f5ee;color:#0f6e56}
-.bs{background:var(--green-bg);color:var(--green)}.bca{background:#f5f5f5;color:#999;text-decoration:line-through}
+.bs{background:var(--green-bg);color:var(--green)}.bca{background:#fde8e8;color:#c0392b;border:1px solid #e74c3c;font-weight:700}
 .bpr{background:var(--blue-bg);color:var(--blue)}
 
 /* ORDERS TABLE */
@@ -372,6 +372,10 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
             <input type="checkbox" id="ol-hide-shipped" checked onchange="renderOrderList()" style="accent-color:var(--brown)">
             隱藏已出貨完成
           </label>
+          <div style="font-size:13px;color:var(--muted)">篩選分類</div>
+          <select id="ol-cat-filter" onchange="renderOrderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
+            <option value="">全部分類</option>
+          </select>
           <div style="font-size:13px;color:var(--muted)">篩選狀態</div>
           <select id="ol-status-filter" onchange="renderOrderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
             <option value="active">排除已取消</option>
@@ -816,7 +820,7 @@ function renderOrders() {
     const { arr, tot } = orderProgress(o);
     const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
     const detHtml = buildOrderDetail(o);
-    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')">
+    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')" style="${st==='cancelled'?'border-left:4px solid #e74c3c;background:#fff5f5':''}">
       <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}<span class="eh">▶</span></span>
       <span>${f.product}${multi}</span>
       <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
@@ -1430,29 +1434,39 @@ function exportExcel() {
     return;
   }
   const wb = XLSX.utils.book_new();
+  const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中',cancelled:'已取消'};
 
-  // 訂單工作表
-  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','金額(NT$)','折扣碼','折扣金額','狀態','商品金額','匯款後五碼','商品1','規格1','數量1','已到貨1','商品2','規格2','數量2','已到貨2','商品3','規格3','數量3','已到貨3']];
-  const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中'};
+  // 訂單工作表（每個商品規格一行）
+  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','訂單金額(NT$)','折扣碼','折扣金額','狀態','付款狀態','匯款後五碼','商品名稱','規格','數量','已到貨']];
   orders.forEach(o => {
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
     const st = getArrivalStatus(o);
-    const row = [
+    const baseInfo = [
       o.order_id||o.id,
       o.created_at ? new Date(o.created_at).toLocaleDateString('zh-TW') : '',
       o.customer_name||'', o.phone||'', o.email||'',
       o.store||'', o.store_no||'', o.ig||'', o.line_nickname||'', o.note||'',
-      o.amount||0, o.discount_code||'', o.discount_amount||0, stMap[st], o.deposit_status==='paid'?'已入帳':o.deposit_status==='filled'?'待核對':'未填', o.transfer_code||''||st
+      o.amount||0, o.discount_code||'', o.discount_amount||0,
+      stMap[st]||st,
+      o.deposit_status==='paid'?'已入帳':o.deposit_status==='filled'?'待核對':'未填',
+      o.transfer_code||''
     ];
-    for (let i = 0; i < 3; i++) {
-      const item = items[i];
-      if (item) { row.push(item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0); }
-      else { row.push('','','',''); }
+    if (!items.length) {
+      orderRows.push([...baseInfo, '', '', '', '']);
+    } else {
+      items.forEach((item, idx) => {
+        if (idx === 0) {
+          // 第一個商品同一行放訂單資訊
+          orderRows.push([...baseInfo, item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0]);
+        } else {
+          // 後續商品只放商品資訊，訂單資訊留空
+          orderRows.push(['','','','','','','','','','','','','','','','', item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0]);
+        }
+      });
     }
-    orderRows.push(row);
   });
   const ws1 = XLSX.utils.aoa_to_sheet(orderRows);
-  ws1['!cols'] = orderRows[0].map((_,i) => ({ wch: i < 2 ? 16 : i < 12 ? 12 : 16 }));
+  ws1['!cols'] = [14,10,10,12,20,14,8,12,12,14,10,8,8,10,8,10,20,14,6,6].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, ws1, '訂單清單');
 
   // 商品工作表
@@ -2230,6 +2244,16 @@ function renderOrderList() {
   const filter = document.getElementById('ol-status-filter')?.value || 'active';
   const hideShipped = document.getElementById('ol-hide-shipped')?.checked !== false;
   const removed = getOlRemoved();
+  // 更新分類篩選選項
+  const catFilterEl = document.getElementById('ol-cat-filter');
+  if (catFilterEl && catFilterEl.options.length <= 1) {
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.label;
+      catFilterEl.appendChild(opt);
+    });
+  }
+  const catFilter = catFilterEl?.value || '';
 
   let filtered = orders.filter(o => {
     const st = o.status || '';
@@ -2250,6 +2274,8 @@ function renderOrderList() {
   }
   // 排除手動移除的商品
   specs = specs.filter(s => !removed.includes(s.productId || s.product));
+  // 分類篩選
+  if (catFilter) specs = specs.filter(s => s.catId === catFilter);
 
   // 統計卡片
   const productNames = new Set(specs.map(s => s.product));
@@ -2356,15 +2382,15 @@ function exportOrderListExcel() {
 
   const specs = Object.values(specMap).sort((a,b) => a.product.localeCompare(b.product) || a.spec.localeCompare(b.spec));
 
-  const rows = [['商品名稱','規格','分類','單價(NT$)','訂購數','已取消','實際需求','已到貨','待到貨']];
+  const rows = [['分類','商品名稱','規格','單價(NT$)','訂購數','已取消','實際需求','已到貨','待到貨']];
   specs.forEach(s => {
     const actual = Math.max(0, s.orderedQty - s.cancelledQty);
     const pending = Math.max(0, actual - s.arrivedQty);
-    rows.push([s.product, s.spec, s.cat, s.price||0, s.orderedQty, s.cancelledQty, actual, s.arrivedQty, pending]);
+    rows.push([s.cat, s.product, s.spec, s.price||0, s.orderedQty, s.cancelledQty, actual, s.arrivedQty, pending]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [20,16,12,10,8,8,8,8,8].map(w=>({wch:w}));
+  ws['!cols'] = [12,20,16,10,8,8,8,8,8].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '叫貨表單');
   const date = new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
@@ -2488,6 +2514,22 @@ async function cloneProduct(prodId) {
     showToast(`✓ 已複製「${p.name}」，請編輯後上架`);
     renderProdList();
   } catch(e) { showToast('複製失敗：' + e.message); }
+}
+
+
+// ── 刪除客戶 ─────────────────────────────────────────────
+async function deleteCustomer(phone, name) {
+  if (!confirm(`確定要刪除客戶「${name || phone}」嗎？
+注意：此操作不會刪除該客戶的訂單，只會刪除客戶資料與購物金記錄。`)) return;
+  try {
+    await sb.from('credit_logs').delete().eq('phone', phone);
+    await sb.from('customers').delete().eq('phone', phone);
+    customers = customers.filter(c => c.phone !== phone);
+    showToast(`✓ 已刪除客戶「${name || phone}」`);
+    renderCustomers();
+  } catch(e) {
+    showToast('刪除失敗：' + e.message);
+  }
 }
 
 </script>
