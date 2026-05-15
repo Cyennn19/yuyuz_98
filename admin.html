@@ -253,7 +253,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
         <button class="at" onclick="sw('surcharge')">二補總表</button>
         <button class="at" onclick="sw('discount')">折扣碼</button>
         <button class="at" onclick="sw('siteconfig')">網站設定</button>
-        <button class="at" onclick="sw('order-list')">叫貨表單</button>
+        <button class="at" onclick="sw('order-list')">叫貨數量</button>
         <button class="at" onclick="sw('inventory')">庫存</button>
         <button class="at" onclick="sw('customers')">客戶</button>
         <button class="at" onclick="sw('products')">商品管理</button>
@@ -364,10 +364,14 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
     <div class="pg" id="pg-order-list">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div>
-          <div style="font-size:16px;font-weight:700;color:var(--dark)">叫貨表單</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">統計所有訂單的商品數量，方便向廠商叫貨</div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark)">叫貨數量</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">依分類統計商品叫貨數量，已出貨商品自動移除</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="ol-hide-shipped" checked onchange="renderOrderList()" style="accent-color:var(--brown)">
+            隱藏已出貨完成
+          </label>
           <div style="font-size:13px;color:var(--muted)">篩選狀態</div>
           <select id="ol-status-filter" onchange="renderOrderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
             <option value="active">排除已取消</option>
@@ -377,6 +381,7 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
             <option value="arrived">已到貨</option>
             <option value="shipped">已出貨</option>
           </select>
+          <button class="new-btn" style="background:#888" onclick="resetOlRemoved()">重置移除</button>
           <button class="new-btn" style="background:#185fa5" onclick="exportOrderListExcel()">匯出 Excel</button>
         </div>
       </div>
@@ -1148,11 +1153,29 @@ function toggleCust(key) { document.getElementById('cco-' + key)?.classList.togg
 
 // ── 商品管理 ──────────────────────────────────────────────
 function renderCatMgmt() {
-  document.getElementById('cat-list').innerHTML = categories.map(c => {
+  const el = document.getElementById('cat-list');
+  el.innerHTML = categories.map((c, idx) => {
     const cnt = products.filter(p => p.cat_id === c.id).length;
     const isR = renamingCatId === c.id;
-    return `<div class="cat-row">${isR ? `<input class="cat-edit-inp" id="cat-inp-${c.id}" value="${c.label}" onkeydown="if(event.key==='Enter')saveCatRename('${c.id}');if(event.key==='Escape')cancelCatRename()">` : `<span class="cat-label-text">${c.label}</span>`}<span class="cat-count">${cnt} 件商品</span>${isR ? `<button class="cat-save-btn" onclick="saveCatRename('${c.id}')">儲存</button><button class="btn-cancel" style="font-size:11px;padding:4px 9px" onclick="cancelCatRename()">取消</button>` : `<button class="cat-rename-btn" onclick="startCatRename('${c.id}')">重命名</button><button class="cat-del-btn" onclick="deleteCat('${c.id}')">刪除</button>`}</div>`;
+    const hiddenStyle = c.hidden ? 'opacity:0.45' : '';
+    const hiddenLabel = c.hidden ? '（已隱藏）' : '';
+    return `<div class="cat-row" draggable="true" data-cat-id="${c.id}" style="${hiddenStyle};cursor:grab">
+      <span style="color:#bbb;margin-right:6px;cursor:grab;font-size:16px">⠿</span>
+      ${isR
+        ? `<input class="cat-edit-inp" id="cat-inp-${c.id}" value="${c.label}" onkeydown="if(event.key==='Enter')saveCatRename('${c.id}');if(event.key==='Escape')cancelCatRename()">`
+        : `<span class="cat-label-text">${c.label}</span><span style="font-size:11px;color:#888;margin-left:4px">${hiddenLabel}</span>`
+      }
+      <span class="cat-count">${cnt} 件商品</span>
+      ${isR
+        ? `<button class="cat-save-btn" onclick="saveCatRename('${c.id}')">儲存</button>
+           <button class="btn-cancel" style="font-size:11px;padding:4px 9px" onclick="cancelCatRename()">取消</button>`
+        : `<button class="cat-rename-btn" onclick="startCatRename('${c.id}')">重命名</button>
+           <button class="${c.hidden ? 'cat-save-btn' : 'cat-rename-btn'}" onclick="toggleCatHidden('${c.id}')">${c.hidden ? '顯示' : '隱藏'}</button>
+           <button class="cat-del-btn" onclick="deleteCat('${c.id}')">刪除</button>`
+      }
+    </div>`;
   }).join('');
+  initCatDrag();
 }
 function startCatRename(id) { renamingCatId = id; renderCatMgmt(); setTimeout(() => document.getElementById('cat-inp-' + id)?.focus(), 50); }
 function cancelCatRename() { renamingCatId = null; renderCatMgmt(); }
@@ -1212,7 +1235,7 @@ function renderProductMgmt() {
     const cat = categories.find(c => c.id === p.cat_id);
     const tot = totalStock(p);
     const sp = (p.specs||[]).map(s => `${s.name} NT$${s.price}`).join('、');
-    return `<div class="pm-card${p.online?'':' offline'}"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':'已下架'}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
+    return `<div class="pm-card${p.online?'':' offline'}"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':'已下架'}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
   }).join('');
 }
 async function toggleProduct(pid) {
@@ -2104,25 +2127,15 @@ async function saveSiteConfig() {
 
 
 // ── 叫貨表單 ──────────────────────────────────────────────
-function renderOrderList() {
-  const filter = document.getElementById('ol-status-filter')?.value || 'active';
-
-  // 篩選訂單
-  let filtered = orders.filter(o => {
-    const st = getArrivalStatus(o);
-    if (filter === 'active') return st !== 'cancelled' && o.status !== 'cancelled';
-    if (filter === 'all') return true;
-    return st === filter;
-  });
-
-  // 統計每個商品規格的數量
-  const specMap = {}; // key: `productId_specName`
-
+function buildSpecMap(filtered) {
+  const specMap = {};
   filtered.forEach(o => {
     (o.items || []).forEach(item => {
-      if (item.cancelled) return; // 排除已取消的單項
+      if (item.cancelled) return;
       const key = `${item.productId || item.product}_|||_${item.spec}`;
       if (!specMap[key]) {
+        const p = products.find(x => String(x.id) === String(item.productId));
+        const cat = p ? categories.find(c => c.id === p.cat_id) : null;
         specMap[key] = {
           product: item.product,
           productId: item.productId,
@@ -2131,36 +2144,79 @@ function renderOrderList() {
           orderedQty: 0,
           cancelledQty: 0,
           arrivedQty: 0,
-          cat: '',
+          shippedQty: 0,
+          catId: p?.cat_id || '',
+          cat: cat?.label || '未分類',
+          catOrder: cat?.sort_order ?? 999,
         };
-        // 找分類
-        const p = products.find(x => String(x.id) === String(item.productId));
-        if (p) {
-          const cat = categories.find(c => c.id === p.cat_id);
-          specMap[key].cat = cat?.label || '';
-        }
       }
       specMap[key].orderedQty += item.qty || 0;
       specMap[key].arrivedQty += item.arrivedQty || 0;
+      // 計算已出貨數量
+      if (o.status === 'shipped' || o.status === 'partial_shipped') {
+        specMap[key].shippedQty += item.shippedQty || item.qty || 0;
+      }
     });
   });
-
-  // 計算已取消件數（從所有訂單，包含已取消的）
+  // 已取消件數
   orders.forEach(o => {
     (o.items || []).forEach(item => {
       if (!item.cancelled) return;
       const key = `${item.productId || item.product}_|||_${item.spec}`;
-      if (specMap[key]) {
-        specMap[key].cancelledQty += item.qty || 0;
-      }
+      if (specMap[key]) specMap[key].cancelledQty += item.qty || 0;
     });
   });
+  return specMap;
+}
 
-  const specs = Object.values(specMap);
+// 叫貨數量已移除的商品（存在 localStorage）
+function getOlRemoved() {
+  try { return JSON.parse(localStorage.getItem('ol_removed') || '[]'); } catch(e) { return []; }
+}
+function setOlRemoved(list) {
+  localStorage.setItem('ol_removed', JSON.stringify(list));
+}
+function removeOlProduct(productKey) {
+  const list = getOlRemoved();
+  if (!list.includes(productKey)) { list.push(productKey); setOlRemoved(list); }
+  renderOrderList();
+  showToast('已從叫貨清單移除，可按「重置移除」恢復');
+}
+function resetOlRemoved() {
+  if (!confirm('確定要恢復所有已移除的商品嗎？')) return;
+  localStorage.removeItem('ol_removed');
+  renderOrderList();
+  showToast('已恢復所有移除的商品');
+}
+
+function renderOrderList() {
+  const filter = document.getElementById('ol-status-filter')?.value || 'active';
+  const hideShipped = document.getElementById('ol-hide-shipped')?.checked !== false;
+  const removed = getOlRemoved();
+
+  let filtered = orders.filter(o => {
+    const st = o.status || '';
+    if (filter === 'active') return st !== 'cancelled';
+    if (filter === 'all') return true;
+    return st === filter;
+  });
+
+  const specMap = buildSpecMap(filtered);
+  let specs = Object.values(specMap);
+
+  // 已出貨完成的規格自動移除（需求數 = 已出貨數）
+  if (hideShipped) {
+    specs = specs.filter(s => {
+      const actual = Math.max(0, s.orderedQty - s.cancelledQty);
+      return s.shippedQty < actual;
+    });
+  }
+  // 排除手動移除的商品
+  specs = specs.filter(s => !removed.includes(s.productId || s.product));
 
   // 統計卡片
   const productNames = new Set(specs.map(s => s.product));
-  const totalQty = specs.reduce((sum, s) => sum + s.orderedQty, 0);
+  const totalQty = specs.reduce((sum, s) => sum + Math.max(0, s.orderedQty - s.cancelledQty), 0);
   const pendingQty = specs.reduce((sum, s) => sum + Math.max(0, (s.orderedQty - s.cancelledQty) - s.arrivedQty), 0);
   document.getElementById('ol-products').textContent = productNames.size;
   document.getElementById('ol-specs').textContent = specs.length;
@@ -2171,37 +2227,56 @@ function renderOrderList() {
   if (!el) return;
 
   if (!specs.length) {
-    el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有訂單資料</div>';
+    el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有待叫貨商品 🎉</div>';
     return;
   }
 
-  // 按商品分組排序
-  specs.sort((a, b) => a.product.localeCompare(b.product) || a.spec.localeCompare(b.spec));
+  // 依分類 → 商品 → 規格排序
+  specs.sort((a, b) =>
+    (a.catOrder - b.catOrder) ||
+    a.cat.localeCompare(b.cat) ||
+    a.product.localeCompare(b.product) ||
+    a.spec.localeCompare(b.spec)
+  );
 
   let html = '';
+  let lastCat = '';
   let lastProduct = '';
 
   specs.forEach(s => {
     const actual = Math.max(0, s.orderedQty - s.cancelledQty);
     const pending = Math.max(0, actual - s.arrivedQty);
-    const isNew = s.product !== lastProduct;
-    lastProduct = s.product;
 
-    if (isNew) {
-      html += `<div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;padding:10px 13px 4px;background:var(--light);border-bottom:1px solid var(--border)">
-        <span style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</span>
-        <span style="font-size:12px;color:var(--muted)">${s.cat}</span>
-        <span></span><span></span><span></span><span></span>
+    // 分類標題
+    if (s.cat !== lastCat) {
+      lastCat = s.cat;
+      lastProduct = '';
+      html += `<div style="padding:10px 13px 6px;background:#e8e8e8;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;font-weight:700;color:#555;letter-spacing:0.06em;text-transform:uppercase">${s.cat}</span>
       </div>`;
     }
 
-    html += `<div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;padding:8px 13px 8px 26px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center">
+    // 商品標題
+    if (s.product !== lastProduct) {
+      lastProduct = s.product;
+      const prodKey = s.productId || s.product;
+      html += `<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 80px 60px;padding:8px 13px 4px 20px;background:var(--light);border-bottom:1px solid var(--border);align-items:center">
+        <span style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</span>
+        <span style="font-size:10px;color:var(--muted);text-align:center">訂購數</span>
+        <span style="font-size:10px;color:var(--muted);text-align:center">已取消</span>
+        <span style="font-size:10px;color:var(--muted);text-align:center">需叫貨</span>
+        <span style="font-size:10px;color:var(--muted);text-align:center">已到貨</span>
+        <button onclick="removeOlProduct('${prodKey}')" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer" title="從叫貨清單移除">移除</button>
+      </div>`;
+    }
+
+    html += `<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 80px 60px;padding:7px 13px 7px 32px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center">
       <span style="color:var(--muted)">└ ${s.spec}</span>
-      <span></span>
       <span style="text-align:center;font-weight:600">${s.orderedQty}</span>
       <span style="text-align:center;color:${s.cancelledQty>0?'var(--red)':'var(--muted)'}">${s.cancelledQty > 0 ? '-'+s.cancelledQty : '—'}</span>
-      <span style="text-align:center;font-weight:700;color:${actual<=0?'var(--muted)':'var(--dark)'}">${actual}</span>
+      <span style="text-align:center;font-weight:700;font-size:14px;color:var(--dark)">${actual}</span>
       <span style="text-align:center;color:${s.arrivedQty>=actual&&actual>0?'var(--green)':'var(--amber)'}">${s.arrivedQty}/${actual}</span>
+      <span></span>
     </div>`;
   });
 
@@ -2258,6 +2333,124 @@ function exportOrderListExcel() {
   const date = new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
   XLSX.writeFile(wb, `yuyuz_98_叫貨_${date}.xlsx`);
   showToast('叫貨表單 Excel 已下載！');
+}
+
+
+// ── 分類隱藏 ──────────────────────────────────────────────
+async function toggleCatHidden(catId) {
+  const cat = categories.find(c => c.id === catId);
+  if (!cat) return;
+  cat.hidden = !cat.hidden;
+  try {
+    await sb.from('categories').update({ hidden: cat.hidden }).eq('id', catId);
+    showToast(cat.hidden ? `「${cat.label}」已隱藏，前台不顯示` : `「${cat.label}」已顯示`);
+  } catch(e) { showToast('更新失敗'); cat.hidden = !cat.hidden; }
+  renderCatMgmt(); syncCatFilters();
+}
+
+// ── 分類拖拉排序 ──────────────────────────────────────────
+let dragCatId = null;
+function initCatDrag() {
+  const rows = document.querySelectorAll('#cat-list .cat-row[draggable]');
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragCatId = row.dataset.catId;
+      row.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', e => {
+      row.style.opacity = '';
+      dragCatId = null;
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.style.background = '#f0f0f0';
+    });
+    row.addEventListener('dragleave', e => {
+      row.style.background = '';
+    });
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      row.style.background = '';
+      if (!dragCatId || dragCatId === row.dataset.catId) return;
+      const fromIdx = categories.findIndex(c => c.id === dragCatId);
+      const toIdx = categories.findIndex(c => c.id === row.dataset.catId);
+      if (fromIdx < 0 || toIdx < 0) return;
+      const [moved] = categories.splice(fromIdx, 1);
+      categories.splice(toIdx, 0, moved);
+      categories.forEach((c, i) => c.sort_order = i);
+      renderCatMgmt(); syncCatFilters();
+      // 儲存到 Supabase
+      try {
+        await Promise.all(categories.map(c =>
+          sb.from('categories').update({ sort_order: c.sort_order }).eq('id', c.id)
+        ));
+        showToast('✓ 分類順序已儲存');
+      } catch(e) { showToast('排序儲存失敗'); }
+    });
+  });
+}
+
+// ── 商品拖拉排序 ──────────────────────────────────────────
+let dragProdId = null;
+function initProdDrag() {
+  const rows = document.querySelectorAll('#prod-list .pm-item[draggable]');
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragProdId = row.dataset.prodId;
+      row.style.opacity = '0.4';
+    });
+    row.addEventListener('dragend', () => { row.style.opacity = ''; dragProdId = null; });
+    row.addEventListener('dragover', e => { e.preventDefault(); row.style.background = '#f0f0f0'; });
+    row.addEventListener('dragleave', () => { row.style.background = ''; });
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      row.style.background = '';
+      if (!dragProdId || dragProdId === row.dataset.prodId) return;
+      const fromIdx = products.findIndex(p => String(p.id) === dragProdId);
+      const toIdx = products.findIndex(p => String(p.id) === row.dataset.prodId);
+      if (fromIdx < 0 || toIdx < 0) return;
+      const [moved] = products.splice(fromIdx, 1);
+      products.splice(toIdx, 0, moved);
+      products.forEach((p, i) => p.sort_order = i);
+      renderProdList();
+      try {
+        await Promise.all(products.map(p =>
+          sb.from('products').update({ sort_order: p.sort_order }).eq('id', p.id)
+        ));
+        showToast('✓ 商品順序已儲存');
+      } catch(e) { showToast('排序儲存失敗'); }
+    });
+  });
+}
+
+// ── 複製商品 ──────────────────────────────────────────────
+async function cloneProduct(prodId) {
+  const p = products.find(x => String(x.id) === String(prodId));
+  if (!p) return;
+  if (!confirm(`複製商品「${p.name}」？`)) return;
+  const cloneData = {
+    cat_id: p.cat_id,
+    name: p.name + '（複製）',
+    emoji: p.emoji,
+    photo: p.photo,
+    specs: JSON.stringify(p.specs),
+    online: false,
+    sort_order: products.length,
+    description: p.description || null,
+    notice: p.notice || null,
+    detail_images: JSON.stringify(p.detail_images || []),
+    delivery_time: p.delivery_time || null,
+    alert_text: p.alert_text || null,
+  };
+  try {
+    const { data, error } = await sb.from('products').insert([cloneData]).select().single();
+    if (error) throw error;
+    products.push({ ...data, specs: p.specs, detail_images: p.detail_images || [], _detailLoaded: true });
+    showToast(`✓ 已複製「${p.name}」，請編輯後上架`);
+    renderProdList();
+  } catch(e) { showToast('複製失敗：' + e.message); }
 }
 
 </script>
