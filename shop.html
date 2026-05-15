@@ -506,6 +506,17 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
       <div id="success-bank-info" style="font-size:13px;color:var(--dark);line-height:2;background:#fff;border-radius:8px;padding:10px 14px;margin-bottom:10px;border:1px solid #e8d8b8;word-break:break-all;letter-spacing:0.02em">
         請私訊賣家取得匯款帳號
       </div>
+      <!-- 付款注意事項 -->
+      <div style="border-top:1px solid #e8d8b8;padding-top:10px;margin-bottom:10px">
+        <div style="font-size:12px;color:#7a5800;line-height:1.9">
+          <div>🔺 無卡存款請務必保留小白單，並於存款完成後拍下小白單提供給我們唷～</div>
+          <div style="margin-top:6px">🔺 關於無卡存款金額：</div>
+          <div style="padding-left:14px;color:#8a6800">請存入低於總金額、第二位數為 0 的整數，並括號寫需多補的金額，差額會於二補費用內新增。</div>
+          <div style="padding-left:14px;color:#8a6800">例：總金額為 310，則存入 300，並在匯款金額欄填寫「300（需補 10）」</div>
+          <div style="margin-top:6px">🔺 因商品須先匯款，若無法使用轉帳匯款都可以詢問告知我們（可使用無卡／臨櫃／無摺）。</div>
+          <div style="color:#c0392b;font-weight:700;margin-top:4px">千萬不要找代匯！不接受代匯匯款！若有代匯會退款並直接黑單！！</div>
+        </div>
+      </div>
       <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:6px">⏰ 請於 24 小時內完成付款</div>
       <div style="font-size:12px;color:var(--dark);line-height:1.8">
         <div>✦ 付款完成後請至「<strong>查詢訂單</strong>」填寫匯款後五碼</div>
@@ -741,7 +752,7 @@ const NOTIFY_CONFIG = {
 };
 
 // ── 匯款帳號設定（修改這裡）──────────────────────────────
-window.BANK_ACCOUNT = '台新帳戶 (812) 28881012375395\n郵局請另外私訊索取'; // 例：玉山銀行 808-1234567890123
+window.BANK_ACCOUNT = '匯款/無卡存款｜台新帳戶 (812) 28881012375395\n郵局無摺匯款 — 請私訊我們拿唷～'; // 例：玉山銀行 808-1234567890123
 
 // ── 社群連結設定（修改這裡）─────────────────────────────
 const SOCIAL = {
