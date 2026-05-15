@@ -114,7 +114,7 @@ a{color:inherit;text-decoration:none}
 .modal-x{width:32px;height:32px;border:none;background:var(--light);border-radius:8px;cursor:pointer;font-size:20px;color:var(--text-muted)}
 .modal-body{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;flex:1;padding:16px 20px 8px;font-size:14px;line-height:1.6}
 .order-summary{background:var(--light);border-radius:10px;padding:12px 14px;margin-bottom:16px}
-.os-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--dark)}
+.os-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#111}
 .os-total{font-weight:700;border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-size:14px}
 .form-section{font-size:11px;font-weight:700;color:var(--brown);letter-spacing:0.05em;margin:16px 0 10px}
 .form-section:first-of-type{margin-top:0}
@@ -1006,9 +1006,19 @@ function openCheckout() {
   const summary = document.getElementById('order-summary');
   const discAmt = window.appliedDiscount || 0;
   const finalTotal = Math.max(0, cartTotal() - discAmt);
-  summary.innerHTML = cart.map(i =>
-    `<div class="os-row"><span>${i.product}（${i.spec}）× ${i.qty}</span><span>NT$ ${(i.price*i.qty).toLocaleString()}</span></div>`
-  ).join('') +
+  summary.innerHTML = cart.map(i => {
+    const imgHtml = i.photo
+      ? `<img src="${i.photo}" alt="${i.product}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8;flex-shrink:0">`
+      : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${i.emoji||'📦'}</div>`;
+    return `<div class="os-row" style="align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0">
+      ${imgHtml}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:2px">${i.product}</div>
+        <div style="font-size:12px;color:#888">${i.spec} × ${i.qty}</div>
+      </div>
+      <span style="font-size:13px;font-weight:700;color:#111;white-space:nowrap">NT$ ${(i.price*i.qty).toLocaleString()}</span>
+    </div>`;
+  }).join('') +
   (discAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>折扣碼 ${window.appliedCode||''}</span><span>- NT$ ${discAmt.toLocaleString()}</span></div>` : '') +
   `<div class="os-row os-total"><span>合計 ${cartCount()} 件</span><span>NT$ ${finalTotal.toLocaleString()}</span></div>`;
   document.getElementById('checkout-modal').classList.add('open');
@@ -1021,21 +1031,28 @@ function closeCheckout() {
 async function submitOrder() {
   const name = document.getElementById('f-name').value.trim();
   const phone = document.getElementById('f-phone').value.trim();
-  if (!name || !phone) { showToast('請填寫姓名與電話'); return; }
+  const email = document.getElementById('f-email').value.trim();
+  const storeno = (document.getElementById('f-storeno')?.value || '').trim();
+  const ig = (document.getElementById('f-ig')?.value || '').trim();
+  const line = (document.getElementById('f-line')?.value || '').trim();
+  const store = (document.getElementById('f-store')?.value || '').trim();
   // 確認已勾選同意條款
   const agreeEl = document.getElementById('agree-checkbox');
-  if (!agreeEl || !agreeEl.checked) {
-    showToast('請先閱讀並勾選同意條款');
-    return;
-  }
+  if (!agreeEl || !agreeEl.checked) { showToast('請先閱讀並勾選同意條款'); return; }
+  // 必填與格式驗證
+  if (!name) { showToast('請填寫姓名'); return; }
+  if (!phone) { showToast('請填寫電話'); return; }
+  if (!/^09\d{8}$/.test(phone)) { showToast('電話格式錯誤，須為 09 開頭共 10 碼'); return; }
+  if (!email) { showToast('請填寫 Email'); return; }
+  if (!email.includes('@')) { showToast('Email 格式錯誤，請確認包含 @ 符號'); return; }
+  if (!store) { showToast('請填寫 7-11 超商門市'); return; }
+  if (!storeno) { showToast('請填寫超商店號'); return; }
+  if (!/^\d{6}$/.test(storeno)) { showToast('超商店號須為 6 位數字'); return; }
+  if (!ig) { showToast('請填寫 IG 帳號'); return; }
+  if (!line) { showToast('請填寫 LINE 社群暱稱'); return; }
   const btn = document.getElementById('submit-btn');
   btn.textContent = '處理中…'; btn.disabled = true;
-  const email = document.getElementById('f-email').value.trim();
   const transferCode = document.getElementById('f-transfer').value.trim();
-  const store = document.getElementById('f-store').value.trim();
-  const storeno = document.getElementById('f-storeno').value.trim();
-  const ig = document.getElementById('f-ig').value.trim();
-  const line = document.getElementById('f-line').value.trim();
   const note = document.getElementById('f-note').value.trim();
   const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
   const discAmt = window.appliedDiscount || 0;
@@ -1641,9 +1658,19 @@ function updateCheckoutSummary() {
   const discAmt = window.appliedDiscount || 0;
   const creditsAmt = window.useCreditsAmt || 0;
   const finalTotal = Math.max(0, cartTotal() - discAmt - creditsAmt);
-  summary.innerHTML = cart.map(i =>
-    `<div class="os-row"><span>${i.product}（${i.spec}）× ${i.qty}</span><span>NT$ ${(i.price*i.qty).toLocaleString()}</span></div>`
-  ).join('') +
+  summary.innerHTML = cart.map(i => {
+    const imgHtml = i.photo
+      ? `<img src="${i.photo}" alt="${i.product}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8;flex-shrink:0">`
+      : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${i.emoji||'📦'}</div>`;
+    return `<div class="os-row" style="align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0">
+      ${imgHtml}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:2px">${i.product}</div>
+        <div style="font-size:12px;color:#888">${i.spec} × ${i.qty}</div>
+      </div>
+      <span style="font-size:13px;font-weight:700;color:#111;white-space:nowrap">NT$ ${(i.price*i.qty).toLocaleString()}</span>
+    </div>`;
+  }).join('') +
   (discAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>折扣碼 ${window.appliedCode||''}</span><span>- NT$ ${discAmt.toLocaleString()}</span></div>` : '') +
   (creditsAmt > 0 ? `<div class="os-row" style="color:#3b6d11"><span>購物金折抵</span><span>- NT$ ${creditsAmt.toLocaleString()}</span></div>` : '') +
   `<div class="os-row os-total"><span>合計 ${cartCount()} 件</span><span>NT$ ${finalTotal.toLocaleString()}</span></div>`;
