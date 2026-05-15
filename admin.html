@@ -820,7 +820,7 @@ function renderOrders() {
     const { arr, tot } = orderProgress(o);
     const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
     const detHtml = buildOrderDetail(o);
-    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')" style="${st==='cancelled'?'border-left:4px solid #e74c3c;background:#fff5f5':''}">
+    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')" style="${st==='cancelled'?'background:#f5f5f5;opacity:0.8':''}">
       <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}<span class="eh">▶</span></span>
       <span>${f.product}${multi}</span>
       <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
@@ -1121,6 +1121,7 @@ function renderCustomers() {
           <div class="cust-amt">NT$ ${co.total.toLocaleString()}</div>
           ${(c.credits||0) > 0 ? `<div style="font-size:11px;color:var(--brown);margin-top:2px">購物金 NT$ ${(c.credits||0).toLocaleString()}</div>` : ''}
         </div>
+        <button onclick="event.stopPropagation();deleteCustomer('${c.phone}','${(c.name||'').replace(/'/g,"\\'")}")" style="padding:4px 10px;border:1px solid #e74c3c;background:none;color:#e74c3c;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0">刪除</button>
       </div>
       <div class="cust-orders" id="cco-${key}">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:8px">
