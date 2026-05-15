@@ -106,13 +106,13 @@ a{color:inherit;text-decoration:none}
 .checkout-btn:disabled{background:#d3c8b4;cursor:default}
 
 /* CHECKOUT MODAL */
-.modal-wrap{display:none;position:fixed;inset:0;background:rgba(44,32,24,0.45);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;padding:16px}
 .modal-wrap.open{display:flex}
-.modal{background:#fff;border-radius:16px;width:480px;max-width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal{background:#fff;border-radius:16px;width:520px;max-width:calc(100vw - 32px);max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
 .modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .modal-hdr-title{font-size:16px;font-weight:700}
 .modal-x{width:32px;height:32px;border:none;background:var(--light);border-radius:8px;cursor:pointer;font-size:20px;color:var(--text-muted)}
-.modal-body{background:#fafafa;color:#111;font-family:'DM Sans','Noto Sans TC',-apple-system,sans-serif;font-size:14px;line-height:1.6}
+.modal-body{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;flex:1;padding:16px 20px 8px;font-size:14px;line-height:1.6}
 .order-summary{background:var(--light);border-radius:10px;padding:12px 14px;margin-bottom:16px}
 .os-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--dark)}
 .os-total{font-weight:700;border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-size:14px}
@@ -124,7 +124,7 @@ a{color:inherit;text-decoration:none}
 .form-group input,.form-group textarea{padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--light);color:var(--dark);font-family:inherit}
 .form-group textarea{resize:vertical;min-height:60px}
 .form-group input:focus,.form-group textarea:focus{outline:none;border-color:var(--brown)}
-.modal-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px}
+.modal-footer{padding:12px 20px 16px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0;background:#fff}
 .btn-cancel{flex:1;padding:12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;color:var(--dark)}
 .btn-submit{flex:2;padding:12px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.15s}
 .btn-submit:hover{background:var(--mid)}
@@ -167,16 +167,16 @@ a{color:inherit;text-decoration:none}
 .lookup-wrap{max-width:500px;margin:0 auto;text-align:center}
 .lookup-title{font-size:18px;font-weight:700;color:var(--dark);margin-bottom:6px}
 .lookup-sub{font-size:13px;color:var(--text-muted);margin-bottom:20px}
-.lookup-tabs{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px}
-.lookup-tab{flex:1;padding:9px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:#fff;color:var(--text-muted);transition:all 0.15s}
-.lookup-tab.active{background:var(--brown);color:#fff}
-.lookup-form{display:flex;gap:8px}
+.lookup-tabs{display:flex;gap:0;margin-bottom:14px;border-radius:8px;overflow:hidden;border:1px solid #e8e8e8}
+.lookup-tab{flex:1;padding:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#fff;color:#888;transition:all 0.15s}
+.lookup-tab.active{background:#111;color:#fff}
+.lookup-form{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .lookup-input{flex:1;padding:10px 13px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:var(--light);color:var(--dark)}
 .lookup-input:focus{outline:none;border-color:var(--brown)}
 .lookup-btn{padding:10px 18px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
 .lookup-btn:hover{background:var(--mid)}
 .lookup-result{margin-top:16px;text-align:left}
-.lookup-card{background:var(--light);border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:10px}
+.lookup-card{background:#fff;border-radius:10px;border:1px solid #e8e8e8;padding:14px;margin-bottom:10px}
 .lookup-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .lookup-oid{font-size:14px;font-weight:700;color:var(--dark)}
 .lookup-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
@@ -200,20 +200,20 @@ a{color:inherit;text-decoration:none}
 /* LOOKUP MODAL */
 .lookup-modal-wrap{display:none;position:fixed;inset:0;background:rgba(44,32,24,0.45);z-index:200;align-items:flex-start;justify-content:center;padding:80px 20px 20px}
 .lookup-modal-wrap.open{display:flex}
-.lookup-modal{background:#fff;border-radius:16px;width:480px;max-width:100%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
-.lookup-modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.lookup-modal{background:#fff;border-radius:16px;width:520px;max-width:calc(100vw - 32px);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;margin:16px}
+.lookup-modal-hdr{padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fff}
 .lookup-modal-title{font-size:16px;font-weight:700;color:var(--dark)}
 .lookup-modal-x{width:32px;height:32px;border:none;background:var(--light);border-radius:8px;cursor:pointer;font-size:18px;color:var(--text-muted)}
-.lookup-modal-body{background:#fafafa;color:#111;font-family:'DM Sans','Noto Sans TC',-apple-system,sans-serif;font-size:14px;line-height:1.6}
+.lookup-modal-body{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;flex:1;padding:16px 20px;background:#fafafa;font-size:14px;line-height:1.6}
 .lookup-tabs{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
-.lookup-tab{flex:1;padding:9px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:#fff;color:var(--text-muted);transition:all 0.15s}
-.lookup-tab.active{background:var(--brown);color:#fff}
+.lookup-tab{flex:1;padding:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#fff;color:#888;transition:all 0.15s}
+.lookup-tab.active{background:#111;color:#fff}
 .lookup-form{display:flex;gap:8px;margin-bottom:16px}
 .lookup-input{flex:1;padding:10px 13px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:var(--light);color:var(--dark)}
 .lookup-input:focus{outline:none;border-color:var(--brown)}
 .lookup-btn{padding:10px 18px;background:var(--brown);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
 .lookup-btn:hover{background:var(--mid)}
-.lookup-card{background:var(--light);border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:10px}
+.lookup-card{background:#fff;border-radius:10px;border:1px solid #e8e8e8;padding:14px;margin-bottom:10px}
 .lookup-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .lookup-oid{font-size:14px;font-weight:700;color:var(--dark)}
 .lookup-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
@@ -304,11 +304,11 @@ a{color:inherit;text-decoration:none}
 }
 
 /* PAYMENT CODE FILL */
-.pay-fill-box{background:#faf7f3;border-radius:12px;border:1px solid #e8d8b8;padding:14px 16px;margin-top:10px}
+.pay-fill-box{background:#faf7f3;border-radius:10px;border:1px solid #e8d8b8;padding:12px 14px;margin-bottom:8px;overflow:hidden}
 .pay-fill-title{font-size:13px;font-weight:600;color:var(--brown);margin-bottom:8px}
-.pay-fill-row{display:flex;gap:8px;align-items:center}
+.pay-fill-row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
 .pay-fill-input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:16px;letter-spacing:0.15em;background:#fff;color:var(--dark);max-width:140px}
-.pay-fill-btn{padding:9px 16px;background:var(--brown);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.pay-fill-btn{padding:9px 14px;background:var(--brown);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;white-space:normal;line-height:1.3;text-align:center;min-width:100px}
 .pay-fill-btn:hover{background:var(--mid)}
 .pay-done{font-size:13px;color:#3b6d11;font-weight:500}
 .pay-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
@@ -399,6 +399,19 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 .detail-alert-box{background:none;border:none;padding:4px 0;margin-bottom:10px;display:none}
 .detail-alert-box.show{display:flex;gap:8px;align-items:flex-start}
 .detail-alert-text{font-size:12px;color:#444;line-height:1.6}
+
+@media(max-width:600px){
+  .lookup-modal{width:100%;max-width:100%;border-radius:16px 16px 0 0;margin:0;position:fixed;bottom:0;left:0;right:0;max-height:90vh}
+  .lookup-overlay{align-items:flex-end;padding:0}
+  .pay-fill-row{flex-direction:column}
+  .pay-fill-btn{width:100%}
+  .lookup-card{padding:12px}
+}
+
+@media(max-width:600px){
+  .modal-wrap{padding:0;align-items:flex-end}
+  .modal{width:100%;max-width:100%;border-radius:16px 16px 0 0;max-height:92vh}
+}
 </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
