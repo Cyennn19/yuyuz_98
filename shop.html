@@ -31,6 +31,8 @@
 <!-- 主題色（手機瀏覽器 Chrome 頂部顏色）-->
 <meta name="theme-color" content="#111111">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>emailjs.init("wnAMvTOdx8MmTgwOE");</script>
 <style>
 :root{
   --brown:#222222;
@@ -771,8 +773,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── 通知設定 ─────────────────────────────────────────────
 const NOTIFY_CONFIG = {
-  lineToken: '+e9kDmgt18+acQn9FN1NwHhq9MNJVh0jRTghxCkErOkymbESci1kIsg4qWwFbc+YySaPV5n9tK3bQyup9s+ZFx9EeXUkcziPfY+H0yrIeCJ06U2Hd4aLDclfOmAtKVTgPq2nKcqX7iQCdzcvWLQhUwdB04t89/1O/w1cDnyilFU=',
-  lineUserId: 'U77cb3c28d9be071f50a58de3bd2f77d2',
+  lineToken: 'rdwD3ey0siwJqywRhaNvh2gXljIIE8WaitSRBNbwlloytosCDTmdOPoBm9AET7wHHJAKj7piXzufhjUqcE9UjsoVoopG1Rdo/A2XjsevMx2wtzV2FkJEwkehjpSWBDMSaeHExRiqJppkicr9nce+/wdB04t89/1O/w1cDnyilFU=',
+  lineUserId: 'U0123f69f7ba7adbf919f3ae7d96cced1',
   email: 'yuyuz98210@gmail.com',
 };
 
@@ -819,6 +821,13 @@ function initBranding() {
 let categories = [];
 let products = [];
 let cart = [];
+try {
+  const saved = localStorage.getItem('yuyuz_cart');
+  if (saved) cart = JSON.parse(saved);
+} catch(e) { cart = []; }
+function saveCart() {
+  try { localStorage.setItem('yuyuz_cart', JSON.stringify(cart)); } catch(e) {}
+}
 let activeCat = 'all';
 const pcQtyMap = {}, pcSpecMap = {};
 
@@ -1163,6 +1172,7 @@ async function submitOrder() {
   }
   closeCheckout();
   cart = [];
+  saveCart();
   renderCart(); renderProducts();
   ['f-name','f-phone','f-email','f-store','f-storeno','f-ig','f-line','f-note','f-transfer','f-discount'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const agreeBox = document.getElementById('agree-checkbox');
@@ -1176,6 +1186,7 @@ async function submitOrder() {
   saveFormToLocal();
   // 發送新訂單通知
   sendOrderNotify(orderId, name, amount, items).catch(e => console.warn(e));
+  sendOrderEmail(orderId, name, phone, ig, amount, items).catch(e => console.warn(e));
   // 扣除購物金（在訂單成功後才扣，避免訂單失敗但已扣款）
   if (creditsUsed > 0) {
     try {
@@ -2003,6 +2014,29 @@ document.addEventListener('click', e => {
 
 // 頁面載入完成後初始化
 document.addEventListener('DOMContentLoaded', () => { init(); });
+
+
+// ── Email 通知 ────────────────────────────────────────────
+async function sendOrderEmail(orderId, name, phone, ig, amount, items) {
+  const itemsText = items.map(i => `${i.product}（${i.spec}）× ${i.qty} — NT$ ${(i.price*i.qty).toLocaleString()}`).join('\n');
+  const date = new Date().toLocaleString('zh-TW', {timeZone:'Asia/Taipei'});
+  try {
+    await emailjs.send('service_0gt7m2e', 'template_9xzbdre', {
+      to_email: 'yuyuz98210@gmail.com',
+      email: 'yuyuz98210@gmail.com',
+      order_id: orderId,
+      customer_name: name,
+      phone: phone,
+      ig: ig || '未填寫',
+      amount: amount.toLocaleString(),
+      items: itemsText,
+      date: date,
+    });
+    console.log('Email 通知已發送');
+  } catch(e) {
+    console.warn('Email 通知失敗:', e);
+  }
+}
 
 </script>
 
