@@ -781,13 +781,15 @@ async function loadCustomers() {
 function getArrivalStatus(o) {
   if (o.status === 'cancelled') return 'cancelled';
   if (o.status === 'processing') return 'processing';
-  const allShipped = o.items.length > 0 && o.items.every(i => (i.shippedQty||0) >= i.qty);
+  const activeItems = o.items.filter(i => !i.cancelled && i.qty > 0);
+  if (!activeItems.length) return 'waiting';
+  const allShipped = activeItems.every(i => (i.shippedQty||0) >= i.qty);
   if (allShipped) return 'shipped';
-  const anyShipped = o.items.some(i => (i.shippedQty||0) > 0);
+  const anyShipped = activeItems.some(i => (i.shippedQty||0) > 0);
   if (anyShipped) return 'partial_shipped';
-  const allArrived = o.items.every(i => i.arrivedQty >= i.qty);
+  const allArrived = activeItems.every(i => i.arrivedQty >= i.qty);
   if (allArrived) return 'arrived';
-  const anyArrived = o.items.some(i => i.arrivedQty > 0);
+  const anyArrived = activeItems.some(i => i.arrivedQty > 0);
   if (anyArrived) return 'partial';
   return 'waiting';
 }
@@ -831,8 +833,8 @@ function renderOrders() {
     const detHtml = buildOrderDetail(o);
     return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')" style="${st==='cancelled'?'background:#e5e5e5;opacity:0.8':st==='shipped'?'background:#f8f8f8':''}">
       <span style="color:var(--muted);font-size:12px;display:flex;flex-direction:column;gap:2px">
-        <span>${o.order_id||o.id}<span class="eh">▶</span>${o.note && !dismissedNotes.has(o.order_id||String(o.id)) ? '<span onclick="event.stopPropagation();dismissNote(\'' + (o.order_id||o.id) + '\')" style="display:inline-flex;align-items:center;gap:2px;margin-left:5px;font-size:10px;background:#fef3c7;color:#92400e;border:0.5px solid #fcd34d;border-radius:4px;padding:1px 5px;cursor:pointer" title="點擊移除標示">📌 留意備註</span>' : ''}</span>
-        ${o.admin_note ? '<span style="font-size:11px;color:#5578a8;border-left:2px solid #92A8D1;padding-left:5px">' + (o.admin_note.length>30?o.admin_note.slice(0,30)+'…':o.admin_note) + '</span>' : ''}
+        <span>${o.order_id||o.id}<span class="eh">▶</span>${buildNoteTag(o)}</span>
+        ${buildAdminNoteTag(o)}
       </span>
       <span>${f.product}${multi}</span>
       <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
@@ -952,9 +954,9 @@ function buildOrderDetail(o) {
   </div>
   <div class="det-actions" style="padding:0 14px 12px;display:flex;gap:6px;flex-wrap:wrap">
     <button class="edit-btn" onclick="openAddItemModal('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--brown);border-color:var(--brown)">+ 補加商品</button>
-    <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
-    <input id="tracking-${o.order_id||o.id}" placeholder="🚚 填寫物流單號" value="${o.tracking_number||''}" style="flex:1;min-width:140px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px" onclick="event.stopPropagation()">
-    <button onclick="event.stopPropagation();saveTracking('${o.order_id||o.id}')" style="padding:6px 12px;background:#92A8D1;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;white-space:nowrap">儲存單號</button>
+    <div style="margin-top:8px">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">物流單號</div>
+    ${(function(){const tks=o.tracking_numbers||(o.tracking_number?[{number:o.tracking_number,date:''}]:[]);const oid=o.order_id||o.id;return [1,2,3].map(function(n){const tk=(tks||[])[n-1];return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input id="tracking-'+oid+'-'+n+'" placeholder="第'+n+'批物流單號" value="'+(tk?tk.number:'')+' " style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();saveTracking(\'' + oid + '\',' + n + ')" style="padding:5px 10px;background:#92A8D1;color:#fff;border:none;border-radius:7px;font-size:11px;cursor:pointer">儲存</button>'+(tk&&tk.date?'<span style="font-size:10px;color:var(--muted)">'+tk.date+'</span>':'')+'</div>';}).join('');})()}
   </div>
   <div style="margin-bottom:8px">
     <div style="font-size:11px;color:var(--muted);margin-bottom:4px">更改訂單狀態</div>
@@ -1046,7 +1048,7 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
 function renderArrival() {
   document.getElementById('apl').innerHTML = products.filter(p => p.online).map(p => {
     const pid = 'apc-' + p.id;
-    const needItems = orders.filter(o => { const st = getArrivalStatus(o); return st !== 'shipped' && st !== 'processing'; })
+    const needItems = orders.filter(o => { const st = getArrivalStatus(o); return st !== 'shipped' && st !== 'processing' && st !== 'cancelled'; })
       .flatMap(o => o.items.filter(i => i.productId == p.id && i.arrivedQty < i.qty).map(i => ({ ...i, still: i.qty - i.arrivedQty })));
     const twq = needItems.reduce((s, i) => s + i.still, 0);
     const rows = (p.specs||[]).map((sp, si) => {
@@ -1448,11 +1450,15 @@ function sw(tab) {
   document.querySelectorAll('.at').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.getElementById('pg-' + tab).classList.add('on');
+  if (tab === 'orders') renderOrders();
+  if (tab === 'arrival') renderArrival();
   if (tab === 'products') renderProductMgmt();
   if (tab === 'surcharge') renderSurcharge();
   if (tab === 'siteconfig') loadSiteConfig();
   if (tab === 'order-list') renderOrderList();
   if (tab === 'discount') renderDiscount();
+  if (tab === 'inventory') renderInventory();
+  if (tab === 'customers') renderCustomers();
 }
 
 function showToast(msg) {
@@ -2564,15 +2570,25 @@ async function deleteCustomer(phone, name) {
 
 
 // ── 物流單號 ──────────────────────────────────────────────
-async function saveTracking(orderId) {
-  const inp = document.getElementById(`tracking-${orderId}`);
+async function saveTracking(orderId, n) {
+  const inp = document.getElementById(`tracking-${orderId}-${n}`);
   if (!inp) return;
   const val = inp.value.trim();
+  const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
+  if (!o) return;
+  const trackings = o.tracking_numbers ? [...o.tracking_numbers] : [];
+  while (trackings.length < n) trackings.push(null);
+  if (val) {
+    const now = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'});
+    trackings[n-1] = { number: val, date: now };
+  } else {
+    trackings[n-1] = null;
+  }
   try {
-    await sb.from('orders').update({ tracking_number: val }).eq('order_id', orderId);
-    const o = orders.find(x => (x.order_id||x.id) === orderId);
-    if (o) o.tracking_number = val;
-    showToast(val ? `✓ 物流單號已儲存：${val}` : '物流單號已清除');
+    await sb.from('orders').update({ tracking_numbers: JSON.stringify(trackings) }).eq('order_id', orderId);
+    o.tracking_numbers = trackings;
+    showToast(val ? `✓ 第 ${n} 批物流單號已儲存` : `第 ${n} 批物流單號已清除`);
+    renderOrders();
   } catch(e) {
     showToast('儲存失敗：' + e.message);
   }
@@ -2602,6 +2618,23 @@ async function saveAdminNote(orderId, key) {
   } catch(e) {
     showToast('儲存失敗：' + e.message);
   }
+}
+
+
+function buildNoteTag(o) {
+  const oid = String(o.order_id||o.id);
+  if (!o.note || dismissedNotes.has(oid)) return '';
+  return '<span onclick="event.stopPropagation();dismissNote(\'' + oid + '\')" ' +
+    'style="display:inline-flex;align-items:center;gap:2px;margin-left:5px;font-size:10px;' +
+    'background:#fef3c7;color:#92400e;border:0.5px solid #fcd34d;border-radius:4px;padding:1px 5px;cursor:pointer" ' +
+    'title="點擊移除標示">📌 留意備註</span>';
+}
+
+
+function buildAdminNoteTag(o) {
+  if (!o.admin_note) return '';
+  const text = o.admin_note.length > 30 ? o.admin_note.slice(0,30) + '…' : o.admin_note;
+  return '<span style="font-size:11px;color:#5578a8;border-left:2px solid #92A8D1;padding-left:5px">' + text + '</span>';
 }
 
 </script>
