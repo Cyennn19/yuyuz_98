@@ -2118,11 +2118,7 @@ async function sendLineMsg(text) {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({
-        lineToken: NOTIFY_CONFIG.lineToken,
-        lineUserId: NOTIFY_CONFIG.lineUserId,
-        message: text
-      })
+      body: JSON.stringify({ message: text })
     });
   } catch(e) { console.warn('LINE 通知失敗:', e); }
 }
