@@ -231,6 +231,10 @@ body{background:var(--cream);font-family:'Hiragino Sans','Noto Sans TC',sans-ser
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+
+.dep-wait{background:#dc2626;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+.dep-check{background:#185fa5;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+.dep-paid{background:#3b6d11;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -825,18 +829,21 @@ function renderOrders() {
     const { arr, tot } = orderProgress(o);
     const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
     const detHtml = buildOrderDetail(o);
-    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')" style="${st==='cancelled'?'background:#f5f5f5;opacity:0.8':''}">
-      <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}<span class="eh">▶</span></span>
+    return `<div class="otr" id="otr-${key}" onclick="toggleOrder('${key}')" style="${st==='cancelled'?'background:#e5e5e5;opacity:0.8':st==='shipped'?'background:#f8f8f8':''}">
+      <span style="color:var(--muted);font-size:12px;display:flex;flex-direction:column;gap:2px">
+        <span>${o.order_id||o.id}<span class="eh">▶</span>${o.note && !dismissedNotes.has(o.order_id||String(o.id)) ? '<span onclick="event.stopPropagation();dismissNote(\'' + (o.order_id||o.id) + '\')" style="display:inline-flex;align-items:center;gap:2px;margin-left:5px;font-size:10px;background:#fef3c7;color:#92400e;border:0.5px solid #fcd34d;border-radius:4px;padding:1px 5px;cursor:pointer" title="點擊移除標示">📌 留意備註</span>' : ''}</span>
+        ${o.admin_note ? '<span style="font-size:11px;color:#5578a8;border-left:2px solid #92A8D1;padding-left:5px">' + (o.admin_note.length>30?o.admin_note.slice(0,30)+'…':o.admin_note) + '</span>' : ''}
+      </span>
       <span>${f.product}${multi}</span>
       <span>${o.customer_name||''}${o.note?'<span class="nf"></span>':''}</span>
       <span>NT$ ${(o.amount||0).toLocaleString()}</span>
       <span style="display:flex;flex-direction:column;gap:2px">
-        <span class="badge ${o.deposit_status==='paid'?'bs':o.deposit_status==='filled'?'bpr':'bw'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'✓ 入帳':o.deposit_status==='filled'?'待核對':'待收款'}</span>
+        <span class="badge ${o.deposit_status==='paid'?'dep-paid':o.deposit_status==='filled'?'dep-check':'dep-wait'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'已入帳':o.deposit_status==='filled'?'款項待核對':'尚未付款'}</span>
         <span class="badge ${o.balance_status==='paid'?'bs':'bw'}" style="font-size:10px">尾款${o.balance_status==='paid'?'✓':'待收'}</span>
       </span>
       <span><span class="badge ${SC[st]}">${arr}/${tot}</span></span>
       <span style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${st==='arrived'||st==='shipped'?'#1d9e75':'#ef9f27'};width:${pct}%"></div></div></span>
-      <span onclick="event.stopPropagation()"><select class="status-sel" onchange="changeOrderStatus('${o.order_id||o.id}',this.value)"><option value="" disabled selected>—</option><option value="shipped"${st==='shipped'?' selected':''}>已出貨</option><option value="processing"${st==='processing'?' selected':''}>處理中</option><option value="cancelled"${st==='cancelled'?' selected':''}>已取消</option></select></span>
+      <span><span class="badge ${SC[st]}" style="font-size:11px;padding:3px 9px">${{'waiting':'等待到貨','partial':'部分到貨','arrived':'已到貨','partial_shipped':'部分出貨','shipped':'已出貨','processing':'處理中','cancelled':'已取消'}[st]||st}</span></span>
     </div>
     <div class="order-detail" id="odet-${key}">${detHtml}</div>`;
   }).join('');
@@ -882,7 +889,12 @@ function buildOrderDetail(o) {
       <div class="det-row"><span class="det-label">店號</span><span class="det-val">${o.store_no||'—'}</span></div>
       <div class="det-row"><span class="det-label">IG 帳號</span><span class="det-val">${o.ig||'—'}</span></div>
       <div class="det-row"><span class="det-label">LINE 暱稱</span><span class="det-val">${o.line_nickname||'—'}</span></div>
-      ${o.note?`<div class="det-row"><span class="det-label">備註</span><span class="det-val" style="color:var(--amber)">${o.note}</span></div>`:''}
+      ${o.note?`<div class="det-row"><span class="det-label">客人備註</span><span class="det-val" style="color:var(--amber)">${o.note}</span></div>`:''}
+    </div>
+    <div class="det-block">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">後台備註</div>
+      <textarea id="anote-${key}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;resize:none;font-family:inherit;background:var(--white);display:block" rows="2" placeholder="新增後台備註…" onclick="event.stopPropagation()">${o.admin_note||''}</textarea>
+      <button onclick="event.stopPropagation();saveAdminNote('${o.order_id||o.id}','${key}')" style="margin-top:4px;padding:4px 12px;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;background:var(--white)">儲存備註</button>
     </div>
     <div class="det-block">
       <div class="det-title">訂單明細（到貨 ${arr}/${tot} 件）</div>
@@ -896,7 +908,7 @@ function buildOrderDetail(o) {
             ? '<div style="font-size:12px;color:var(--amber)">⚠ 客人尚未填寫匯款後五碼</div>'
             : `<div style="font-size:12px;color:var(--muted)">匯款後五碼：<span style="font-weight:700;color:var(--dark);letter-spacing:0.12em">${o.transfer_code}</span>
                <span style="margin-left:6px;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;background:${o.deposit_status==='paid'?'var(--green-bg)':'var(--blue-bg)'};color:${o.deposit_status==='paid'?'var(--green)':'var(--blue)'}">
-                 ${o.deposit_status==='paid'?'✓ 已入帳':'已填，待核對'}
+                 ${o.deposit_status==='paid'?'已入帳':'款項待核對'}
                </span></div>`
           }
         </div>
@@ -907,7 +919,7 @@ function buildOrderDetail(o) {
               ? '<span style="font-size:11px;color:var(--muted)">等待填寫後五碼</span>'
               : `<button onclick="updatePayment('${o.order_id||o.id}','deposit',${o.deposit_status==='paid'?"'pending'":"'paid'"})"
                    style="padding:4px 12px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;background:${o.deposit_status==='paid'?'var(--green-bg)':'var(--amber-bg)'};color:${o.deposit_status==='paid'?'var(--green)':'var(--amber)'}">
-                   ${o.deposit_status==='paid'?'✓ 已入帳，點選取消':'確認入帳'}
+                   ${o.deposit_status==='paid'?'已入帳，點選取消':'確認入帳'}
                  </button>`
             }
           </div>
@@ -943,6 +955,18 @@ function buildOrderDetail(o) {
     <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
     <input id="tracking-${o.order_id||o.id}" placeholder="🚚 填寫物流單號" value="${o.tracking_number||''}" style="flex:1;min-width:140px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px" onclick="event.stopPropagation()">
     <button onclick="event.stopPropagation();saveTracking('${o.order_id||o.id}')" style="padding:6px 12px;background:#92A8D1;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;white-space:nowrap">儲存單號</button>
+  </div>
+  <div style="margin-bottom:8px">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">更改訂單狀態</div>
+    <select onchange="changeOrderStatus('${o.order_id||o.id}',this.value)" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:7px;background:var(--white);width:100%" onclick="event.stopPropagation()">
+      <option value="waiting"${st==='waiting'?' selected':''}>等待到貨</option>
+      <option value="partial"${st==='partial'?' selected':''}>部分到貨</option>
+      <option value="arrived"${st==='arrived'?' selected':''}>已到貨</option>
+      <option value="partial_shipped"${st==='partial_shipped'?' selected':''}>部分出貨</option>
+      <option value="shipped"${st==='shipped'?' selected':''}>已出貨</option>
+      <option value="processing"${st==='processing'?' selected':''}>處理中</option>
+      <option value="cancelled"${st==='cancelled'?' selected':''}>已取消</option>
+    </select>
   </div>
   ${o.status !== 'cancelled' ? `<button class="edit-btn" onclick="cancelOrder('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--red);border-color:var(--red)">取消訂單</button>` : '<span style="color:var(--muted);font-size:12px;padding:5px 0">此訂單已取消</span>'}
   </div>`;
@@ -1123,7 +1147,7 @@ function renderCustomers() {
           </div>
           <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
             <span class="badge" style="font-size:10px;background:var(--light);color:var(--muted)">${co.orders} 筆訂單</span>
-            <span class="badge ${allDeposit?'bs':cOrders.some(o=>o.deposit_status==='filled')?'bpr':'bw'}" style="font-size:10px">商品金額${allDeposit?'全入帳':cOrders.some(o=>o.deposit_status==='filled')?'待核對':'有未收'}</span>
+            <span class="badge ${allDeposit?'bs':cOrders.some(o=>o.deposit_status==='filled')?'dep-check':'dep-wait'}" style="font-size:10px">商品金額${allDeposit?'全入帳':cOrders.some(o=>o.deposit_status==='filled')?'待核對':'有未收'}</span>
           </div>
         </div>
         <div style="text-align:right">
@@ -1153,7 +1177,7 @@ function renderCustomers() {
           return `<div class="co-row">
             <span style="color:var(--muted);min-width:90px">${o.order_id||o.id}</span>
             <span style="flex:1">${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}（${o.items[0].spec}）</span>
-            <span class="badge ${o.deposit_status==='paid'?'bs':'bw'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'✓':'待'}</span>
+            <span class="badge ${o.deposit_status==='paid'?'dep-paid':'dep-wait'}" style="font-size:10px">商品金額${o.deposit_status==='paid'?'✓':'待'}</span>
 
             <span><span class="badge ${SC[st]}" style="font-size:10px">${SL[st]}</span></span>
             <span style="color:var(--brown);font-weight:600;white-space:nowrap">NT$ ${(o.amount||0).toLocaleString()}</span>
@@ -2549,6 +2573,32 @@ async function saveTracking(orderId) {
     const o = orders.find(x => (x.order_id||x.id) === orderId);
     if (o) o.tracking_number = val;
     showToast(val ? `✓ 物流單號已儲存：${val}` : '物流單號已清除');
+  } catch(e) {
+    showToast('儲存失敗：' + e.message);
+  }
+}
+
+
+// ── 備註標示管理 ──────────────────────────────────────────
+let dismissedNotes = new Set(JSON.parse(localStorage.getItem('dismissed_notes') || '[]'));
+function dismissNote(orderId) {
+  dismissedNotes.add(String(orderId));
+  localStorage.setItem('dismissed_notes', JSON.stringify([...dismissedNotes]));
+  renderOrders();
+}
+
+
+// ── 後台備註儲存 ──────────────────────────────────────────
+async function saveAdminNote(orderId, key) {
+  const ta = document.getElementById('anote-' + key);
+  if (!ta) return;
+  const note = ta.value.trim();
+  try {
+    await sb.from('orders').update({ admin_note: note }).eq('order_id', orderId);
+    const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
+    if (o) o.admin_note = note;
+    showToast('✓ 後台備註已儲存');
+    renderOrders();
   } catch(e) {
     showToast('儲存失敗：' + e.message);
   }
