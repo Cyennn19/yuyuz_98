@@ -935,7 +935,11 @@ function buildOrderDetail(o) {
   </div>
   <div class="det-actions" style="padding:0 14px 12px;display:flex;gap:6px;flex-wrap:wrap">
     <button class="edit-btn" onclick="openAddItemModal('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--brown);border-color:var(--brown)">+ 補加商品</button>
-    ${o.status !== 'cancelled' ? `<button class="edit-btn" onclick="cancelOrder('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--red);border-color:var(--red)">取消訂單</button>` : '<span style="color:var(--muted);font-size:12px;padding:5px 0">此訂單已取消</span>'}
+    <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+    <input id="tracking-${o.order_id||o.id}" placeholder="🚚 填寫物流單號" value="${o.tracking_number||''}" style="flex:1;min-width:140px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px" onclick="event.stopPropagation()">
+    <button onclick="event.stopPropagation();saveTracking('${o.order_id||o.id}')" style="padding:6px 12px;background:#92A8D1;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;white-space:nowrap">儲存單號</button>
+  </div>
+  ${o.status !== 'cancelled' ? `<button class="edit-btn" onclick="cancelOrder('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--red);border-color:var(--red)">取消訂單</button>` : '<span style="color:var(--muted);font-size:12px;padding:5px 0">此訂單已取消</span>'}
   </div>`;
 }
 function toggleOrder(key) {
@@ -2530,6 +2534,22 @@ async function deleteCustomer(phone, name) {
     renderCustomers();
   } catch(e) {
     showToast('刪除失敗：' + e.message);
+  }
+}
+
+
+// ── 物流單號 ──────────────────────────────────────────────
+async function saveTracking(orderId) {
+  const inp = document.getElementById(`tracking-${orderId}`);
+  if (!inp) return;
+  const val = inp.value.trim();
+  try {
+    await sb.from('orders').update({ tracking_number: val }).eq('order_id', orderId);
+    const o = orders.find(x => (x.order_id||x.id) === orderId);
+    if (o) o.tracking_number = val;
+    showToast(val ? `✓ 物流單號已儲存：${val}` : '物流單號已清除');
+  } catch(e) {
+    showToast('儲存失敗：' + e.message);
   }
 }
 
