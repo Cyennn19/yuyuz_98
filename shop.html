@@ -378,7 +378,6 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 @media(max-width:600px){
   .nav{padding:0 14px;height:62px}
   .hamburger{display:flex !important}
-  .cat-bar{display:flex}
   .cart-text{display:none}
   .nav-cart{background:#111 !important;color:#fff !important;border:none !important;min-width:44px;padding:5px 10px;border-radius:4px}
   .nav-cart .cart-count{font-size:12px;font-weight:700}
@@ -712,7 +711,18 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
         <div id="discount-msg" style="font-size:12px;margin-top:5px;display:none"></div>
       </div>
       <div class="form-group"><label>備註 <span style="color:var(--text-muted);font-size:11px">（選填）</span></label><textarea id="f-note" placeholder="特殊需求請備註"></textarea></div>
-      <div class="form-group"><label>匯款帳號後五碼 <span style="color:var(--text-muted);font-size:11px">（轉帳後填入，方便核對）</span></label><input id="f-transfer" placeholder="例：12345" maxlength="5" pattern="[0-9]{5}" style="letter-spacing:0.15em;font-size:16px"></div>
+      <!-- 隱藏的後五碼欄位（保留給系統使用） -->
+      <input id="f-transfer" type="hidden" value="">
+      <!-- 提醒框 -->
+      <div style="background:#faf7f3;border:1px solid #e8d8b8;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:13px;color:#7a5800;line-height:2">
+          <div>📌 下單完成後系統將顯示匯款帳號</div>
+          <div>請記住您的 <strong>訂單編號</strong>，並於 24 小時內完成匯款</div>
+          <div>匯款完成後請至「查詢訂單」填寫後五碼</div>
+          <div style="color:#a07040;margin-top:4px">※ 部分團務確定購買後會再另行通知匯款</div>
+          <div style="color:#a07040">請留意</div>
+        </div>
+      </div>
       <div id="credits-section" style="display:none;background:var(--light);border-radius:10px;border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:13px;font-weight:600;color:var(--brown)">✦ 購物金餘額：<span id="credits-balance">NT$ 0</span></span>
@@ -839,7 +849,7 @@ async function init() {
 async function loadData() {
   try {
     const [catRes, prodRes] = await Promise.all([
-      sb.from('categories').select('id,label,sort_order').order('sort_order'),
+      sb.from('categories').select('id,label,sort_order,hidden').order('sort_order'),
       sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text').eq('online', true).order('sort_order')
     ]);
     categories = (catRes.data || []).filter(c => !c.hidden);
@@ -1276,7 +1286,7 @@ async function doLookup() {
         const latestIG = igData && igData.length ? igData[0].ig : '';
         const credits = custData?.credits || 0;
         const custName = custData?.name || '';
-        creditsHtml = `<div style="background:linear-gradient(135deg,#8b6f47,#6b4f35);border-radius:12px;padding:14px 16px;margin-bottom:12px;color:#fff">
+        creditsHtml = `<div style="background:linear-gradient(135deg,#F7CAC9,#92A8D1);border-radius:12px;padding:14px 16px;margin-bottom:12px;color:#fff">
           <div style="font-size:11px;opacity:0.8;margin-bottom:3px">yuyuz代購會員</div>
           <div style="font-size:16px;font-weight:700;margin-bottom:6px">${latestIG ? (latestIG.startsWith('@') ? latestIG : '@' + latestIG) : val}</div>
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1329,26 +1339,63 @@ async function doLookup() {
           : `<div style="background:#faf7f3;border-radius:10px;border:1px solid #e8d8b8;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--text-muted)">💡 以「訂單編號」查詢可查看匯款帳號並填寫後五碼</div>`;
       const itemsHtml = items.map(i => {
         const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
+        const isShipped = i.shippedQty >= i.qty || (o.status === 'shipped');
+        const itemStatusText = isShipped ? '✦ 已出貨' : (i.arrivedQty >= i.qty ? '✓ 已到貨，待出貨' : `已到貨 ${i.arrivedQty}/${i.qty} 件`);
+        const itemStatusColor = isShipped ? 'var(--serenity-dark)' : (i.arrivedQty >= i.qty ? '#1d9e75' : '#ef9f27');
         return `<div class="lookup-item">
           <div>
             <div>${i.product}（${i.spec}）× ${i.qty}</div>
-            <div class="lookup-item-prog">已到貨 ${i.arrivedQty}/${i.qty} 件
-              <span style="display:inline-block;width:60px;height:4px;background:#e8e2d6;border-radius:2px;vertical-align:middle;margin-left:4px;overflow:hidden"><span style="display:block;height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></span></span>
+            <div class="lookup-item-prog" style="color:${itemStatusColor};font-weight:${isShipped?'600':'400'}">${itemStatusText}
+              ${!isShipped ? `<span style="display:inline-block;width:60px;height:4px;background:#e8e2d6;border-radius:2px;vertical-align:middle;margin-left:4px;overflow:hidden"><span style="display:block;height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></span></span>` : ''}
             </div>
           </div>
           <div style="white-space:nowrap;color:var(--brown);font-weight:600">NT$ ${(i.price*i.qty).toLocaleString()}</div>
         </div>`;
       }).join('');
+      // SVT 進度條
+      const PROG_STEPS = [
+        {key:'ordered',label:'下單成功'},
+        {key:'waiting',label:'等待到貨'},
+        {key:'partial',label:'部分到貨'},
+        {key:'arrived',label:'已到貨'},
+        {key:'partial_shipped',label:'部分出貨'},
+        {key:'shipped',label:'已出貨'},
+      ];
+      const stOrder = ['ordered','waiting','partial','arrived','partial_shipped','shipped'];
+      const curIdx = stOrder.indexOf(st === 'processing' ? 'waiting' : st);
+      const actualIdx = curIdx < 0 ? 1 : curIdx;
+      const fillPct = actualIdx === 0 ? 0 : (actualIdx / (stOrder.length-1)) * 100;
+      const progDots = PROG_STEPS.map((step, i) => {
+        const isDone = i < actualIdx;
+        const isCurr = i === actualIdx;
+        return `<div class="prog-step">
+          <div class="prog-dot ${isDone?'done':isCurr?'current':'pending'}">${isDone?'✓':isCurr?'●':'○'}</div>
+          <div class="prog-label ${isDone?'done':isCurr?'current':''}">${step.label}</div>
+        </div>`;
+      }).join('');
+
       return `<div class="lookup-card">
         <div class="lookup-card-hdr">
           <div>
             <div class="lookup-oid">${o.order_id}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px">下單日期：${date}</div>
           </div>
-          <span class="lookup-status ${STATUS_CLASS[st]}">${STATUS_LABEL[st]}</span>
+          <span class="svt-badge">${STATUS_LABEL[st]}</span>
+        </div>
+        <div class="prog-bar-wrap">
+          <div class="prog-bar-line"></div>
+          <div class="prog-bar-fill" style="width:${fillPct}%"></div>
+          <div class="prog-steps">${progDots}</div>
         </div>
         ${payHtml}
         <div class="lookup-items">${itemsHtml}</div>
+        ${o.tracking_number ? `<div style="margin:8px 0;padding:8px 10px;background:#f0f5ff;border-radius:8px;border:1px solid #c8d8f0;display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">🚚</span>
+          <div>
+            <div style="font-size:11px;color:#5578a8;font-weight:600;margin-bottom:2px">物流單號</div>
+            <div style="font-size:13px;font-weight:700;color:#333;letter-spacing:0.06em">${o.tracking_number}</div>
+          </div>
+        </div>` : ''}
         <div class="lookup-total"><span>合計</span><span>NT$ ${(o.amount||0).toLocaleString()}</span></div>
       </div>`;
     }).join('');
