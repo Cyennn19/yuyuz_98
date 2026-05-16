@@ -826,8 +826,8 @@ function renderOrders() {
   body.innerHTML = list.map(o => {
     const key = (o.order_id||o.id||'').replace(/[^a-zA-Z0-9]/g, '');
     const st = getArrivalStatus(o);
-    const f = o.items[0];
-    const multi = o.items.length > 1 ? ` +${o.items.length-1} 件` : '';
+    const f = o.items && o.items.length > 0 ? o.items[0] : {product:'(無商品)',spec:''};
+    const multi = o.items && o.items.length > 1 ? ` +${o.items.length-1} 件` : '';
     const { arr, tot } = orderProgress(o);
     const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
     const detHtml = buildOrderDetail(o);
