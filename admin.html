@@ -1171,7 +1171,7 @@ function renderArrival() {
               }).join('')}
             </div>
             <div style="margin-top:8px;text-align:right">
-              <button onclick="processArrival(${p.id},'${pid}')" style="padding:6px 16px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">確認到貨</button>
+              <button onclick="processArrivalProduct(${p.id},'${pid}')" style="padding:6px 16px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">確認到貨</button>
             </div>
           </div>
         </div>
@@ -2802,6 +2802,82 @@ function quickNote(orderId, key) {
   if (!ta.value.includes('📌')) {
     ta.value = ta.value ? ta.value + '\n📌 ' : '📌 ';
     ta.focus();
+  }
+}
+
+
+// ── 新版到貨配貨確認（按商品整批確認）───────────────────
+async function processArrivalProduct(pid, pidKey) {
+  const p = products.find(x => x.id == pid);
+  if (!p) return;
+  let anyProcessed = false;
+  for (const sp of (p.specs || [])) {
+    const spKey = sp.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const arrInp = document.getElementById(`arr-${pid}-${spKey}`);
+    const kgInp = document.getElementById(`kg-${pid}-${spKey}`);
+    if (!arrInp) continue;
+    const n = parseInt(arrInp.value) || 0;
+    if (n <= 0) continue;
+    // 呼叫舊版 processArrival 邏輯
+    await processArrivalSpec(pid, sp.name, n, kgInp ? parseFloat(kgInp.value)||0 : 0);
+    anyProcessed = true;
+  }
+  if (anyProcessed) {
+    showToast('✓ 到貨數量已更新');
+    renderArrival();
+  } else {
+    showToast('請填入至少一個規格的到貨數量');
+  }
+}
+
+async function processArrivalSpec(pid, specName, n, kg) {
+  const rate = parseFloat(localStorage.getItem('arrival-rate')) || 0;
+  const p = products.find(x => x.id == pid);
+  if (!p || n <= 0) return;
+  const needOrders = orders.filter(o => {
+    const st = getArrivalStatus(o);
+    if (st === 'shipped' || st === 'processing' || st === 'cancelled') return false;
+    return o.items.some(i => i.productId == pid && i.spec === specName && (i.arrivedQty||0) < i.qty);
+  }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  let rem = n;
+  for (const o of needOrders) {
+    if (rem <= 0) break;
+    const item = o.items.find(i => i.productId == pid && i.spec === specName && (i.arrivedQty||0) < i.qty);
+    if (!item) continue;
+    const need = item.qty - (item.arrivedQty||0);
+    const give = Math.min(rem, need);
+    item.arrivedQty = (item.arrivedQty||0) + give;
+    rem -= give;
+    // 二補計算
+    if (kg > 0 && rate > 0) {
+      const surcharge = Math.round(kg * rate * give / n);
+      if (surcharge > 0) {
+        const sc = o.surcharge_items || [];
+        sc.push({ spec: specName, kg, surcharge, note: `${specName} ${kg}kg` });
+        o.surcharge_items = sc;
+        o.surcharge_total = (o.surcharge_total||0) + surcharge;
+        try {
+          await sb.from('orders').update({
+            items: JSON.stringify(o.items),
+            surcharge_items: JSON.stringify(sc),
+            surcharge_total: o.surcharge_total
+          }).eq('order_id', o.order_id||String(o.id));
+        } catch(e) { console.warn(e); }
+      }
+    } else {
+      try {
+        await sb.from('orders').update({ items: JSON.stringify(o.items) })
+          .eq('order_id', o.order_id||String(o.id));
+      } catch(e) { console.warn(e); }
+    }
+  }
+  // 多出來的加庫存
+  if (rem > 0) {
+    const sp = p.specs.find(s => s.name === specName);
+    if (sp) { sp.stock = (sp.stock||0) + rem; }
+    try {
+      await sb.from('products').update({ specs: JSON.stringify(p.specs) }).eq('id', pid);
+    } catch(e) { console.warn(e); }
   }
 }
 
