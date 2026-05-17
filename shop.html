@@ -754,7 +754,7 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
     <div style="padding:0 20px 12px">
       <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--dark);line-height:1.6">
         <input type="checkbox" id="agree-checkbox" style="width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:var(--brown);cursor:pointer">
-        <span>我已閱讀並同意：本服務為受託代購，下單後即開始採買流程，<strong>不適用 7 天鑑賞期</strong>。本系統會記錄配送資訊以利下次快速填寫。</span>
+        <span>我已詳閱跟團須知並同意：本服務屬客製化代購給付，下單後即進入海外採買流程，<strong>不適用 7 天鑑賞期法規</strong>。本系統將安全紀錄配送資訊，以利下次快速填寫。</span>
       </label>
     </div>
     <div class="modal-footer">
@@ -1279,7 +1279,7 @@ function getOrderStatus(o) {
   if (o.status === 'partial_shipped') return 'partial_shipped';
   if (o.status === 'processing') return 'processing';
   const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
-  const activeItems = items.filter(i => !i.cancelled);
+  const activeItems = items.filter(i => !i.cancelled && i.qty > 0);
   if (!activeItems.length) return 'waiting';
   // 所有商品都出貨了
   const allShipped = activeItems.every(i => (i.shippedQty||0) >= i.qty);
@@ -1426,13 +1426,14 @@ async function doLookup() {
         </div>
         ${payHtml}
         <div class="lookup-items">${itemsHtml}</div>
-        ${o.tracking_number ? `<div style="margin:8px 0;padding:8px 10px;background:#f0f5ff;border-radius:8px;border:1px solid #c8d8f0;display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">🚚</span>
-          <div>
-            <div style="font-size:11px;color:#5578a8;font-weight:600;margin-bottom:2px">物流單號</div>
-            <div style="font-size:13px;font-weight:700;color:#333;letter-spacing:0.06em">${o.tracking_number}</div>
-          </div>
-        </div>` : ''}
+        ${(()=>{
+          const tks = o.tracking_numbers ? (typeof o.tracking_numbers==='string'?JSON.parse(o.tracking_numbers):o.tracking_numbers).filter(Boolean) : (o.tracking_number?[{number:o.tracking_number,date:''}]:[]);
+          if(!tks.length) return '';
+          return '<div style="margin:8px 0;background:#f0f5ff;border-radius:8px;border:1px solid #c8d8f0;padding:8px 10px">' +
+            '<div style="font-size:11px;color:#5578a8;font-weight:600;margin-bottom:6px">🚚 物流單號</div>' +
+            tks.map((tk,i)=>`<div style="font-size:13px;font-weight:700;color:#333;letter-spacing:0.05em;margin-bottom:3px">第${i+1}批：${tk.number}${tk.date?' <span style="font-size:11px;font-weight:400;color:#888">('+tk.date+' 出貨)</span>':''}</div>`).join('') +
+          '</div>';
+        })()}
         <div class="lookup-total"><span>合計</span><span>NT$ ${(o.amount||0).toLocaleString()}</span></div>
       </div>`;
     }).join('');
@@ -2017,7 +2018,7 @@ async function sendOrderEmail(orderId, name, phone, ig, amount, items) {
   const itemsText = items.map(i => `${i.product}（${i.spec}）× ${i.qty} — NT$ ${(i.price*i.qty).toLocaleString()}`).join('\n');
   const date = new Date().toLocaleString('zh-TW', {timeZone:'Asia/Taipei'});
   try {
-    await emailjs.send('service_0gt7m2e', 'template_9xzbdre', {
+    await emailjs.send('service_vxu3u9e', 'template_9xzbdre', {
       to_email: 'yuyuz98210@gmail.com',
       email: 'yuyuz98210@gmail.com',
       order_id: orderId,
