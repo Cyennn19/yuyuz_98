@@ -852,6 +852,7 @@ function renderOrders() {
 }
 function buildOrderDetail(o) {
   const key = (o.order_id||String(o.id)||'').replace(/[^a-zA-Z0-9]/g,'');
+  const st = getArrivalStatus(o);
   const { arr, tot } = orderProgress(o);
   const iHtml = o.items.map((i, iIdx) => {
     const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
