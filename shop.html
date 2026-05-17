@@ -448,7 +448,7 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 /* SVT 進度條 */
 .prog-bar-wrap{margin:12px 0 6px;position:relative;padding-bottom:4px}
 .prog-bar-line{position:absolute;top:13px;left:calc(100%/12);right:calc(100%/12);height:3px;background:#ebebeb;border-radius:2px;z-index:0}
-.prog-bar-fill{position:absolute;top:13px;left:calc(100%/12);height:3px;border-radius:2px;z-index:1;background:linear-gradient(90deg,#F7CAC9,#92A8D1)}
+.prog-bar-fill{position:absolute;top:13px;left:calc(100%/12);right:calc(100%/12);height:3px;border-radius:2px;z-index:1;background:linear-gradient(90deg,#F7CAC9,#92A8D1);max-width:calc(100% - 100%/6)}
 .prog-steps{display:flex;justify-content:space-between;position:relative;z-index:2}
 .prog-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
 .prog-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
@@ -1378,7 +1378,7 @@ async function doLookup() {
         const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
         const isShipped = i.shippedQty >= i.qty || (o.status === 'shipped');
         const itemStatusText = isShipped ? '✦ 已出貨' : (i.arrivedQty >= i.qty ? '✓ 已到貨，待出貨' : `已到貨 ${i.arrivedQty}/${i.qty} 件`);
-        const itemStatusColor = isShipped ? 'var(--serenity-dark)' : (i.arrivedQty >= i.qty ? '#1d9e75' : '#ef9f27');
+        const itemStatusColor = isShipped ? '#5578a8' : (i.arrivedQty >= i.qty ? '#c9868a' : '#ef9f27');
         return `<div class="lookup-item">
           <div>
             <div>${i.product}（${i.spec}）× ${i.qty}</div>
