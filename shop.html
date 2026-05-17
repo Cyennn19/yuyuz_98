@@ -1378,7 +1378,7 @@ async function doLookup() {
         const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
         const isShipped = i.shippedQty >= i.qty || (o.status === 'shipped');
         const itemStatusText = isShipped ? '✦ 已出貨' : (i.arrivedQty >= i.qty ? '✓ 已到貨，待出貨' : `已到貨 ${i.arrivedQty}/${i.qty} 件`);
-        const itemStatusColor = isShipped ? '#5578a8' : (i.arrivedQty >= i.qty ? '#c9868a' : '#ef9f27');
+        const itemStatusColor = isShipped ? '#111' : (i.arrivedQty >= i.qty ? '#5578a8' : '#c9868a');
         return `<div class="lookup-item">
           <div>
             <div>${i.product}（${i.spec}）× ${i.qty}</div>
