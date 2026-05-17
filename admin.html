@@ -303,6 +303,12 @@ input[type=number] { -moz-appearance:textfield; appearance:textfield; }
     <div class="pg" id="pg-arrival">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div style="font-size:15px;font-weight:700;color:var(--dark)">登記到貨數量</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;color:var(--muted)">篩選分類</span>
+        <select id="arrival-cat-filter" onchange="renderArrival()" style="padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
+          <option value="">全部分類</option>
+        </select>
+      </div>
       <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)">
         二補費率：每公斤
         <input type="number" id="arrival-rate" value="3" min="0" step="0.001" placeholder="0.0" style="width:68px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
@@ -1056,38 +1062,107 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
 }
 
 function renderArrival() {
-  document.getElementById('apl').innerHTML = products.filter(p => p.online).map(p => {
-    const pid = 'apc-' + p.id;
-    const needItems = orders.filter(o => { const st = getArrivalStatus(o); return st !== 'shipped' && st !== 'processing' && st !== 'cancelled'; })
-      .flatMap(o => o.items.filter(i => i.productId == p.id && i.arrivedQty < i.qty).map(i => ({ ...i, still: i.qty - i.arrivedQty })));
-    const twq = needItems.reduce((s, i) => s + i.still, 0);
-    const rows = (p.specs||[]).map((sp, si) => {
-      const swq = needItems.filter(i => i.spec === sp.name).reduce((s, i) => s + i.still, 0);
-      const iid = `si-${p.id}-${si}`, rid = `sr-${p.id}-${si}`;
-      return `<div class="spr"><span class="spn">${sp.name}</span><div class="sp-stat"><span>${sp.stock}</span>現有庫存</div><div class="sp-wait"><span style="color:${swq>0?'var(--amber)':'var(--muted)'}">${swq}</span>待配件數</div><div class="sp-inp-wrap"><input class="sp-inp" id="${iid}" type="number" min="1" placeholder="到貨數" style="width:60px"><input class="sp-inp" id="sw-${p.id}-${si}" type="number" min="0" step="0.001" placeholder="kg" style="width:58px" title="重量(kg)，自動計算二補"><button class="sp-btn" onclick="processArrival(${p.id},this.dataset.spec,\'${iid}\',\'${rid}\',\'sw-${p.id}-${si}\')" data-spec="${sp.name}">確認到貨</button><span class="sp-res" id="${rid}"></span></div></div>`;
-    }).join('');
-    return `<div class="apc"><div class="apch" onclick="toa('${pid}')"><span style="font-size:16px">${p.emoji||'📦'}</span><span class="apcn">${p.name}</span><span style="font-size:12px;color:var(--muted)">${twq>0?'還差 '+twq+' 件':'無待配訂單'}</span><span id="tog-${pid}">▶</span></div><div class="apcb" id="${pid}"><div class="sph"><span>規格</span><span style="text-align:center">現有庫存</span><span style="text-align:center">待配件數</span><span>登記到貨</span></div>${rows}</div></div>`;
-  }).join('');
-  const al = orders.filter(o => getArrivalStatus(o) === 'arrived').sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const btn = document.getElementById('ship-btn');
-  btn.disabled = al.length === 0;
-  btn.textContent = al.length > 0 ? `整批出貨（${al.length} 筆）` : '整批出貨';
-  const ab = document.getElementById('arrived-body');
-  ab.innerHTML = al.length ? al.map(o => `<div class="atr"><span style="color:var(--muted);font-size:12px">${o.order_id||o.id}</span><span>${o.items[0].product}${o.items.length>1?' +'+(o.items.length-1)+' 項':''}</span><span>${o.customer_name||''}</span><span>NT$ ${(o.amount||0).toLocaleString()}</span><span>${o.items[0].spec} × ${o.items[0].qty}</span><span><span class="badge ba">已到貨</span></span></div>`).join('') : '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">目前沒有全部到貨的訂單</div>';
-  const pl = orders.filter(o => getArrivalStatus(o) === 'partial').sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const pb = document.getElementById('partial-body');
-  pb.innerHTML = pl.length ? pl.map(o => {
-    const { arr, tot } = orderProgress(o);
-    const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
-    const itemDetails = o.items.map(i => {
-      const ipct = i.qty > 0 ? Math.round(i.arrivedQty / i.qty * 100) : 0;
-      const dc = i.arrivedQty >= i.qty ? 'dot-ok' : i.arrivedQty > 0 ? 'dot-part' : 'dot-wait';
-      return `<div class="ipl"><span class="dot ${dc}"></span><span>${i.product}（${i.spec}）— 已到 ${i.arrivedQty}/${i.qty} 件</span><div style="flex:1;height:4px;background:var(--border);border-radius:2px;margin-left:6px;overflow:hidden"><div style="height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#1d9e75':'#ef9f27'};width:${ipct}%"></div></div></div>`;
-    }).join('');
-    return `<div class="ptr"><span style="color:var(--muted);font-size:12px">${o.order_id||o.id}</span><div><div style="font-size:13px;font-weight:700;margin-bottom:5px">${o.items[0].product}${o.items.length>1?` 等 ${o.items.length} 項`:''}</div><div class="ipr">${itemDetails}</div></div><span>${o.customer_name||''}</span><span>NT$ ${(o.amount||0).toLocaleString()}</span><div><span class="badge bp">${arr}/${tot} 件</span><div style="height:4px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden"><div style="height:4px;border-radius:2px;background:#ef9f27;width:${pct}%"></div></div></div></div>`;
-  }).join('') : '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">目前沒有部分到貨的訂單</div>';
+  // 更新分類篩選
+  const catFilterEl = document.getElementById('arrival-cat-filter');
+  if (catFilterEl && catFilterEl.options.length <= 1) {
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.label;
+      catFilterEl.appendChild(opt);
+    });
+  }
+  const catFilter = catFilterEl?.value || '';
+
+  // 收合狀態
+  const arrCollapsed = JSON.parse(localStorage.getItem('arr_collapsed') || '[]');
+
+  // 依分類分組商品
+  const catGroups = {};
+  products.filter(p => p.online).forEach(p => {
+    if (catFilter && p.cat_id !== catFilter) return;
+    const cat = categories.find(c => c.id === p.cat_id);
+    const catLabel = cat?.label || '未分類';
+    const catId = p.cat_id || catLabel;
+    if (!catGroups[catId]) catGroups[catId] = { label: catLabel, catId, products: [] };
+    catGroups[catId].products.push(p);
+  });
+
+  let html = '';
+  Object.values(catGroups).forEach(group => {
+    const isCollapsed = arrCollapsed.includes(group.catId);
+    const activeOrders = orders.filter(o => {
+      const st = getArrivalStatus(o);
+      return st !== 'shipped' && st !== 'processing' && st !== 'cancelled';
+    });
+
+    // 分類標題
+    html += `<div onclick="toggleArrCat('${group.catId}')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#e0e0e0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">
+      <span style="font-size:13px;font-weight:700;color:#444;flex:1">${group.label}</span>
+      <span style="font-size:11px;color:#888">${isCollapsed ? '▼ 展開' : '▲ 收合'}</span>
+    </div>`;
+
+    if (isCollapsed) return;
+
+    group.products.forEach(p => {
+      const pid = 'apc-' + p.id;
+      const needItems = activeOrders
+        .flatMap(o => o.items.filter(i => i.productId == p.id && !i.cancelled && i.arrivedQty < i.qty)
+          .map(i => ({ ...i, still: i.qty - i.arrivedQty })));
+      const totalNeed = needItems.reduce((s, i) => s + i.still, 0);
+      if (totalNeed <= 0) return;
+
+      const imgHtml = p.photo
+        ? `<img src="${p.photo}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0">`
+        : `<span style="font-size:26px">${p.emoji||'📦'}</span>`;
+
+      html += `<div style="border-bottom:2px solid var(--border);background:var(--white)">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--light)">
+          ${imgHtml}
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--dark)">${p.name}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">待到貨 ${totalNeed} 件</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 80px 80px 80px;padding:6px 14px;background:#f8f8f8;font-size:10px;color:var(--muted);font-weight:600;letter-spacing:0.04em">
+          <span>規格</span><span style="text-align:center">訂購數</span><span style="text-align:center">到貨數</span><span style="text-align:center">公斤數</span>
+        </div>`;
+
+      (p.specs || []).forEach(sp => {
+        const specNeed = needItems.filter(i => i.spec === sp.name).reduce((s, i) => s + i.still, 0);
+        if (specNeed <= 0) return;
+        const sid = `arr-${p.id}-${sp.name.replace(/\s/g,'_')}`;
+        const kgId = `kg-${p.id}-${sp.name.replace(/\s/g,'_')}`;
+        html += `<div style="display:grid;grid-template-columns:1fr 80px 80px 80px;padding:8px 14px;border-top:1px solid var(--border);align-items:center;gap:6px">
+          <span style="font-size:12px;color:var(--dark)">${sp.name}</span>
+          <span style="text-align:center;font-size:12px;color:var(--muted)">${specNeed}</span>
+          <input id="${sid}" type="number" min="0" max="${specNeed}" placeholder="0"
+            style="padding:4px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;text-align:center;width:100%"
+            onclick="event.stopPropagation()">
+          <input id="${kgId}" type="number" min="0" step="0.001" placeholder="0.0"
+            style="padding:4px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;text-align:center;width:100%"
+            onclick="event.stopPropagation()">
+        </div>`;
+      });
+
+      html += `<div style="padding:8px 14px;display:flex;justify-content:flex-end">
+        <button onclick="processArrival(${p.id},'${pid}')" style="padding:6px 16px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">確認到貨</button>
+      </div></div>`;
+    });
+  });
+
+  if (!html) html = '<div style="text-align:center;padding:28px;color:var(--muted)">目前沒有待到貨商品</div>';
+  document.getElementById('apl').innerHTML = html;
 }
-function toa(id) { const b = document.getElementById(id), t = document.getElementById('tog-' + id); const op = b.classList.contains('open'); b.classList.toggle('open', !op); if (t) t.textContent = op ? '▶' : '▼'; }
+
+function toggleArrCat(catId) {
+  let collapsed = JSON.parse(localStorage.getItem('arr_collapsed') || '[]');
+  if (collapsed.includes(catId)) collapsed = collapsed.filter(c => c !== catId);
+  else collapsed.push(catId);
+  localStorage.setItem('arr_collapsed', JSON.stringify(collapsed));
+  renderArrival();
+}
+
+
 async function shipAll() {
   const al = orders.filter(o => getArrivalStatus(o) === 'arrived');
   for (const o of al) {
@@ -2234,28 +2309,19 @@ function buildSpecMap(filtered) {
         const p = products.find(x => String(x.id) === String(item.productId));
         const cat = p ? categories.find(c => c.id === p.cat_id) : null;
         specMap[key] = {
-          product: item.product,
-          productId: item.productId,
-          spec: item.spec,
-          price: item.price,
-          orderedQty: 0,
-          cancelledQty: 0,
-          arrivedQty: 0,
-          shippedQty: 0,
-          catId: p?.cat_id || '',
-          cat: cat?.label || '未分類',
-          catOrder: cat?.sort_order ?? 999,
+          product: item.product, productId: item.productId, spec: item.spec,
+          price: item.price, orderedQty: 0, cancelledQty: 0, arrivedQty: 0, shippedQty: 0,
+          catId: p?.cat_id || '', cat: cat?.label || '未分類', catOrder: cat?.sort_order ?? 999,
+          photo: p?.photo || '', emoji: p?.emoji || '📦',
         };
       }
       specMap[key].orderedQty += item.qty || 0;
       specMap[key].arrivedQty += item.arrivedQty || 0;
-      // 計算已出貨數量
       if (o.status === 'shipped' || o.status === 'partial_shipped') {
         specMap[key].shippedQty += item.shippedQty || item.qty || 0;
       }
     });
   });
-  // 已取消件數
   orders.forEach(o => {
     (o.items || []).forEach(item => {
       if (!item.cancelled) return;
@@ -2266,30 +2332,45 @@ function buildSpecMap(filtered) {
   return specMap;
 }
 
-// 叫貨數量已移除的商品（存在 localStorage）
-function getOlRemoved() {
-  try { return JSON.parse(localStorage.getItem('ol_removed') || '[]'); } catch(e) { return []; }
-}
-function setOlRemoved(list) {
-  localStorage.setItem('ol_removed', JSON.stringify(list));
-}
-function removeOlProduct(productKey) {
-  const list = getOlRemoved();
-  if (!list.includes(productKey)) { list.push(productKey); setOlRemoved(list); }
+// localStorage helpers for 叫貨數量
+function getOlOrdered() { try { return JSON.parse(localStorage.getItem('ol_ordered') || '{}'); } catch(e) { return {}; } }
+function setOlOrdered(d) { try { localStorage.setItem('ol_ordered', JSON.stringify(d)); } catch(e) {} }
+function getOlDone() { try { return JSON.parse(localStorage.getItem('ol_done') || '[]'); } catch(e) { return []; } }
+function setOlDone(list) { try { localStorage.setItem('ol_done', JSON.stringify(list)); } catch(e) {} }
+function getOlCollapsed() { try { return JSON.parse(localStorage.getItem('ol_collapsed') || '[]'); } catch(e) { return []; } }
+function setOlCollapsed(list) { try { localStorage.setItem('ol_collapsed', JSON.stringify(list)); } catch(e) {} }
+
+function toggleOlCat(catId) {
+  let collapsed = getOlCollapsed();
+  if (collapsed.includes(catId)) collapsed = collapsed.filter(c => c !== catId);
+  else collapsed.push(catId);
+  setOlCollapsed(collapsed);
   renderOrderList();
-  showToast('已從叫貨清單移除，可按「重置移除」恢復');
 }
-function resetOlRemoved() {
-  if (!confirm('確定要恢復所有已移除的商品嗎？')) return;
-  localStorage.removeItem('ol_removed');
+
+function saveOlOrdered(prodId, val) {
+  const d = getOlOrdered();
+  d[prodId] = parseInt(val) || 0;
+  setOlOrdered(d);
   renderOrderList();
-  showToast('已恢復所有移除的商品');
+}
+
+function toggleOlDone(prodId) {
+  let done = getOlDone();
+  if (done.includes(prodId)) done = done.filter(x => x !== prodId);
+  else done.push(prodId);
+  setOlDone(done);
+  renderOrderList();
 }
 
 function renderOrderList() {
   const filter = document.getElementById('ol-status-filter')?.value || 'active';
   const hideShipped = document.getElementById('ol-hide-shipped')?.checked !== false;
   const removed = getOlRemoved();
+  const ordered = getOlOrdered();
+  const done = getOlDone();
+  const collapsed = getOlCollapsed();
+
   // 更新分類篩選選項
   const catFilterEl = document.getElementById('ol-cat-filter');
   if (catFilterEl && catFilterEl.options.length <= 1) {
@@ -2311,22 +2392,23 @@ function renderOrderList() {
   const specMap = buildSpecMap(filtered);
   let specs = Object.values(specMap);
 
-  // 已出貨完成的規格自動移除（需求數 = 已出貨數）
   if (hideShipped) {
     specs = specs.filter(s => {
       const actual = Math.max(0, s.orderedQty - s.cancelledQty);
       return s.shippedQty < actual;
     });
   }
-  // 排除手動移除的商品
   specs = specs.filter(s => !removed.includes(s.productId || s.product));
-  // 分類篩選
   if (catFilter) specs = specs.filter(s => s.catId === catFilter);
 
-  // 統計卡片
+  // 統計
   const productNames = new Set(specs.map(s => s.product));
   const totalQty = specs.reduce((sum, s) => sum + Math.max(0, s.orderedQty - s.cancelledQty), 0);
-  const pendingQty = specs.reduce((sum, s) => sum + Math.max(0, (s.orderedQty - s.cancelledQty) - s.arrivedQty), 0);
+  const pendingQty = specs.reduce((sum, s) => {
+    const actual = Math.max(0, s.orderedQty - s.cancelledQty);
+    const ord = ordered[s.productId || s.product] || 0;
+    return sum + Math.max(0, actual - ord);
+  }, 0);
   document.getElementById('ol-products').textContent = productNames.size;
   document.getElementById('ol-specs').textContent = specs.length;
   document.getElementById('ol-total-qty').textContent = totalQty;
@@ -2340,57 +2422,79 @@ function renderOrderList() {
     return;
   }
 
-  // 依分類 → 商品 → 規格排序
-  specs.sort((a, b) =>
-    (a.catOrder - b.catOrder) ||
-    a.cat.localeCompare(b.cat) ||
-    a.product.localeCompare(b.product) ||
-    a.spec.localeCompare(b.spec)
-  );
+  specs.sort((a, b) => (a.catOrder - b.catOrder) || a.cat.localeCompare(b.cat) || a.product.localeCompare(b.product) || a.spec.localeCompare(b.spec));
 
   let html = '';
   let lastCat = '';
   let lastProduct = '';
+  let lastProdId = '';
 
   specs.forEach(s => {
     const actual = Math.max(0, s.orderedQty - s.cancelledQty);
-    const pending = Math.max(0, actual - s.arrivedQty);
+    const prodId = s.productId || s.product;
+    const orderedQty = ordered[prodId] || 0;
+    const needQty = Math.max(0, actual - orderedQty);
+    const isDone = done.includes(String(prodId));
+    const isCollapsed = collapsed.includes(s.catId || s.cat);
 
     // 分類標題
     if (s.cat !== lastCat) {
       lastCat = s.cat;
       lastProduct = '';
-      html += `<div style="padding:10px 13px 6px;background:#e8e8e8;border-bottom:1px solid var(--border)">
-        <span style="font-size:12px;font-weight:700;color:#555;letter-spacing:0.06em;text-transform:uppercase">${s.cat}</span>
+      lastProdId = '';
+      const catKey = s.catId || s.cat;
+      html += `<div onclick="toggleOlCat('${catKey}')" style="display:flex;align-items:center;gap:8px;padding:10px 13px 6px;background:#e0e0e0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">
+        <span style="font-size:12px;font-weight:700;color:#444;letter-spacing:0.06em;text-transform:uppercase;flex:1">${s.cat}</span>
+        <span style="font-size:11px;color:#888">${isCollapsed ? '▼ 展開' : '▲ 收合'}</span>
       </div>`;
     }
+
+    if (isCollapsed) return;
 
     // 商品標題
-    if (s.product !== lastProduct) {
+    if (s.product !== lastProduct || prodId !== lastProdId) {
       lastProduct = s.product;
-      const prodKey = s.productId || s.product;
-      html += `<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 80px 60px;padding:8px 13px 4px 20px;background:var(--light);border-bottom:1px solid var(--border);align-items:center">
-        <span style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</span>
+      lastProdId = prodId;
+      const imgHtml = s.photo
+        ? `<img src="${s.photo}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--border);flex-shrink:0">`
+        : `<span style="font-size:20px">${s.emoji}</span>`;
+
+      html += `<div style="display:grid;grid-template-columns:40px 1fr 80px 80px 80px 100px 40px 40px;padding:8px 13px 4px 16px;background:var(--light);border-bottom:1px solid var(--border);align-items:center;gap:6px">
+        ${imgHtml}
+        <span style="font-size:13px;font-weight:700;color:var(--dark);${isDone?'opacity:0.4':''}">
+          ${isDone ? '✅ ' : ''}${s.product}
+        </span>
         <span style="font-size:10px;color:var(--muted);text-align:center">訂購數</span>
-        <span style="font-size:10px;color:var(--muted);text-align:center">已取消</span>
         <span style="font-size:10px;color:var(--muted);text-align:center">需叫貨</span>
+        <span style="font-size:10px;color:var(--muted);text-align:center">已叫貨</span>
         <span style="font-size:10px;color:var(--muted);text-align:center">已到貨</span>
-        <button onclick="removeOlProduct('${prodKey}')" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer" title="從叫貨清單移除">移除</button>
+        <button onclick="toggleOlDone('${prodId}')" title="${isDone?'取消完成':'標記完成'}" style="padding:3px 6px;border:1px solid ${isDone?'var(--green)':'var(--border)'};border-radius:6px;background:${isDone?'var(--green-bg)':'#fff'};color:${isDone?'var(--green)':'var(--muted)'};cursor:pointer;font-size:13px">${isDone?'✅':'☐'}</button>
+        <button onclick="removeOlProduct('${prodId}')" title="從叫貨清單移除" style="padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer;font-size:11px">✕</button>
       </div>`;
     }
 
-    html += `<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 80px 60px;padding:7px 13px 7px 32px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center">
-      <span style="color:var(--muted)">└ ${s.spec}</span>
+    html += `<div style="display:grid;grid-template-columns:40px 1fr 80px 80px 80px 100px 40px 40px;padding:7px 13px 7px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center;gap:6px;${isDone?'opacity:0.4':''}">
+      <span></span>
+      <span style="color:var(--muted);padding-left:16px">└ ${s.spec}</span>
       <span style="text-align:center;font-weight:600">${s.orderedQty}</span>
-      <span style="text-align:center;color:${s.cancelledQty>0?'var(--red)':'var(--muted)'}">${s.cancelledQty > 0 ? '-'+s.cancelledQty : '—'}</span>
-      <span style="text-align:center;font-weight:700;font-size:14px;color:var(--dark)">${actual}</span>
+      <span style="text-align:center;font-weight:700;color:${needQty>0?'var(--dark)':'var(--muted)'}">
+        ${needQty > 0 ? needQty : '—'}
+      </span>
+      <span style="text-align:center">
+        <input type="number" value="${orderedQty||''}" placeholder="0" min="0"
+          onchange="saveOlOrdered('${prodId}',this.value)"
+          onclick="event.stopPropagation()"
+          style="width:60px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center">
+      </span>
       <span style="text-align:center;color:${s.arrivedQty>=actual&&actual>0?'var(--green)':'var(--amber)'}">${s.arrivedQty}/${actual}</span>
+      <span></span>
       <span></span>
     </div>`;
   });
 
   el.innerHTML = html;
 }
+
 
 function exportOrderListExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
