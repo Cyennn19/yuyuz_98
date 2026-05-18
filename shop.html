@@ -836,6 +836,7 @@ async function init() {
   await loadData();
   renderCatBar();
   renderProducts();
+  renderCart(); // 恢復 localStorage 的購物車
   initBranding();
   // 自動帶入上次填寫的資料
   setTimeout(loadFormFromLocal, 100);
