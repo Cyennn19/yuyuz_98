@@ -535,8 +535,8 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
       </div>
       <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:6px">⏰ 請於 24 小時內完成付款</div>
       <div style="font-size:12px;color:var(--dark);line-height:1.8">
-        <div>✦ 付款完成後請至「<strong>查詢訂單</strong>」填寫匯款後五碼</div>
         <div style="color:var(--text-muted);margin-top:4px">※ 部分團務確定購買後再通知付款者除外</div>
+        <div style="margin-top:4px">✦ 付款完成後請至「<strong>查詢訂單</strong>」填寫匯款後五碼</div>
       </div>
     </div>
     <div style="margin:20px auto 16px;max-width:400px">
@@ -1211,6 +1211,11 @@ async function submitOrder() {
   window.scrollTo(0, 0);
 }
 function showSuccessPage() {
+  // 設定匯款帳號
+  const bankEl = document.getElementById('success-bank-info');
+  if (bankEl && window.BANK_ACCOUNT) {
+    bankEl.innerHTML = window.BANK_ACCOUNT.replace(/\n/g, '<br>');
+  }
   // 先關掉詳情頁（如果在詳情頁的話）
   const detailPage = document.getElementById('detail-page');
   if (detailPage && detailPage.classList.contains('show')) {
