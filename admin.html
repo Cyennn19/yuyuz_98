@@ -729,7 +729,7 @@ async function loadCategories() {
 }
 async function loadProducts() {
   try {
-    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice').order('sort_order');
+    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice,detail_images').order('sort_order');
     products = (data || []).map(p => ({
       ...p,
       specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []),
