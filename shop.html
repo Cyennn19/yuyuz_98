@@ -1682,10 +1682,11 @@ function detailAddToCart() {
   const existing = cart.find(i => i.productId === detailProductId && i.spec === detailSpecName);
   if (existing) { existing.qty += detailQtyVal; }
   else { cart.push({ cartId: Date.now(), productId: detailProductId, product: p.name, emoji: p.emoji, photo: p.photo, spec: detailSpecName, qty: detailQtyVal, price }); }
+  saveCart();
   renderCart();
-  showToast(`已加入：${p.name}（${detailSpecName}）× ${detailQtyVal}`);
-  closeDetail();
-  openCart();
+  showToast(`✓ 已加入：${p.name}（${detailSpecName}）× ${detailQtyVal}`);
+  const dcc = document.getElementById('detail-cart-count');
+  if (dcc) dcc.textContent = cartCount();
 }
 
 function toggleSection(hdr) {
