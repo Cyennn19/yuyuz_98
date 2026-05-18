@@ -729,7 +729,7 @@ async function loadCategories() {
 }
 async function loadProducts() {
   try {
-    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice,detail_images').order('sort_order');
+    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice').order('sort_order');
     products = (data || []).map(p => ({
       ...p,
       specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []),
@@ -1419,9 +1419,19 @@ function renderSpecTable() {
   ).join('');
 }
 function updateSpecRow(id, field, val) { const r = specRows.find(x => x.id === id); if (r) r[field] = val; }
-function openProductModal(pid) {
+async function openProductModal(pid) {
   editingProductId = pid || null; pmPhotoData = null; specRows = [];
-  const p = pid ? products.find(x => x.id == pid) : null;
+  let p = pid ? products.find(x => x.id == pid) : null;
+  // lazy load detail_images
+  if (p && pid) {
+    try {
+      const { data } = await sb.from('products').select('detail_images').eq('id', pid).single();
+      if (data) {
+        const di = data.detail_images;
+        p = { ...p, detail_images: typeof di === 'string' ? JSON.parse(di||'[]') : (di||[]) };
+      }
+    } catch(e) { console.warn('detail_images load error:', e); }
+  }
   document.getElementById('pm-modal-title').textContent = p ? '編輯商品' : '新增商品';
   document.getElementById('pm-name').value = p ? p.name : '';
   document.getElementById('pm-emoji').value = p ? (p.emoji || '') : '✨';
