@@ -1040,6 +1040,7 @@ function addToCart(pid) {
   const pEl = document.getElementById('qprice-' + pid);
   if (pEl) pEl.textContent = 'NT$ ' + price.toLocaleString();
   renderProducts();
+  saveCart();
   renderCart();
   showToast(`已加入：${p.name}（${spec}）× ${qty}`);
 }
@@ -1083,10 +1084,12 @@ function ciQty(cid, d) {
   const i = cart.find(x => x.cartId === cid);
   if (!i) return;
   i.qty = Math.max(1, i.qty + d);
+  saveCart();
   renderCart(); renderProducts();
 }
 function removeCart(cid) {
   cart = cart.filter(i => i.cartId !== cid);
+  saveCart();
   renderCart(); renderProducts();
 }
 
