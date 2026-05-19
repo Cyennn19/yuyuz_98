@@ -670,10 +670,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const ADMIN_PASSWORD = 'uu2101619'; // 換成你的密碼
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── 通知設定 ─────────────────────────────────────────────
-const NOTIFY_CONFIG = {
-  lineToken: 'HN8OI7rkaZ7DnOz61PMnRkzGKrw5kgBZ2CyA3rf7rDy+Tyy3L511nHcEW/IPPKDUHJAKj7piXzufhjUqcE9UjsoVoopG1Rdo/A2XjsevMx0AnmFMq2lpNby5wTwm6qkAWSKHkylcC+oml0/19rgLgQdB04t89/1O/w1cDnyilFU=',
-  lineUserId: 'U0123f69f7ba7adbf919f3ae7d96cced1',
-};
+// LINE Token 已移至 Supabase Edge Function 環境變數
+const NOTIFY_CONFIG = { lineToken: '', lineUserId: '' };;
 // ──────────────────────────────────────────────────────────
 
 // ── 登入 ──────────────────────────────────────────────────
@@ -1484,8 +1482,8 @@ async function openProductModal(pid) {
   const endEl = document.getElementById('pm-end-time');
   const startHEl = document.getElementById('pm-start-hours');
   const endHEl = document.getElementById('pm-end-hours');
-  if(startEl) startEl.value = p && p.start_time ? p.start_time.slice(0,16) : '';
-  if(endEl) endEl.value = p && p.end_time ? p.end_time.slice(0,16) : '';
+  if(startEl) startEl.value = p && p.start_time ? utcToLocal(p.start_time) : '';
+  if(endEl) endEl.value = p && p.end_time ? utcToLocal(p.end_time) : '';
   if(startHEl) startHEl.value = '';
   if(endHEl) endHEl.value = '';
   document.getElementById('product-modal').classList.add('open');
@@ -1542,8 +1540,8 @@ async function saveProduct() {
   const endTimeVal = document.getElementById('pm-end-time')?.value;
   const startHours = parseFloat(document.getElementById('pm-start-hours')?.value||'');
   const endHours = parseFloat(document.getElementById('pm-end-hours')?.value||'');
-  let startTime = startTimeVal ? new Date(startTimeVal).toISOString() : null;
-  let endTime = endTimeVal ? new Date(endTimeVal).toISOString() : null;
+  let startTime = startTimeVal ? localToUtc(startTimeVal) : null;
+  let endTime = endTimeVal ? localToUtc(endTimeVal) : null;
   if(!startTime && startHours > 0) startTime = new Date(Date.now() + startHours*3600000).toISOString();
   if(!endTime && endHours > 0) endTime = new Date(Date.now() + endHours*3600000).toISOString();
   // 如果有設定上架時間且還沒到，先設為 false
@@ -1559,7 +1557,8 @@ async function saveProduct() {
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
     if (p) { Object.assign(p, { ...dbData, specs }); }
-    const { error } = await sb.from('products').update(dbData).eq('id', editingProductId);
+    showToast('儲存中…');
+  const { error } = await sb.from('products').update(dbData).eq('id', editingProductId);
     if (error) { showToast('更新失敗：' + error.message); return; }
   } else {
     const { data: inserted, error } = await sb.from('products').insert([dbData]).select().single();
@@ -2697,26 +2696,35 @@ async function cloneProduct(prodId) {
   const p = products.find(x => String(x.id) === String(prodId));
   if (!p) return;
   if (!confirm(`複製商品「${p.name}」？`)) return;
+
+  // 正確處理 specs 和 detail_images（避免重複 stringify）
+  const specs = typeof p.specs === 'string' ? p.specs : JSON.stringify(p.specs || []);
+  const detailImgs = typeof p.detail_images === 'string'
+    ? (p.detail_images === '[]' || !p.detail_images ? '[]' : p.detail_images)
+    : JSON.stringify(p.detail_images || []);
+
   const cloneData = {
     cat_id: p.cat_id,
     name: p.name + '（複製）',
     emoji: p.emoji,
-    photo: p.photo,
-    specs: JSON.stringify(p.specs),
+    photo: p.photo || null,
+    specs,
     online: false,
     sort_order: products.length,
     description: p.description || null,
     notice: p.notice || null,
-    detail_images: JSON.stringify(p.detail_images || []),
+    detail_images: detailImgs,
     delivery_time: p.delivery_time || null,
     alert_text: p.alert_text || null,
   };
   try {
     const { data, error } = await sb.from('products').insert([cloneData]).select().single();
     if (error) throw error;
-    products.push({ ...data, specs: p.specs, detail_images: p.detail_images || [], _detailLoaded: true });
+    const parsedSpecs = typeof data.specs === 'string' ? JSON.parse(data.specs||'[]') : (data.specs||[]);
+    const parsedImgs = typeof data.detail_images === 'string' ? JSON.parse(data.detail_images||'[]') : (data.detail_images||[]);
+    products.push({ ...data, specs: parsedSpecs, detail_images: parsedImgs });
     showToast(`✓ 已複製「${p.name}」，請編輯後上架`);
-    renderProdList();
+    renderProductMgmt();
   } catch(e) { showToast('複製失敗：' + e.message); }
 }
 
@@ -2889,6 +2897,20 @@ async function processArrivalSpec(pid, specName, n, kg) {
       await sb.from('products').update({ specs: JSON.stringify(p.specs) }).eq('id', pid);
     } catch(e) { console.warn(e); }
   }
+}
+
+
+// ── 時間轉換（UTC ↔ 台灣本地時間）────────────────────────
+function utcToLocal(utcStr) {
+  if (!utcStr) return '';
+  const d = new Date(utcStr);
+  // 轉成 YYYY-MM-DDTHH:mm（本地時間，台灣 UTC+8）
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function localToUtc(localStr) {
+  if (!localStr) return null;
+  return new Date(localStr).toISOString();
 }
 
 </script>
