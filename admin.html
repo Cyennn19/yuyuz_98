@@ -1695,14 +1695,22 @@ setInterval(checkScheduledProducts, 60000);
 // ── 富文本 / 詳情圖片輔助 ──────────────────────────────────
 window.pmDetailImgs = [];
 
-function insertDescImg(input) {
+async function insertDescImg(input) {
   const file = input.files[0]; if (!file || !window.pmQuill) return;
-  const r = new FileReader();
-  r.onload = e => {
+  if (file.size > 5 * 1024 * 1024) { showToast('圖片不能超過 5MB'); input.value = ''; return; }
+  showToast('上傳說明圖片中...');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const fileName = `desc_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await sb.storage.from('product-images').upload(fileName, file, { upsert: true });
+    if (error) throw error;
+    const { data: urlData } = sb.storage.from('product-images').getPublicUrl(fileName);
     const range = window.pmQuill.getSelection(true);
-    window.pmQuill.insertEmbed(range.index, 'image', e.target.result);
-  };
-  r.readAsDataURL(file);
+    window.pmQuill.insertEmbed(range.index, 'image', urlData.publicUrl);
+    showToast('✓ 圖片上傳成功！');
+  } catch(e) {
+    showToast('上傳失敗：' + e.message);
+  }
   input.value = '';
 }
 
