@@ -931,6 +931,21 @@ function buildOrderDetail(o) {
                  ${o.deposit_status==='paid'?'已入帳':'款項待核對'}
                </span></div>`
           }
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input id="tc-edit-${key}" maxlength="5" pattern="[0-9]*" inputmode="numeric"
+              placeholder="手動填/改後五碼"
+              value="${o.transfer_code||''}"
+              onclick="event.stopPropagation()"
+              style="padding:5px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;width:130px;letter-spacing:0.1em">
+            <button onclick="event.stopPropagation();saveTransferCode('${o.order_id||o.id}','${key}')"
+              style="padding:5px 12px;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;background:var(--white)">
+              儲存後五碼
+            </button>
+            <button onclick="event.stopPropagation();confirmDeposit('${o.order_id||o.id}')"
+              style="padding:5px 12px;border:none;border-radius:7px;font-size:12px;cursor:pointer;background:var(--green-bg);color:var(--green);font-weight:600">
+              ${o.deposit_status==='paid'?'✓ 已入帳（點選取消）':'確認入帳'}
+            </button>
+          </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:6px">
@@ -1556,7 +1571,7 @@ async function saveProduct() {
   const alertText = document.getElementById('pm-alert-text')?.value.trim() || '';
   const notice = document.getElementById('pm-notice')?.value.trim() || '';
   const detailImgs = window.pmDetailImgs || [];
-  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: products.length, start_time: startTime, end_time: endTime, description: description||null, notice: notice||null, detail_images: JSON.stringify(detailImgs), delivery_time: deliveryTime||null, alert_text: alertText||null };
+  const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: Math.max(...products.map(p => p.sort_order||0)) + 1, start_time: startTime, end_time: endTime, description: description||null, notice: notice||null, detail_images: JSON.stringify(detailImgs), delivery_time: deliveryTime||null, alert_text: alertText||null };
   if (pmPhotoData) dbData.photo = pmPhotoData;
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
@@ -2722,7 +2737,7 @@ async function cloneProduct(prodId) {
     photo: p.photo || null,
     specs,
     online: false,
-    sort_order: products.length,
+    sort_order: Math.max(...products.map(p => p.sort_order||0)) + 1,
     description: p.description || null,
     notice: p.notice || null,
     detail_images: detailImgs,
@@ -2923,6 +2938,35 @@ function utcToLocal(utcStr) {
 function localToUtc(localStr) {
   if (!localStr) return null;
   return new Date(localStr).toISOString();
+}
+
+
+// ── 後台手動填後五碼 ──────────────────────────────────────
+async function saveTransferCode(orderId, key) {
+  const inp = document.getElementById('tc-edit-' + key);
+  if (!inp) return;
+  const val = inp.value.trim();
+  try {
+    await sb.from('orders').update({ transfer_code: val, deposit_status: val ? 'filled' : 'pending' })
+      .eq('order_id', orderId);
+    const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
+    if (o) { o.transfer_code = val; o.deposit_status = val ? 'filled' : 'pending'; }
+    showToast('✓ 後五碼已儲存');
+    renderOrders();
+  } catch(e) { showToast('儲存失敗：' + e.message); }
+}
+
+// ── 後台確認入帳 ──────────────────────────────────────────
+async function confirmDeposit(orderId) {
+  const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
+  if (!o) return;
+  const newStatus = o.deposit_status === 'paid' ? 'filled' : 'paid';
+  try {
+    await sb.from('orders').update({ deposit_status: newStatus }).eq('order_id', orderId);
+    o.deposit_status = newStatus;
+    showToast(newStatus === 'paid' ? '✓ 已確認入帳' : '已取消入帳確認');
+    renderOrders();
+  } catch(e) { showToast('更新失敗：' + e.message); }
 }
 
 </script>
