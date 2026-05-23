@@ -431,6 +431,18 @@ input[type="datetime-local"] { -webkit-appearance:none; }
         </div>
         <div id="order-list-body"></div>
       </div>
+
+      <!-- 試算分配區塊 -->
+      <div style="margin-top:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--dark)">試算分配</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">依已叫貨數量，按下單時間順序試算可滿足哪些訂單（不會更動訂單資料）</div>
+          </div>
+          <button onclick="renderAllocSim()" style="padding:7px 16px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">試算分配</button>
+        </div>
+        <div id="alloc-sim-body"></div>
+      </div>
     </div>
 
     <!-- 網站設定 -->
@@ -874,6 +886,7 @@ function buildOrderDetail(o) {
     const spct = i.qty > 0 ? Math.round(shippedQty / i.qty * 100) : 0;
     const dotCls = shippedQty >= i.qty ? 'dot-ok' : i.arrivedQty >= i.qty ? 'dot-part' : 'dot-wait';
     const oidStr = o.order_id || String(o.id);
+    const batchVal = i.batchStatus || '';
     return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--dark);margin-bottom:5px">
         <span class="dot ${dotCls}"></span>
@@ -883,14 +896,21 @@ function buildOrderDetail(o) {
       <div style="margin-left:14px;display:flex;flex-direction:column;gap:4px">
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
           <span style="min-width:24px">到貨</span>
-          <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:#ef9f27;width:${ipct}%"></div></div>
-          <span style="min-width:28px;text-align:right">${i.arrivedQty}/${i.qty}</span>
+          <div style="width:80px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0"><div style="height:4px;border-radius:2px;background:linear-gradient(90deg,#F7CAC9,#92A8D1);width:${ipct}%"></div></div>
+          <span>${i.arrivedQty}/${i.qty}</span>
+          <span style="min-width:24px;margin-left:8px">出貨</span>
+          <div style="width:80px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0"><div style="height:4px;border-radius:2px;background:#1d9e75;width:${spct}%"></div></div>
+          <span>${shippedQty}/${i.qty}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
-          <span style="min-width:24px">出貨</span>
-          <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:4px;border-radius:2px;background:#1d9e75;width:${spct}%"></div></div>
-          <span style="min-width:28px;text-align:right">${shippedQty}/${i.qty}</span>
-          ${i.cancelled ? '<span style="color:var(--muted);font-size:11px;text-decoration:line-through">已取消</span>' : shippedQty < i.qty ? `<button onclick="shipItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">標記出貨</button><button onclick="cancelItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:#fcebeb;color:var(--red);border:none;border-radius:5px;font-size:11px;cursor:pointer;margin-left:3px">取消此項</button>` : '<span style="color:var(--green);font-size:11px;font-weight:600">✓ 已出貨</span>'}
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${i.cancelled ? '<span style="color:var(--muted);font-size:11px;text-decoration:line-through">已取消</span>' : shippedQty < i.qty ? `<button onclick="shipItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">標記出貨</button><button onclick="cancelItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:#fcebeb;color:var(--red);border:none;border-radius:5px;font-size:11px;cursor:pointer">取消此項</button>` : '<span style="color:var(--green);font-size:11px;font-weight:600">✓ 已出貨</span>'}
+          <select onchange="saveBatchStatus('${oidStr}',${iIdx},this.value)" onclick="event.stopPropagation()" style="padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;font-size:11px;background:var(--white);color:var(--dark);cursor:pointer">
+            <option value="" ${!batchVal?'selected':''}>— 不顯示</option>
+            <option value="ordered" ${batchVal==='ordered'?'selected':''}>已下單</option>
+            <option value="partial1" ${batchVal==='partial1'?'selected':''}>部分一販</option>
+            <option value="batch1" ${batchVal==='batch1'?'selected':''}>一販</option>
+            <option value="batch2" ${batchVal==='batch2'?'selected':''}>二販</option>
+          </select>
         </div>
       </div>
     </div>`;
@@ -2393,8 +2413,22 @@ function buildSpecMap(filtered) {
 }
 
 // localStorage helpers — key 用 productId_spec 格式
-function getOlOrdered() { try { return JSON.parse(localStorage.getItem('ol_ordered_v2') || '{}'); } catch(e) { return {}; } }
-function setOlOrdered(d) { try { localStorage.setItem('ol_ordered_v2', JSON.stringify(d)); } catch(e) {} }
+// 已叫貨同步到 Supabase settings（跨裝置同步）
+let _olOrderedCache = null;
+async function getOlOrdered() {
+  if (_olOrderedCache !== null) return _olOrderedCache;
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key', 'ol_ordered').single();
+    _olOrderedCache = data ? JSON.parse(data.value||'{}') : {};
+  } catch(e) { _olOrderedCache = {}; }
+  return _olOrderedCache;
+}
+async function setOlOrdered(d) {
+  _olOrderedCache = d;
+  try {
+    await sb.from('settings').upsert({ key: 'ol_ordered', value: JSON.stringify(d) }, { onConflict: 'key' });
+  } catch(e) { console.warn('setOlOrdered error:', e); }
+}
 function getOlRemoved() { try { return JSON.parse(localStorage.getItem('ol_removed') || '[]'); } catch(e) { return []; } }
 function setOlRemoved(list) { try { localStorage.setItem('ol_removed', JSON.stringify(list)); } catch(e) {} }
 function removeOlProduct(productKey) {
@@ -2427,10 +2461,10 @@ function getOlKey(prodId, spec) {
   return String(prodId) + '_|||_' + String(spec);
 }
 
-function saveOlOrdered(olKey, val) {
-  const d = getOlOrdered();
+async function saveOlOrdered(olKey, val) {
+  const d = await getOlOrdered();
   d[olKey] = parseInt(val) || 0;
-  setOlOrdered(d);
+  await setOlOrdered(d);
   renderOrderList();
 }
 
@@ -2442,11 +2476,11 @@ function toggleOlDone(olKey) {
   renderOrderList();
 }
 
-function renderOrderList() {
+async function renderOrderList() {
   const filter = document.getElementById('ol-status-filter')?.value || 'active';
   const hideShipped = document.getElementById('ol-hide-shipped')?.checked !== false;
   const removed = getOlRemoved();
-  const ordered = getOlOrdered();
+  const ordered = await getOlOrdered();
   const done = getOlDone();
   const collapsed = getOlCollapsed();
 
@@ -2962,6 +2996,92 @@ async function confirmDeposit(orderId) {
     showToast(newStatus === 'paid' ? '✓ 已確認入帳' : '已取消入帳確認');
     renderOrders();
   } catch(e) { showToast('更新失敗：' + e.message); }
+}
+
+
+// ── 訂貨狀態標記 ──────────────────────────────────────────
+async function saveBatchStatus(orderId, iIdx, val) {
+  const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
+  if (!o) return;
+  o.items[iIdx].batchStatus = val;
+  try {
+    await sb.from('orders').update({ items: JSON.stringify(o.items) }).eq('order_id', orderId);
+    showToast('✓ 訂貨狀態已儲存');
+  } catch(e) { showToast('儲存失敗：' + e.message); }
+}
+
+
+// ── 試算分配 ──────────────────────────────────────────────
+async function renderAllocSim() {
+  const el = document.getElementById('alloc-sim-body');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">試算中…</div>';
+
+  const ordered = await getOlOrdered();
+  const filter = document.getElementById('ol-status-filter')?.value || 'active';
+  let filtered = orders.filter(o => {
+    const st = o.status || '';
+    if (filter === 'active') return st !== 'cancelled';
+    return true;
+  });
+
+  const specMap = buildSpecMap(filtered);
+  const specs = Object.values(specMap).filter(s => {
+    const olKey = getOlKey(s.productId || s.product, s.spec);
+    return (ordered[olKey] || 0) > 0;
+  });
+
+  if (!specs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">請先在上方叫貨表單填入已叫貨數量</div>';
+    return;
+  }
+
+  let html = '';
+  specs.sort((a,b) => (a.catOrder-b.catOrder)||a.product.localeCompare(b.product)||a.spec.localeCompare(b.spec));
+
+  specs.forEach(s => {
+    const olKey = getOlKey(s.productId||s.product, s.spec);
+    const orderedQty = ordered[olKey] || 0;
+    if (orderedQty <= 0) return;
+
+    // 找有這個規格的未出貨訂單，按下單時間排序
+    const matchOrders = filtered
+      .filter(o => o.items.some(i => i.productId == s.productId && i.spec === s.spec && !i.cancelled))
+      .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+    let rem = orderedQty;
+    const rows = matchOrders.map(o => {
+      const item = o.items.find(i => i.productId == s.productId && i.spec === s.spec && !i.cancelled);
+      const need = item ? item.qty : 0;
+      const canFill = rem >= need;
+      if (canFill) rem -= need;
+      return { o, need, canFill };
+    });
+
+    const satisfied = rows.filter(r => r.canFill).length;
+    const total = rows.length;
+
+    html += `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="background:var(--light);padding:10px 14px;display:flex;align-items:center;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${s.spec} · 已叫 ${orderedQty} 件 · 可滿足 ${satisfied}/${total} 筆</div>
+        </div>
+        <span style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${satisfied>=total?'var(--green-bg)':'var(--amber-bg)'};color:${satisfied>=total?'var(--green)':'var(--amber)'}">${satisfied>=total?'全數滿足':'部分滿足'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr 60px 90px;padding:5px 14px;background:var(--light);border-top:0.5px solid var(--border);font-size:10px;color:var(--muted);font-weight:600;letter-spacing:0.04em">
+        <span>訂單編號</span><span>客戶</span><span style="text-align:center">數量</span><span style="text-align:center">狀態</span>
+      </div>
+      ${rows.map(r => `<div style="display:grid;grid-template-columns:120px 1fr 60px 90px;padding:8px 14px;border-top:0.5px solid var(--border);font-size:12px;align-items:center">
+        <span style="color:var(--muted);font-size:11px">${r.o.order_id||r.o.id}</span>
+        <span>${r.o.customer_name||''}</span>
+        <span style="text-align:center">${r.need}</span>
+        <span style="text-align:center"><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${r.canFill?'var(--green-bg)':'#fef3c7'};color:${r.canFill?'var(--green)':'#b45309'}">${r.canFill?'可滿足':'等待補貨'}</span></span>
+      </div>`).join('')}
+    </div>`;
+  });
+
+  el.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--muted)">沒有試算資料</div>';
 }
 
 </script>
