@@ -904,7 +904,7 @@ function buildOrderDetail(o) {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${i.cancelled ? '<span style="color:var(--muted);font-size:11px;text-decoration:line-through">已取消</span>' : shippedQty < i.qty ? `<button onclick="shipItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">標記出貨</button><button onclick="cancelItem('${oidStr}',${iIdx})" style="padding:2px 8px;background:#fcebeb;color:var(--red);border:none;border-radius:5px;font-size:11px;cursor:pointer">取消此項</button>` : '<span style="color:var(--green);font-size:11px;font-weight:600">✓ 已出貨</span>'}
-          <select onchange="saveBatchStatus('${oidStr}',${iIdx},this.value)" onclick="event.stopPropagation()" style="padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;font-size:11px;background:var(--white);color:var(--dark);cursor:pointer">
+          <select onchange="saveBatchStatus('${oidStr}','${i.product}','${i.spec}',this.value)" onclick="event.stopPropagation()" style="padding:2px 6px;border:0.5px solid var(--border);border-radius:5px;font-size:11px;background:var(--white);color:var(--dark);cursor:pointer">
             <option value="" ${!batchVal?'selected':''}>— 不顯示</option>
             <option value="ordered" ${batchVal==='ordered'?'selected':''}>已下單</option>
             <option value="partial1" ${batchVal==='partial1'?'selected':''}>部分一販</option>
@@ -3000,13 +3000,16 @@ async function confirmDeposit(orderId) {
 
 
 // ── 訂貨狀態標記 ──────────────────────────────────────────
-async function saveBatchStatus(orderId, iIdx, val) {
+async function saveBatchStatus(orderId, product, spec, val) {
   const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
   if (!o) return;
-  o.items[iIdx].batchStatus = val;
+  const item = o.items.find(i => i.product === product && i.spec === spec);
+  if (!item) return;
+  item.batchStatus = val;
   try {
     await sb.from('orders').update({ items: JSON.stringify(o.items) }).eq('order_id', orderId);
     showToast('✓ 訂貨狀態已儲存');
+    renderOrders();
   } catch(e) { showToast('儲存失敗：' + e.message); }
 }
 
