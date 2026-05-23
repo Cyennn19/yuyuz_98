@@ -69,7 +69,7 @@ a{color:inherit;text-decoration:none}
 .hero-sub{font-size:14px;color:var(--text-muted)}
 
 /* CAT TABS */
-.cat-bar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 28px;display:flex;gap:0;overflow-x:auto;height:46px;align-items:center}
+.cat-bar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 16px;display:flex;gap:8px;overflow-x:auto;height:46px;align-items:center;scrollbar-width:none;-ms-overflow-style:none;position:relative}.cat-bar::-webkit-scrollbar{display:none}
 .cat-bar::-webkit-scrollbar{display:none}
 .cat-tab{display:inline-block;padding:14px 16px;font-size:13px;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s}
 .cat-tab.active{color:var(--brown);border-bottom-color:var(--brown)}
@@ -465,6 +465,11 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
   .detail-section-hdr{padding:12px 16px}
   .detail-bottom{margin:0 0 16px}
 }
+
+.cat-bar-wrap{position:relative}
+.cat-bar-wrap::after{content:'';position:absolute;right:0;top:0;bottom:0;width:40px;background:linear-gradient(to right,transparent,#fff);pointer-events:none;z-index:1}
+@media(max-width:768px){.cat-bar-wrap{display:none}.desktop-ham{display:none !important}}
+@media(min-width:769px){.hamburger{display:none !important}.desktop-ham{display:flex !important}}
 </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -473,16 +478,21 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 <body>
 
 <nav class="nav">
-  <!-- 左側：手機版漢堡在左邊 -->
+  <!-- 左側：手機版漢堡 + 電腦版漢堡 -->
   <div style="display:flex;align-items:center;gap:8px;z-index:1">
     <button class="hamburger" onclick="toggleMobileMenu()" aria-label="分類選單">
       <span></span><span></span><span></span>
     </button>
+    <button class="desktop-ham" onclick="openDrawer()" aria-label="分類選單" style="display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border:none;background:none">
+      <span style="display:block;width:22px;height:2px;background:#333;border-radius:2px"></span>
+      <span style="display:block;width:22px;height:2px;background:#333;border-radius:2px"></span>
+      <span style="display:block;width:22px;height:2px;background:#333;border-radius:2px"></span>
+    </button>
     <!-- 手機版才顯示的 LOGO（左側） -->
-    <div id="nav-logo-mobile" class="nav-logo-mobile" style="height:80px;display:flex;align-items:center;cursor:pointer" onclick="window.scrollTo(0,0)"><span style="font-size:40px">✦</span></div>
+    <div id="nav-logo-mobile" class="nav-logo-mobile" style="height:80px;display:flex;align-items:center;cursor:pointer" onclick="goHome()"><span style="font-size:40px">✦</span></div>
   </div>
   <!-- 電腦版 LOGO 絕對置中 -->
-  <div id="nav-logo-img" class="nav-logo-center" style="position:absolute;left:50%;transform:translateX(-50%);height:52px;display:flex;align-items:center;cursor:pointer" onclick="window.scrollTo(0,0)"><span style="font-size:28px">✦</span></div>
+  <div id="nav-logo-img" class="nav-logo-center" style="position:absolute;left:50%;transform:translateX(-50%);height:52px;display:flex;align-items:center;cursor:pointer" onclick="goHome()"><span style="font-size:28px">✦</span></div>
   <!-- 右側按鈕 -->
   <div style="display:flex;align-items:center;gap:8px;z-index:1">
     <button class="nav-lookup-btn" onclick="openLookup()" id="lookup-btn">查詢訂單</button>
@@ -493,6 +503,15 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
     </button>
   </div>
 </nav>
+<!-- 電腦版側邊抽屜 -->
+<div id="drawer-overlay" onclick="closeDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:998"></div>
+<div id="desktop-drawer" style="position:fixed;top:0;left:0;bottom:0;width:240px;background:#fff;z-index:999;transform:translateX(-100%);transition:transform 0.25s ease;box-shadow:2px 0 12px rgba(0,0,0,0.1);overflow-y:auto;display:none">
+  <div style="padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8">
+    <span style="font-size:14px;font-weight:600;color:#222">分類</span>
+    <button onclick="closeDrawer()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#888;padding:4px">×</button>
+  </div>
+  <div id="drawer-cats" style="padding:8px 0"></div>
+</div>
 <!-- 手機版分類下拉選單 -->
 <div class="mobile-menu" id="mobile-menu">
   <div id="mobile-cat-list"></div>
@@ -510,7 +529,7 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
   </div>
 </div>
 
-<div class="cat-bar" id="cat-bar"></div>
+<div class="cat-bar-wrap"><div class="cat-bar" id="cat-bar"></div></div>
 
 <div class="main">
   <div id="loading" class="loading">
@@ -799,7 +818,7 @@ const LOGO_IMAGE = 'https://i.ibb.co/KjmR0Y6q/IG.png'; // 填入圖片 URL 或 b
 function initBranding() {
   // 套用 LOGO
   if (LOGO_IMAGE) {
-    const imgTag = `<img src="${LOGO_IMAGE}" alt="Logo" style="height:72px;width:auto;object-fit:contain">`;
+    const imgTag = `<img src="${LOGO_IMAGE}" alt="Logo" style="height:72px;width:auto;object-fit:contain;cursor:pointer" onclick="goHome()">` ;
     ['nav-logo-img','nav-logo-mobile','detail-nav-logo'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = imgTag;
@@ -1396,12 +1415,20 @@ async function doLookup() {
         const isShipped = i.shippedQty >= i.qty || (o.status === 'shipped');
         const itemStatusText = isShipped ? '✦ 已出貨' : (i.arrivedQty >= i.qty ? '✓ 已到貨，待出貨' : `已到貨 ${i.arrivedQty}/${i.qty} 件`);
         const itemStatusColor = isShipped ? '#111' : (i.arrivedQty >= i.qty ? '#5578a8' : '#c9868a');
+        const batchBadge = (b => {
+          if (!b) return '';
+          const map = {ordered:'已下單', partial1:'部分一販', batch1:'一販', batch2:'二販'};
+          const colors = {ordered:'#5578a8', partial1:'#b45309', batch1:'#c9868a', batch2:'#92A8D1'};
+          const bgs = {ordered:'#e6f1fb', partial1:'#fef3c7', batch1:'#fce4e5', batch2:'#eaf0f8'};
+          return `<span style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${bgs[b]};color:${colors[b]};margin-top:3px">${map[b]||''}</span>`;
+        })(i.batchStatus||'');
         return `<div class="lookup-item">
           <div>
             <div>${i.product}（${i.spec}）× ${i.qty}</div>
             <div class="lookup-item-prog" style="color:${itemStatusColor};font-weight:${isShipped?'600':'400'}">${itemStatusText}
               ${!isShipped ? `<span style="display:inline-block;width:60px;height:4px;background:#e8e2d6;border-radius:2px;vertical-align:middle;margin-left:4px;overflow:hidden"><span style="display:block;height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#5578a8':'#F7CAC9'};width:${ipct}%"></span></span>` : ''}
             </div>
+            ${batchBadge}
           </div>
           <div style="white-space:nowrap;color:var(--brown);font-weight:600">NT$ ${(i.price*i.qty).toLocaleString()}</div>
         </div>`;
@@ -2051,6 +2078,51 @@ async function sendOrderEmail(orderId, name, phone, ig, amount, items) {
   } catch(e) {
     console.warn('Email 通知失敗:', e);
   }
+}
+
+
+// ── 電腦版側邊抽屜 ────────────────────────────────────────
+function openDrawer() {
+  const drawer = document.getElementById('desktop-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if (!drawer) return;
+  // 更新分類列表
+  const cats = [{id:'all',label:'全部'}, ...categories];
+  document.getElementById('drawer-cats').innerHTML = cats.map(c =>
+    `<div onclick="setCat('${c.id}');closeDrawer()" style="padding:11px 20px;font-size:14px;cursor:pointer;color:${activeCat===c.id?'#222':'#555'};font-weight:${activeCat===c.id?'600':'400'};background:${activeCat===c.id?'#f5f5f5':'transparent'};border-left:3px solid ${activeCat===c.id?'#222':'transparent'}">${c.label}</div>`
+  ).join('');
+  drawer.style.display = 'block';
+  overlay.style.display = 'block';
+  requestAnimationFrame(() => drawer.style.transform = 'translateX(0)');
+}
+
+function closeDrawer() {
+  const drawer = document.getElementById('desktop-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if (!drawer) return;
+  drawer.style.transform = 'translateX(-100%)';
+  overlay.style.display = 'none';
+  setTimeout(() => { if(drawer.style.transform === 'translateX(-100%)') drawer.style.display = 'none'; }, 260);
+}
+
+
+function goHome() {
+  // 關閉詳情頁
+  const dp = document.getElementById('detail-page');
+  if (dp && dp.classList.contains('show')) {
+    dp.classList.remove('show');
+    document.body.style.overflow = '';
+    if (location.hash && location.hash.startsWith('#product-')) {
+      history.replaceState({ page: 'home' }, '', location.pathname);
+    }
+  }
+  // 關閉側邊抽屜
+  closeDrawer();
+  // 回到全部分類
+  activeCat = 'all';
+  renderCatBar();
+  renderProducts();
+  window.scrollTo(0, 0);
 }
 
 </script>
