@@ -3025,59 +3025,77 @@ async function renderAllocSim() {
     return true;
   });
 
+  // 建立每個規格的已叫貨數量 map
   const specMap = buildSpecMap(filtered);
-  const specs = Object.values(specMap).filter(s => {
+  const orderedMap = {};
+  Object.values(specMap).forEach(s => {
     const olKey = getOlKey(s.productId || s.product, s.spec);
-    return (ordered[olKey] || 0) > 0;
+    orderedMap[olKey] = ordered[olKey] || 0;
   });
 
-  if (!specs.length) {
+  // 檢查有沒有任何已叫貨數量
+  const hasAny = Object.values(orderedMap).some(v => v > 0);
+  if (!hasAny) {
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">請先在上方叫貨表單填入已叫貨數量</div>';
     return;
   }
 
+  // 建立每個規格的剩餘可分配數量（按下單時間排序）
+  const remMap = { ...orderedMap };
+
+  // 依訂單顯示
+  const sortedOrders = [...filtered].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
   let html = '';
-  specs.sort((a,b) => (a.catOrder-b.catOrder)||a.product.localeCompare(b.product)||a.spec.localeCompare(b.spec));
+  sortedOrders.forEach(o => {
+    // 只顯示有叫貨商品的訂單
+    const activeItems = (o.items || []).filter(i => !i.cancelled && i.qty > 0);
+    const relevantItems = activeItems.filter(i => {
+      const olKey = getOlKey(i.productId || i.product, i.spec);
+      return orderedMap[olKey] > 0;
+    });
+    if (!relevantItems.length) return;
 
-  specs.forEach(s => {
-    const olKey = getOlKey(s.productId||s.product, s.spec);
-    const orderedQty = ordered[olKey] || 0;
-    if (orderedQty <= 0) return;
-
-    // 找有這個規格的未出貨訂單，按下單時間排序
-    const matchOrders = filtered
-      .filter(o => o.items.some(i => i.productId == s.productId && i.spec === s.spec && !i.cancelled))
-      .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-
-    let rem = orderedQty;
-    const rows = matchOrders.map(o => {
-      const item = o.items.find(i => i.productId == s.productId && i.spec === s.spec && !i.cancelled);
-      const need = item ? item.qty : 0;
-      const canFill = rem >= need;
-      if (canFill) rem -= need;
-      return { o, need, canFill };
+    // 計算每個商品是否可滿足
+    const itemResults = activeItems.map(i => {
+      const olKey = getOlKey(i.productId || i.product, i.spec);
+      const avail = orderedMap[olKey] || 0;
+      if (avail <= 0) return { i, status: 'none' }; // 沒有叫這個商品
+      const canFill = remMap[olKey] >= i.qty;
+      if (canFill) remMap[olKey] -= i.qty;
+      return { i, status: canFill ? 'ok' : 'wait' };
     });
 
-    const satisfied = rows.filter(r => r.canFill).length;
-    const total = rows.length;
+    const relevant = itemResults.filter(r => r.status !== 'none');
+    if (!relevant.length) return;
+
+    const allOk = relevant.every(r => r.status === 'ok');
+    const anyOk = relevant.some(r => r.status === 'ok');
+    const overallBadge = allOk
+      ? `<span style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:var(--green-bg);color:var(--green)">全數滿足</span>`
+      : anyOk
+      ? `<span style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:var(--amber-bg);color:var(--amber)">部分滿足</span>`
+      : `<span style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:#f5f5f5;color:var(--muted)">等待補貨</span>`;
 
     html += `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px">
       <div style="background:var(--light);padding:10px 14px;display:flex;align-items:center;gap:8px">
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${s.spec} · 已叫 ${orderedQty} 件 · 可滿足 ${satisfied}/${total} 筆</div>
+          <div style="font-size:13px;font-weight:700;color:var(--dark)">${o.order_id||o.id} — ${o.customer_name||''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">共 ${relevant.length} 項叫貨商品</div>
         </div>
-        <span style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${satisfied>=total?'var(--green-bg)':'var(--amber-bg)'};color:${satisfied>=total?'var(--green)':'var(--amber)'}">${satisfied>=total?'全數滿足':'部分滿足'}</span>
+        ${overallBadge}
       </div>
-      <div style="display:grid;grid-template-columns:120px 1fr 60px 90px;padding:5px 14px;background:var(--light);border-top:0.5px solid var(--border);font-size:10px;color:var(--muted);font-weight:600;letter-spacing:0.04em">
-        <span>訂單編號</span><span>客戶</span><span style="text-align:center">數量</span><span style="text-align:center">狀態</span>
+      <div style="display:grid;grid-template-columns:1fr 60px 90px;padding:5px 14px;background:var(--light);border-top:0.5px solid var(--border);font-size:10px;color:var(--muted);font-weight:600;letter-spacing:0.04em">
+        <span>商品規格</span><span style="text-align:center">數量</span><span style="text-align:center">狀態</span>
       </div>
-      ${rows.map(r => `<div style="display:grid;grid-template-columns:120px 1fr 60px 90px;padding:8px 14px;border-top:0.5px solid var(--border);font-size:12px;align-items:center">
-        <span style="color:var(--muted);font-size:11px">${r.o.order_id||r.o.id}</span>
-        <span>${r.o.customer_name||''}</span>
-        <span style="text-align:center">${r.need}</span>
-        <span style="text-align:center"><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${r.canFill?'var(--green-bg)':'#fef3c7'};color:${r.canFill?'var(--green)':'#b45309'}">${r.canFill?'可滿足':'等待補貨'}</span></span>
-      </div>`).join('')}
+      ${itemResults.filter(r => r.status !== 'none').map(r => `
+        <div style="display:grid;grid-template-columns:1fr 60px 90px;padding:8px 14px;border-top:0.5px solid var(--border);font-size:12px;align-items:center">
+          <span>${r.i.product}（${r.i.spec}）</span>
+          <span style="text-align:center">${r.i.qty}</span>
+          <span style="text-align:center">
+            <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${r.status==='ok'?'var(--green-bg)':'var(--amber-bg)'};color:${r.status==='ok'?'var(--green)':'var(--amber)'}">${r.status==='ok'?'可滿足':'等待補貨'}</span>
+          </span>
+        </div>`).join('')}
     </div>`;
   });
 
