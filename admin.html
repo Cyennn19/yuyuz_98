@@ -3015,7 +3015,10 @@ async function saveBatchStatus(orderId, product, spec, val) {
   try {
     await sb.from('orders').update({ items: JSON.stringify(o.items) }).eq('order_id', orderId);
     showToast('✓ 訂貨狀態已儲存');
-    renderOrders();
+    // 不重整整個列表，只更新這筆訂單的 detail
+    const key = orderId.replace(/[^a-zA-Z0-9]/g, '');
+    const detEl = document.getElementById('odet-' + key);
+    if (detEl) detEl.innerHTML = buildOrderDetail(o);
   } catch(e) { showToast('儲存失敗：' + e.message); }
 }
 
