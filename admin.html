@@ -2370,13 +2370,14 @@ function buildSpecMap(filtered) {
   filtered.forEach(o => {
     (o.items || []).forEach(item => {
       if (item.cancelled) return;
+      // key 用 productId + spec，每個規格獨立
       const key = `${item.productId || item.product}_|||_${item.spec}`;
       if (!specMap[key]) {
         const p = products.find(x => String(x.id) === String(item.productId));
         const cat = p ? categories.find(c => c.id === p.cat_id) : null;
         specMap[key] = {
           product: item.product, productId: item.productId, spec: item.spec,
-          price: item.price, orderedQty: 0, cancelledQty: 0, arrivedQty: 0, shippedQty: 0,
+          price: item.price, orderedQty: 0, arrivedQty: 0, shippedQty: 0,
           catId: p?.cat_id || '', cat: cat?.label || '未分類', catOrder: cat?.sort_order ?? 999,
           photo: '', emoji: p?.emoji || '📦',
         };
@@ -2388,19 +2389,12 @@ function buildSpecMap(filtered) {
       }
     });
   });
-  orders.forEach(o => {
-    (o.items || []).forEach(item => {
-      if (!item.cancelled) return;
-      const key = `${item.productId || item.product}_|||_${item.spec}`;
-      if (specMap[key]) specMap[key].cancelledQty += item.qty || 0;
-    });
-  });
   return specMap;
 }
 
-// localStorage helpers for 叫貨數量
-function getOlOrdered() { try { return JSON.parse(localStorage.getItem('ol_ordered') || '{}'); } catch(e) { return {}; } }
-function setOlOrdered(d) { try { localStorage.setItem('ol_ordered', JSON.stringify(d)); } catch(e) {} }
+// localStorage helpers — key 用 productId_spec 格式
+function getOlOrdered() { try { return JSON.parse(localStorage.getItem('ol_ordered_v2') || '{}'); } catch(e) { return {}; } }
+function setOlOrdered(d) { try { localStorage.setItem('ol_ordered_v2', JSON.stringify(d)); } catch(e) {} }
 function getOlRemoved() { try { return JSON.parse(localStorage.getItem('ol_removed') || '[]'); } catch(e) { return []; } }
 function setOlRemoved(list) { try { localStorage.setItem('ol_removed', JSON.stringify(list)); } catch(e) {} }
 function removeOlProduct(productKey) {
@@ -2428,17 +2422,22 @@ function toggleOlCat(catId) {
   renderOrderList();
 }
 
-function saveOlOrdered(prodId, val) {
+// 已叫貨用 productId_spec 當 key，每個規格獨立
+function getOlKey(prodId, spec) {
+  return String(prodId) + '_|||_' + String(spec);
+}
+
+function saveOlOrdered(olKey, val) {
   const d = getOlOrdered();
-  d[prodId] = parseInt(val) || 0;
+  d[olKey] = parseInt(val) || 0;
   setOlOrdered(d);
   renderOrderList();
 }
 
-function toggleOlDone(prodId) {
+function toggleOlDone(olKey) {
   let done = getOlDone();
-  if (done.includes(prodId)) done = done.filter(x => x !== prodId);
-  else done.push(prodId);
+  if (done.includes(olKey)) done = done.filter(x => x !== olKey);
+  else done.push(olKey);
   setOlDone(done);
   renderOrderList();
 }
@@ -2451,7 +2450,6 @@ function renderOrderList() {
   const done = getOlDone();
   const collapsed = getOlCollapsed();
 
-  // 更新分類篩選選項
   const catFilterEl = document.getElementById('ol-cat-filter');
   if (catFilterEl && catFilterEl.options.length <= 1) {
     categories.forEach(c => {
@@ -2473,21 +2471,18 @@ function renderOrderList() {
   let specs = Object.values(specMap);
 
   if (hideShipped) {
-    specs = specs.filter(s => {
-      const actual = Math.max(0, s.orderedQty - s.cancelledQty);
-      return s.shippedQty < actual;
-    });
+    specs = specs.filter(s => s.shippedQty < s.orderedQty);
   }
   specs = specs.filter(s => !removed.includes(s.productId || s.product));
   if (catFilter) specs = specs.filter(s => s.catId === catFilter);
 
   // 統計
   const productNames = new Set(specs.map(s => s.product));
-  const totalQty = specs.reduce((sum, s) => sum + Math.max(0, s.orderedQty - s.cancelledQty), 0);
+  const totalQty = specs.reduce((sum, s) => sum + s.orderedQty, 0);
   const pendingQty = specs.reduce((sum, s) => {
-    const actual = Math.max(0, s.orderedQty - s.cancelledQty);
-    const ord = ordered[s.productId || s.product] || 0;
-    return sum + Math.max(0, actual - ord);
+    const olKey = getOlKey(s.productId || s.product, s.spec);
+    const orderedAmt = ordered[olKey] || 0;
+    return sum + Math.max(0, s.orderedQty - orderedAmt);
   }, 0);
   document.getElementById('ol-products').textContent = productNames.size;
   document.getElementById('ol-specs').textContent = specs.length;
@@ -2510,11 +2505,13 @@ function renderOrderList() {
   let lastProdId = '';
 
   specs.forEach(s => {
-    const actual = Math.max(0, s.orderedQty - s.cancelledQty);
-    const prodId = s.productId || s.product;
-    const orderedQty = ordered[prodId] || 0;
-    const needQty = Math.max(0, actual - orderedQty);
-    const isDone = done.includes(String(prodId));
+    const olKey = getOlKey(s.productId || s.product, s.spec);
+    const orderedAmt = ordered[olKey] || 0;
+    // 需叫貨 = 訂購數 - 已叫貨（不再重複扣取消）
+    const needQty = Math.max(0, s.orderedQty - orderedAmt);
+    // 超叫數量 = 已叫貨 - 訂購數（正數代表叫多了）
+    const extraQty = orderedAmt - s.orderedQty;
+    const isDone = done.includes(olKey);
     const isCollapsed = collapsed.includes(s.catId || s.cat);
 
     // 分類標題
@@ -2532,43 +2529,41 @@ function renderOrderList() {
     if (isCollapsed) return;
 
     // 商品標題
-    if (s.product !== lastProduct || prodId !== lastProdId) {
+    if (s.product !== lastProduct || String(s.productId) !== String(lastProdId)) {
       lastProduct = s.product;
-      lastProdId = prodId;
+      lastProdId = String(s.productId);
       const imgHtml = s.photo
         ? `<img src="${s.photo}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--border);flex-shrink:0">`
         : `<span style="font-size:20px">${s.emoji}</span>`;
 
-      html += `<div style="display:grid;grid-template-columns:40px 1fr 80px 80px 80px 100px 40px 40px;padding:8px 13px 4px 16px;background:var(--light);border-bottom:1px solid var(--border);align-items:center;gap:6px">
+      html += `<div style="display:grid;grid-template-columns:40px 1fr 70px 70px 70px 80px 40px;padding:8px 13px 4px 16px;background:var(--light);border-bottom:1px solid var(--border);align-items:center;gap:6px">
         ${imgHtml}
-        <span style="font-size:13px;font-weight:700;color:var(--dark);${isDone?'opacity:0.4':''}">
-          ${isDone ? '✅ ' : ''}${s.product}
-        </span>
+        <span style="font-size:13px;font-weight:700;color:var(--dark)">${s.product}</span>
         <span style="font-size:10px;color:var(--muted);text-align:center">訂購數</span>
         <span style="font-size:10px;color:var(--muted);text-align:center">需叫貨</span>
         <span style="font-size:10px;color:var(--muted);text-align:center">已叫貨</span>
-        <span style="font-size:10px;color:var(--muted);text-align:center">已到貨</span>
-        <button onclick="toggleOlDone('${prodId}')" title="${isDone?'取消完成':'標記完成'}" style="padding:3px 6px;border:1px solid ${isDone?'var(--green)':'var(--border)'};border-radius:6px;background:${isDone?'var(--green-bg)':'#fff'};color:${isDone?'var(--green)':'var(--muted)'};cursor:pointer;font-size:13px">${isDone?'✅':'☐'}</button>
-        <button onclick="removeOlProduct('${prodId}')" title="從叫貨清單移除" style="padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer;font-size:11px">✕</button>
+        <span style="font-size:10px;color:var(--muted);text-align:center">備貨餘量</span>
+        <span></span>
       </div>`;
     }
 
-    html += `<div style="display:grid;grid-template-columns:40px 1fr 80px 80px 80px 100px 40px 40px;padding:7px 13px 7px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center;gap:6px;${isDone?'opacity:0.4':''}">
+    html += `<div style="display:grid;grid-template-columns:40px 1fr 70px 70px 70px 80px 40px;padding:7px 13px 7px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:center;gap:6px;${isDone?'opacity:0.4':''}">
       <span></span>
       <span style="color:var(--muted);padding-left:16px">└ ${s.spec}</span>
       <span style="text-align:center;font-weight:600">${s.orderedQty}</span>
-      <span style="text-align:center;font-weight:700;color:${needQty>0?'var(--dark)':'var(--muted)'}">
-        ${needQty > 0 ? needQty : '—'}
+      <span style="text-align:center;font-weight:700;color:${needQty>0?'var(--dark)':'var(--green)'}">
+        ${needQty > 0 ? needQty : '✓'}
       </span>
       <span style="text-align:center">
-        <input type="number" value="${orderedQty||''}" placeholder="0" min="0"
-          onchange="saveOlOrdered('${prodId}',this.value)"
+        <input type="number" value="${orderedAmt||''}" placeholder="0" min="0"
+          onchange="saveOlOrdered('${olKey}',this.value)"
           onclick="event.stopPropagation()"
-          style="width:60px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center">
+          style="width:55px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center">
       </span>
-      <span style="text-align:center;color:${s.arrivedQty>=actual&&actual>0?'var(--green)':'var(--amber)'}">${s.arrivedQty}/${actual}</span>
-      <span></span>
-      <span></span>
+      <span style="text-align:center;font-weight:600;color:${extraQty>0?'var(--amber)':extraQty<0?'var(--red)':'var(--muted)'}">
+        ${extraQty > 0 ? '+'+extraQty : extraQty < 0 ? extraQty : '—'}
+      </span>
+      <button onclick="toggleOlDone('${olKey}')" title="${isDone?'取消完成':'標記完成'}" style="padding:3px 6px;border:1px solid ${isDone?'var(--green)':'var(--border)'};border-radius:6px;background:${isDone?'var(--green-bg)':'#fff'};color:${isDone?'var(--green)':'var(--muted)'};cursor:pointer;font-size:13px">${isDone?'✅':'☐'}</button>
     </div>`;
   });
 
