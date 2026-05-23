@@ -715,6 +715,7 @@ if (sessionStorage.getItem('admin_auth') === '1') {
 
 // ── 資料 ──────────────────────────────────────────────────
 let categories = [], products = [], orders = [], customers = [];
+let orderPage = 1, orderPageSize = 20;
 let editingProductId = null, pmPhotoData = null, renamingCatId = null, specRows = [];
 
 async function initAdmin() {
