@@ -282,7 +282,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
     <div class="pg on" id="pg-orders">
       <div class="stats" id="order-stats"></div>
       <div class="toolbar">
-        <input class="search-box" id="o-search" placeholder="搜尋訂單編號、商品、客戶…" oninput="renderOrders()">
+        <input class="search-box" id="o-search" placeholder="搜尋訂單編號、商品、客戶…" oninput="orderPage=1;renderOrders()">
         <select class="filter-sel" id="o-filter" onchange="renderOrders()">
           <option value="">全部狀態</option>
           <option value="waiting">等待到貨</option>
@@ -766,10 +766,8 @@ async function loadProducts() {
 }
 async function loadOrders() {
   try {
-    const limitEl = document.getElementById('o-limit');
-    const limit = limitEl ? parseInt(limitEl.value) : 50;
+    // 一次抓全部，前端分頁
     let query = sb.from('orders').select('*').order('created_at', { ascending: false });
-    if (limit > 0) query = query.limit(limit);
     const { data } = await query;
     orders = (data || []).map(o => ({
       ...o,
@@ -802,6 +800,7 @@ async function loadCustomers() {
 
 // ── 到貨狀態 ──────────────────────────────────────────────
 function getArrivalStatus(o) {
+  if (!o.status || o.status === '') o.status = 'waiting';
   if (o.status === 'cancelled') return 'cancelled';
   if (o.status === 'processing') return 'processing';
   const activeItems = o.items.filter(i => !i.cancelled && i.qty > 0);
@@ -845,8 +844,13 @@ function renderOrders() {
   ].map(([l,v]) => `<div class="sc"><div class="sl">${l}</div><div class="sv">${v}</div></div>`).join('');
   if (ft) list = list.filter(o => getArrivalStatus(o) === ft);
   const body = document.getElementById('order-list');
-  if (!list.length) { body.innerHTML = '<div class="empty">沒有符合條件的訂單</div>'; return; }
-  body.innerHTML = list.map(o => {
+  const totalPages = orderPageSize > 0 ? Math.ceil(list.length / orderPageSize) : 1;
+  if (orderPage > totalPages) orderPage = Math.max(1, totalPages);
+  const pageStart = orderPageSize > 0 ? (orderPage - 1) * orderPageSize : 0;
+  const pageList = orderPageSize > 0 ? list.slice(pageStart, pageStart + orderPageSize) : list;
+
+  if (!list.length) { body.innerHTML = '<div class="empty">沒有符合條件的訂單</div>'; renderOrderPager(0, 0); return; }
+  body.innerHTML = pageList.map(o => {
     const key = (o.order_id||o.id||'').replace(/[^a-zA-Z0-9]/g, '');
     const st = getArrivalStatus(o);
     const f = o.items && o.items.length > 0 ? o.items[0] : {product:'(無商品)',spec:''};
@@ -3103,6 +3107,59 @@ async function renderAllocSim() {
   });
 
   el.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--muted)">沒有試算資料</div>';
+}
+
+
+// ── 訂單分頁 ──────────────────────────────────────────────
+function renderOrderPager(totalPages, total) {
+  let pager = document.getElementById('order-pager');
+  if (!pager) {
+    pager = document.createElement('div');
+    pager.id = 'order-pager';
+    pager.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 4px;margin-top:8px';
+    const listEl = document.getElementById('order-list');
+    if (listEl) listEl.insertAdjacentElement('afterend', pager);
+  }
+  if (totalPages <= 0) { pager.innerHTML = ''; return; }
+
+  const start = (orderPage-1)*orderPageSize+1;
+  const end = Math.min(orderPage*orderPageSize, total);
+
+  let pages = '';
+  for (let i = 1; i <= totalPages; i++) {
+    if (i===1 || i===totalPages || (i>=orderPage-2 && i<=orderPage+2)) {
+      pages += `<button onclick="goOrderPage(${i})" style="padding:4px 10px;border:1px solid ${i===orderPage?'var(--brown)':'var(--border)'};border-radius:7px;font-size:12px;cursor:pointer;background:${i===orderPage?'var(--brown)':'var(--white)'};color:${i===orderPage?'#fff':'var(--dark)'};font-weight:${i===orderPage?'600':'400'}">${i}</button>`;
+    } else if (i===orderPage-3 || i===orderPage+3) {
+      pages += `<span style="padding:4px;font-size:12px;color:var(--muted)">…</span>`;
+    }
+  }
+
+  pager.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">共 ${total} 筆，顯示 ${start}-${end}</span>
+      <select onchange="orderPageSize=parseInt(this.value);orderPage=1;renderOrders()" style="padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
+        <option value="20" ${orderPageSize===20?'selected':''}>20 筆/頁</option>
+        <option value="50" ${orderPageSize===50?'selected':''}>50 筆/頁</option>
+        <option value="100" ${orderPageSize===100?'selected':''}>100 筆/頁</option>
+        <option value="0" ${orderPageSize===0?'selected':''}>全部</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button onclick="goOrderPage(${orderPage-1})" ${orderPage<=1?'disabled':''} style="padding:4px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;background:var(--white);color:var(--dark);opacity:${orderPage<=1?'0.4':'1'}">‹ 上一頁</button>
+      ${pages}
+      <button onclick="goOrderPage(${orderPage+1})" ${orderPage>=totalPages?'disabled':''} style="padding:4px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;background:var(--white);color:var(--dark);opacity:${orderPage>=totalPages?'0.4':'1'}">下一頁 ›</button>
+    </div>`;
+}
+
+function goOrderPage(p) {
+  const ft = document.getElementById('o-filter').value;
+  const kw = (document.getElementById('o-search').value||'').toLowerCase();
+  let list = orders;
+  if (kw) list = list.filter(o => (o.order_id||'').toLowerCase().includes(kw)||(o.customer_name||'').includes(kw)||o.items.some(i=>i.product.toLowerCase().includes(kw)));
+  if (ft) list = list.filter(o => getArrivalStatus(o) === ft);
+  const totalPages = Math.ceil(list.length / orderPageSize);
+  orderPage = Math.max(1, Math.min(p, totalPages));
+  renderOrders();
 }
 
 </script>
