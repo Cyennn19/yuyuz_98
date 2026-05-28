@@ -283,7 +283,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
       <div class="stats" id="order-stats"></div>
       <div class="toolbar">
         <input class="search-box" id="o-search" placeholder="搜尋訂單編號、商品、客戶…" oninput="orderPage=1;renderOrders()">
-        <select class="filter-sel" id="o-filter" onchange="renderOrders()">
+        <select class="filter-sel" id="o-filter" onchange="orderPage=1;renderOrders()">
           <option value="">全部狀態</option>
           <option value="waiting">等待到貨</option>
           <option value="partial">部分到貨</option>
@@ -292,6 +292,9 @@ input[type="datetime-local"] { -webkit-appearance:none; }
           <option value="shipped">已出貨</option>
           <option value="processing">處理中</option>
           <option value="cancelled">已取消</option>
+        </select>
+        <select class="filter-sel" id="o-cat-filter" onchange="orderPage=1;renderOrders()">
+          <option value="">全部分類</option>
         </select>
         <button class="new-btn" onclick="loadOrders()">重新整理</button>
         <button class="new-btn" style="background:#185fa5" onclick="exportExcel()">匯出 Excel</button>
@@ -830,8 +833,22 @@ function totalStock(p) { return (p.specs||[]).reduce((s, sp) => s + sp.stock, 0)
 function renderOrders() {
   const kw = (document.getElementById('o-search').value || '').toLowerCase();
   const ft = document.getElementById('o-filter').value;
+  const catFt = document.getElementById('o-cat-filter')?.value || '';
+  // 更新分類選單
+  const catFilterEl = document.getElementById('o-cat-filter');
+  if (catFilterEl && catFilterEl.options.length <= 1) {
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.label;
+      catFilterEl.appendChild(opt);
+    });
+  }
   let list = orders;
   if (kw) list = list.filter(o => (o.order_id||'').toLowerCase().includes(kw) || (o.customer_name||'').includes(kw) || o.items.some(i => i.product.toLowerCase().includes(kw)));
+  if (catFt) list = list.filter(o => o.items.some(i => {
+    const p = products.find(x => String(x.id) === String(i.productId));
+    return p && p.cat_id === catFt;
+  }));
   const all = orders.map(getArrivalStatus);
   const stats = document.getElementById('order-stats');
   stats.innerHTML = [
@@ -1122,7 +1139,12 @@ function renderArrival() {
   });
 
   const catGroups = {};
-  products.filter(p => p.online).forEach(p => {
+  // 找出所有有未到貨訂單的 productId（不管商品是否上架）
+  const activeProductIds = new Set(
+    activeOrders.flatMap(o => o.items.filter(i => !i.cancelled && (i.arrivedQty||0) < i.qty).map(i => String(i.productId)))
+  );
+  // 顯示：上架商品 OR 有未到貨訂單的下架商品
+  products.filter(p => p.online || activeProductIds.has(String(p.id))).forEach(p => {
     if (catFilter && p.cat_id !== catFilter) return;
     const cat = categories.find(c => c.id === p.cat_id);
     const catLabel = cat?.label || '未分類';
@@ -1646,7 +1668,7 @@ function exportExcel() {
   const stMap = {waiting:'等待到貨',partial:'部分到貨',arrived:'已到貨',shipped:'已出貨',processing:'處理中',cancelled:'已取消'};
 
   // 訂單工作表（每個商品規格一行）
-  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','訂單金額(NT$)','折扣碼','折扣金額','狀態','付款狀態','匯款後五碼','商品名稱','規格','數量','已到貨']];
+  const orderRows = [['訂單編號','下單日期','客戶姓名','電話','Email','超商門市','店號','IG帳號','LINE暱稱','備註','訂單金額(NT$)','折扣碼','折扣金額','狀態','付款狀態','匯款後五碼','分類','商品名稱','規格','數量','已到貨']];
   orders.forEach(o => {
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
     const st = getArrivalStatus(o);
