@@ -1686,12 +1686,15 @@ function exportExcel() {
       orderRows.push([...baseInfo, '', '', '', '']);
     } else {
       items.forEach((item, idx) => {
+        const p = products.find(x => String(x.id) === String(item.productId));
+        const cat = p ? categories.find(c => c.id === p.cat_id) : null;
+        const catLabel = cat ? cat.label : '';
         if (idx === 0) {
           // 第一個商品同一行放訂單資訊
-          orderRows.push([...baseInfo, item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0]);
+          orderRows.push([...baseInfo, catLabel, item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0]);
         } else {
-          // 後續商品只放商品資訊，訂單資訊留空
-          orderRows.push(['','','','','','','','','','','','','','','','', item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0]);
+          // 後續商品只放商品資訊，訂單資訊留空（16個空白對應 baseInfo 的欄位數）
+          orderRows.push(['','','','','','','','','','','','','','','','', catLabel, item.product||'', item.spec||'', item.qty||0, item.arrivedQty||0]);
         }
       });
     }
