@@ -1422,15 +1422,18 @@ async function doLookup() {
           const bgs = {ordered:'#e6f1fb', partial1:'#fef3c7', batch1:'#fce4e5', batch2:'#eaf0f8'};
           return `<span style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${bgs[b]};color:${colors[b]};margin-top:3px">${map[b]||''}</span>`;
         })(i.batchStatus||'');
-        return `<div class="lookup-item">
+        return `<div class="lookup-item" style="${i.cancelled?'opacity:0.6':''}">
           <div>
-            <div style="${i.cancelled?'text-decoration:line-through;color:#aaa':''}"><span>${i.product}（${i.spec}）× ${i.qty}</span>${i.cancelled?'<span style="font-size:11px;color:#aaa;margin-left:6px">已取消</span>':''}</div>
-            <div class="lookup-item-prog" style="color:${itemStatusColor};font-weight:${isShipped?'600':'400'}">${itemStatusText}
+            <div style="${i.cancelled?'color:#aaa':''}">
+              <span style="${i.cancelled?'text-decoration:line-through':''}">${i.product}（${i.spec}）× ${i.qty}</span>
+              ${i.cancelled?'<span style="font-size:11px;font-weight:700;color:#888;margin-left:6px">已取消</span>':''}
+            </div>
+            <div class="lookup-item-prog" style="color:${i.cancelled?'#aaa':itemStatusColor};font-weight:${isShipped?'600':'400'};${i.cancelled?'text-decoration:line-through':''}">${i.cancelled?'':itemStatusText}
               ${!isShipped ? `<span style="display:inline-block;width:60px;height:4px;background:#e8e2d6;border-radius:2px;vertical-align:middle;margin-left:4px;overflow:hidden"><span style="display:block;height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#5578a8':'#F7CAC9'};width:${ipct}%"></span></span>` : ''}
             </div>
             ${batchBadge}
           </div>
-          <div style="white-space:nowrap;color:var(--brown);font-weight:600">NT$ ${(i.price*i.qty).toLocaleString()}</div>
+          <div style="white-space:nowrap;color:${i.cancelled?'#aaa':'var(--brown)'};font-weight:600;${i.cancelled?'text-decoration:line-through':''}">NT$ ${(i.price*i.qty).toLocaleString()}</div>
         </div>`;
       }).join('');
       // SVT 進度條
