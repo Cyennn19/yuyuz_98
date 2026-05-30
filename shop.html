@@ -1424,7 +1424,7 @@ async function doLookup() {
         })(i.batchStatus||'');
         return `<div class="lookup-item">
           <div>
-            <div>${i.product}（${i.spec}）× ${i.qty}</div>
+            <div style="${i.cancelled?'text-decoration:line-through;color:#aaa':''}"><span>${i.product}（${i.spec}）× ${i.qty}</span>${i.cancelled?'<span style="font-size:11px;color:#aaa;margin-left:6px">已取消</span>':''}</div>
             <div class="lookup-item-prog" style="color:${itemStatusColor};font-weight:${isShipped?'600':'400'}">${itemStatusText}
               ${!isShipped ? `<span style="display:inline-block;width:60px;height:4px;background:#e8e2d6;border-radius:2px;vertical-align:middle;margin-left:4px;overflow:hidden"><span style="display:block;height:4px;border-radius:2px;background:${i.arrivedQty>=i.qty?'#5578a8':'#F7CAC9'};width:${ipct}%"></span></span>` : ''}
             </div>
