@@ -652,8 +652,8 @@ input[type="datetime-local"] { -webkit-appearance:none; }
         <textarea id="pm-alert-text" placeholder="例：此商品為預購商品，請確認後再下單&#10;限量商品，售完不補&#10;下單前請確認尺寸" style="min-height:72px"></textarea>
       </div>
       <div class="msec">規格與定價</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">每個規格可設定獨立售價與庫存</div>
-      <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>初始庫存</th><th>庫存 0 時</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">每個規格可設定獨立售價；「餘量販售」可設上限（總共賣幾個），「開放預購」則無上限</div>
+      <table class="spec-table"><thead><tr><th>規格名稱</th><th>售價 (NT$)</th><th>上限</th><th>類型</th><th></th></tr></thead><tbody id="spec-tbody"></tbody></table>
       <button class="add-spec-btn" onclick="addSpecRow()">+ 新增規格</button>
 
       <div class="msec" style="margin-top:18px">商品說明</div>
@@ -747,7 +747,7 @@ async function loadCategories() {
 }
 async function loadProducts() {
   try {
-    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice').order('sort_order');
+    const { data } = await sb.from('products').select('id,cat_id,name,emoji,photo,specs,sold,online,sort_order,start_time,end_time,delivery_time,alert_text,description,notice,auto_offline').order('sort_order');
     products = (data || []).map(p => ({
       ...p,
       specs: typeof p.specs === 'string' ? JSON.parse(p.specs) : (p.specs || []),
@@ -1455,7 +1455,7 @@ function renderProductMgmt() {
     const cat = categories.find(c => c.id === p.cat_id);
     const tot = totalStock(p);
     const sp = (p.specs||[]).map(s => `${s.name} NT$${s.price}`).join('、');
-    return `<div class="pm-card${p.online?'':' offline'}" draggable="true" data-prod-id="${p.id}" style="cursor:default"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':'已下架'}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
+    return `<div class="pm-card${p.online?'':' offline'}" draggable="true" data-prod-id="${p.id}" style="cursor:default"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':(p.auto_offline?'餘量售罄':'已下架')}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
   }).join('');
   initProdDrag();
 }
@@ -1463,20 +1463,21 @@ async function toggleProduct(pid) {
   const p = products.find(x => x.id == pid);
   if (!p) return;
   p.online = !p.online;
-  try { await sb.from('products').update({ online: p.online }).eq('id', pid); } catch(e) {}
+  p.auto_offline = false;
+  try { await sb.from('products').update({ online: p.online, auto_offline: false }).eq('id', pid); } catch(e) {}
   renderProductMgmt();
 }
 
-function addSpecRow(name='', price='', stock='', preorder=1) { specRows.push({ id: Date.now() + Math.random(), name, price, stock, preorder }); renderSpecTable(); }
+function addSpecRow(name='', price='', stock='', preorder=1, quota='') { specRows.push({ id: Date.now() + Math.random(), name, price, stock, preorder, quota }); renderSpecTable(); }
 function removeSpecRow(id) { specRows = specRows.filter(r => r.id !== id); renderSpecTable(); }
 function renderSpecTable() {
   document.getElementById('spec-tbody').innerHTML = specRows.map(r =>
     `<tr>
       <td><input value="${r.name}" placeholder="如：S 或 紅色" oninput="updateSpecRow(${r.id},'name',this.value)"></td>
       <td><input type="number" value="${r.price}" placeholder="0" min="0" style="width:84px" oninput="updateSpecRow(${r.id},'price',this.value)"></td>
-      <td><input type="number" value="${r.stock}" placeholder="0" min="0" style="width:76px" oninput="updateSpecRow(${r.id},'stock',this.value)"></td>
-      <td><select style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:7px;background:#fff" onchange="updateSpecRow(${r.id},'preorder',this.value)">
-        <option value="0"${r.preorder==1?'':' selected'}>自動下架</option>
+      <td><input type="number" value="${(r.quota ?? '')}" placeholder="${r.preorder==1?'無上限':'總共賣幾個'}" min="0" oninput="updateSpecRow(${r.id},'quota',this.value)" style="width:96px${r.preorder==1?';background:var(--light);color:var(--muted)':''}"${r.preorder==1?' disabled':''}></td>
+      <td><select style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:7px;background:#fff" onchange="onSpecTypeChange(${r.id},this.value)">
+        <option value="0"${r.preorder==1?'':' selected'}>餘量販售</option>
         <option value="1"${r.preorder==1?' selected':''}>開放預購</option>
       </select></td>
       <td><button class="rm-spec-btn" onclick="removeSpecRow(${r.id})">×</button></td>
@@ -1484,6 +1485,18 @@ function renderSpecTable() {
   ).join('');
 }
 function updateSpecRow(id, field, val) { const r = specRows.find(x => x.id === id); if (r) r[field] = val; }
+function onSpecTypeChange(id, val) {
+  const r = specRows.find(x => x.id === id);
+  if (!r) return;
+  r.preorder = val;
+  // 切到「餘量販售」且上限還空著 → 自動帶入該規格的已叫貨數
+  if (parseInt(val) === 0 && (r.quota === '' || r.quota == null)) {
+    const key = String(editingProductId || '') + '_|||_' + String(r.name || '');
+    const ol = (window._pmOlOrdered || {})[key];
+    if (ol != null && ol !== '') r.quota = ol;
+  }
+  renderSpecTable();
+}
 async function openProductModal(pid) {
   editingProductId = pid || null; pmPhotoData = null; specRows = [];
   let p = pid ? products.find(x => x.id == pid) : null;
@@ -1505,8 +1518,9 @@ async function openProductModal(pid) {
   if (p && p.photo) { prev.innerHTML = `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover">`; pmPhotoData = p.photo; }
   else { prev.innerHTML = `<span style="font-size:18px">${p ? (p.emoji||'📦') : '✨'}</span>`; }
   document.getElementById('pm-cat-sel').innerHTML = categories.map(c => `<option value="${c.id}"${p&&p.cat_id===c.id?' selected':''}>${c.label}</option>`).join('');
-  if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0 })); }
+  if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0, quota: s.quota })); }
   else { addSpecRow('', 0, 0, 1); addSpecRow('', 0, 0, 1); }
+  try { window._pmOlOrdered = await getOlOrdered(); } catch(e) { window._pmOlOrdered = {}; }
   renderSpecTable();
   // 載入到貨時間
   window._uploadedPhotoUrl = null; // 清除上次暫存
@@ -1599,7 +1613,11 @@ async function saveProduct() {
   const catId = document.getElementById('pm-cat-sel').value;
   const emoji = document.getElementById('pm-emoji').value.trim() || '✨';
   if (!name) { showToast('請填寫商品名稱'); return; }
-  const specs = specRows.map(r => ({ name: String(r.name).trim(), price: parseInt(r.price) || 0, stock: parseInt(r.stock) || 0, preorder: parseInt(r.preorder)||0 })).filter(s => s.name);
+  const specs = specRows.map(r => {
+    const o = { name: String(r.name).trim(), price: parseInt(r.price) || 0, stock: parseInt(r.stock) || 0, preorder: parseInt(r.preorder)||0 };
+    if (o.preorder === 0) o.quota = parseInt(r.quota) || 0;
+    return o;
+  }).filter(s => s.name);
   if (!specs.length) { showToast('請至少新增一個規格'); return; }
   // 不帶 id，讓 Supabase BIGSERIAL 自動產生
   // 計算上下架時間
@@ -1621,6 +1639,7 @@ async function saveProduct() {
   const detailImgs = window.pmDetailImgs || [];
   const dbData = { name, cat_id: catId, emoji, specs: JSON.stringify(specs), online: onlineNow, sort_order: Math.max(...products.map(p => p.sort_order||0)) + 1, start_time: startTime, end_time: endTime, description: description||null, notice: notice||null, detail_images: JSON.stringify(detailImgs), delivery_time: deliveryTime||null, alert_text: alertText||null };
   if (pmPhotoData) dbData.photo = pmPhotoData;
+  let _savedPid = editingProductId;
   if (editingProductId) {
     const p = products.find(x => x.id == editingProductId);
     if (p) { Object.assign(p, { ...dbData, specs }); }
@@ -1631,7 +1650,19 @@ async function saveProduct() {
     const { data: inserted, error } = await sb.from('products').insert([dbData]).select().single();
     if (error) { showToast('新增失敗：' + error.message); return; }
     products.push({ ...dbData, id: inserted.id, specs, sold: 0 });
+    _savedPid = inserted.id;
   }
+  // 重算庫存快取並判斷是否自動下架（呼叫 Supabase 函式）
+  try {
+    if (_savedPid) {
+      const { data: justOffline } = await sb.rpc('recompute_product', { p_id: _savedPid });
+      if (justOffline === true) {
+        const pp = products.find(x => x.id == _savedPid);
+        if (pp) { pp.online = false; pp.auto_offline = true; }
+        sendLineMsg(`⚠️ 商品自動下架通知\n\n商品：${name}\n所有規格餘量已售完，已自動下架。\n請至後台確認。`);
+      }
+    }
+  } catch(e) { console.warn('recompute_product error:', e); }
   closeProductModal(); renderProductMgmt(); renderInventory();
   showToast(editingProductId ? '商品已更新' : '新商品已新增');
 }
@@ -2976,13 +3007,15 @@ async function processArrivalSpec(pid, specName, n, kg) {
       } catch(e) { console.warn(e); }
     }
   }
-  // 多出來的加庫存
+  // 多出來的加庫存（只對「開放預購」規格；「餘量販售」規格的餘量由系統依上限自動計算，不另外加）
   if (rem > 0) {
     const sp = p.specs.find(s => s.name === specName);
-    if (sp) { sp.stock = (sp.stock||0) + rem; }
-    try {
-      await sb.from('products').update({ specs: JSON.stringify(p.specs) }).eq('id', pid);
-    } catch(e) { console.warn(e); }
+    if (sp && sp.preorder == 1) {
+      sp.stock = (sp.stock||0) + rem;
+      try {
+        await sb.from('products').update({ specs: JSON.stringify(p.specs) }).eq('id', pid);
+      } catch(e) { console.warn(e); }
+    }
   }
 }
 
