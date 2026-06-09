@@ -798,11 +798,9 @@ const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── 通知設定 ─────────────────────────────────────────────
-const NOTIFY_CONFIG = {
-  lineToken: 'HN8OI7rkaZ7DnOz61PMnRkzGKrw5kgBZ2CyA3rf7rDy+Tyy3L511nHcEW/IPPKDUHJAKj7piXzufhjUqcE9UjsoVoopG1Rdo/A2XjsevMx0AnmFMq2lpNby5wTwm6qkAWSKHkylcC+oml0/19rgLgQdB04t89/1O/w1cDnyilFU=',
-  lineUserId: 'U0123f69f7ba7adbf919f3ae7d96cced1',
-  email: 'yuyuz98210@gmail.com',
-};
+// LINE 通知透過 Supabase Edge Function (/functions/v1/notify) 發送，
+// Token 與 User ID 存於 Edge Function 環境變數，不寫在前端。
+// Email 通知由下方 sendOrderEmail() 直接呼叫 EmailJS 處理。
 
 // ── 匯款帳號設定（修改這裡）──────────────────────────────
 window.BANK_ACCOUNT = '匯款/無卡存款｜台新帳戶 (812) 28881012375395\n郵局無摺匯款 — 請私訊我們拿唷～'; // 例：玉山銀行 808-1234567890123
@@ -1003,7 +1001,8 @@ function renderCard(p) {
   const imgContent = p.photo ? `<img src="${p.photo}" alt="${p.name}">` : `<span>${p.emoji||'📦'}</span>`;
   const specOpts = p.specs.map(s => {
     const soldOut = s.stock <= 0 && !s.preorder;
-    const label = soldOut ? `${s.name} — 已售罄` : s.stock <= 0 && s.preorder ? `${s.name} — NT$ ${s.price.toLocaleString()}（預購）` : `${s.name} — NT$ ${s.price.toLocaleString()}`;
+    const lowStock = !s.preorder && s.stock > 0 && s.stock <= 2;
+    const label = soldOut ? `${s.name} — 已售罄` : s.stock <= 0 && s.preorder ? `${s.name} — NT$ ${s.price.toLocaleString()}（預購）` : `${s.name} — NT$ ${s.price.toLocaleString()}${lowStock ? `（最後 ${s.stock} 個）` : ''}`;
     return `<option value="${s.name}"${s.name===curSpec?' selected':''}${soldOut?' disabled':''}>${label}</option>`;
   }).join('');
   return `<div class="product-card${inCart>0?' in-cart':''}">
@@ -1189,18 +1188,37 @@ async function submitOrder() {
   const amount = Math.max(0, cartTotal() - discAmt - creditsUsed);
   const discCode = window.appliedCode || '';
   const items = cart.map(i => ({ productId: i.productId, product: i.product, spec: i.spec, qty: i.qty, price: i.price, arrivedQty: 0 }));
+  // 透過 place_order 函式下單（含餘量名額檢查與防超賣）
   try {
-    await sb.from('orders').insert([{
+    const { data: result, error } = await sb.rpc('place_order', { p_order: {
       order_id: orderId, customer_name: name, phone, email,
       store, store_no: storeno, ig, line_nickname: line, note,
-      amount, items: JSON.stringify(items), status: '', transfer_code: transferCode||null, deposit_status: transferCode ? 'filled' : 'pending', balance_status: 'pending', discount_code: discCode||null, discount_amount: discAmt||0, credits_used: creditsUsed||0,
-      created_at: new Date().toISOString()
-    }]);
-    // upsert customer
+      amount, items, transfer_code: transferCode||null,
+      deposit_status: transferCode ? 'filled' : 'pending',
+      discount_code: discCode||null, discount_amount: discAmt||0, credits_used: creditsUsed||0
+    }});
+    if (error) {
+      showToast('下單失敗，請稍後再試一次');
+      btn.textContent = '確認下單'; btn.disabled = false;
+      return;
+    }
+    if (result && result.ok === false) {
+      const spName = result.spec ? `「${result.spec}」` : '部分商品';
+      showToast(`抱歉，${spName} 剛剛售完了，請調整購物車後再下單`);
+      btn.textContent = '確認下單'; btn.disabled = false;
+      renderProducts();
+      return;
+    }
+    // 下單成功 → 更新客戶資料
     await sb.from('customers').upsert([{ phone, name, email }], { onConflict: 'phone', ignoreDuplicates: false });
+    // 若有商品因此次下單售罄而自動下架 → 通知後台
+    if (result && Array.isArray(result.auto_offlined) && result.auto_offlined.length) {
+      notifyLine(`⚠️ 商品自動下架通知\n\n商品：${result.auto_offlined.join('、')}\n所有規格餘量已售完，已自動下架。\n請至後台確認。`);
+    }
   } catch(e) {
-    // demo mode
-    console.log('Demo order:', { orderId, name, phone, items });
+    showToast('下單失敗，請稍後再試一次');
+    btn.textContent = '確認下單'; btn.disabled = false;
+    return;
   }
   closeCheckout();
   cart = [];
@@ -1593,9 +1611,10 @@ async function openDetail(pid) {
     if (chipsEl) chipsEl.style.display = '';
     chipsEl.innerHTML = p.specs.map(s => {
       const soldOut = s.stock <= 0 && !s.preorder;
+      const lowStock = !s.preorder && s.stock > 0 && s.stock <= 2;
       return `<div class="detail-chip${s.name===detailSpecName?' active':''}${soldOut?' soldout':''}"
         onclick="${soldOut ? '' : `selectDetailSpec(this,'${s.name.replace(/'/g,"\'")}','${pid}')`}">
-        ${s.name}${soldOut ? ' (售罄)' : ''}
+        ${s.name}${soldOut ? ' (售罄)' : (lowStock ? ` (最後 ${s.stock} 個)` : '')}
       </div>`;
     }).join('');
   }
@@ -1885,6 +1904,15 @@ function updateCheckoutSummary() {
 
 
 // ── 訂單通知 ──────────────────────────────────────────────
+async function notifyLine(text) {
+  try {
+    await fetch('https://yxlpqbbugkbxcklmtkfx.supabase.co/functions/v1/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ message: text })
+    });
+  } catch(e) { console.warn('LINE 通知失敗:', e); }
+}
 async function sendOrderNotify(orderId, name, amount, items) {
   const itemsText = items.map(i => `・${i.product}（${i.spec}）× ${i.qty}`).join('\n');
   const msg = `🛒 新訂單通知\n\n訂單編號：${orderId}\n客戶姓名：${name}\n訂單金額：NT$ ${amount.toLocaleString()}\n\n商品明細：\n${itemsText}\n\n請至後台查看詳情。`;
