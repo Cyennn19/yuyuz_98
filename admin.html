@@ -588,6 +588,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
     <div class="pg" id="pg-products">
       <div class="pm-section">
         <div class="pm-section-hdr"><span>分類管理</span><button class="new-btn" onclick="addCat()">+ 新增分類</button></div>
+        <input id="cat-search" placeholder="🔍 搜尋分類…" oninput="renderCatMgmt()" style="width:100%;box-sizing:border-box;margin-bottom:8px;border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:13px">
         <div class="cat-list" id="cat-list"></div>
         <div class="new-cat-row"><input class="new-cat-inp" id="new-cat-inp" placeholder="輸入新分類名稱…" onkeydown="if(event.key==='Enter')addCat()"></div>
       </div>
@@ -1121,14 +1122,26 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
   renderOrders(); renderArrival(); renderInventory();
 }
 
+function activeOrderCatIds() {
+  const s = new Set();
+  orders.forEach(o => {
+    const st = getArrivalStatus(o);
+    if (st === 'shipped' || st === 'processing' || st === 'cancelled') return;
+    (o.items||[]).forEach(it => {
+      if (it.cancelled) return;
+      const prod = products.find(p => p.id == it.productId);
+      if (prod && prod.cat_id) s.add(prod.cat_id);
+    });
+  });
+  return s;
+}
 function renderArrival() {
   const catFilterEl = document.getElementById('arrival-cat-filter');
-  if (catFilterEl && catFilterEl.options.length <= 1) {
-    categories.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id; opt.textContent = c.label;
-      catFilterEl.appendChild(opt);
-    });
+  if (catFilterEl) {
+    const aci = activeOrderCatIds();
+    const cur = catFilterEl.value;
+    catFilterEl.innerHTML = '<option value="">全部分類</option>' + categories.filter(c => aci.has(c.id)).map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+    catFilterEl.value = (cur && aci.has(cur)) ? cur : '';
   }
   const catFilter = catFilterEl?.value || '';
   const arrCollapsed = JSON.parse(localStorage.getItem('arr_collapsed') || '[]');
@@ -1180,7 +1193,7 @@ function renderArrival() {
 
       // 商品 row：左中右三欄
       html += `<div style="border-bottom:2px solid var(--border);background:var(--white)">
-        <div style="display:grid;grid-template-columns:200px 1fr auto;gap:0;border-bottom:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:200px 1fr;gap:0;border-bottom:1px solid var(--border)">
           <!-- 左：圖片+名稱+統計 -->
           <div style="padding:10px 14px;background:var(--light);display:flex;flex-direction:column;gap:4px;justify-content:center">
             <div style="display:flex;align-items:center;gap:8px">
@@ -1194,48 +1207,35 @@ function renderArrival() {
               <span style="color:#185fa5">待配貨 <b>${waitConfig}</b></span>
             </div>
           </div>
-          <!-- 中：規格標題 -->
-          <div style="padding:10px 14px;display:flex;flex-direction:column;justify-content:center">
-            <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:0.04em">規格</div>
+          <!-- 右：規格 + 輸入欄（每個規格同一列，確保對齊）-->
+          <div style="padding:10px 14px;display:flex;flex-direction:column">
+            <div style="display:grid;grid-template-columns:1fr 76px 76px 56px;gap:8px;align-items:center;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:0.04em">
+              <span>規格</span><span style="text-align:center">到貨數</span><span style="text-align:center">公斤數</span><span style="text-align:center">已到貨</span>
+            </div>
             ${(p.specs||[]).map(sp => {
               const spOrders = pOrders.filter(i => i.spec === sp.name);
               const spOrdered = spOrders.reduce((s,i)=>s+i.qty,0);
               const spArrived = spOrders.reduce((s,i)=>s+(i.arrivedQty||0),0);
               const spNeed = spOrders.reduce((s,i)=>s+Math.max(0,i.qty-(i.arrivedQty||0)),0);
               if (spOrdered <= 0) return '';
-              return `<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px">
-                <div style="font-weight:600;color:var(--dark)">${sp.name}</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:1px">訂 ${spOrdered} · 待 ${spNeed} · 到 ${spArrived}</div>
+              const spKey = sp.name.replace(/[^a-zA-Z0-9]/g,'_');
+              const sid = `arr-${p.id}-${spKey}`;
+              const kgId = `kg-${p.id}-${spKey}`;
+              return `<div style="display:grid;grid-template-columns:1fr 76px 76px 56px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0">
+                <div style="font-size:12px">
+                  <div style="font-weight:600;color:var(--dark)">${sp.name}</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">訂 ${spOrdered} · 待 ${spNeed} · 到 ${spArrived}</div>
+                </div>
+                <input id="${sid}" type="number" min="0" max="${spNeed}" placeholder="0"
+                  style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;width:100%"
+                  onclick="event.stopPropagation()">
+                <input id="${kgId}" type="number" min="0" step="0.001" placeholder="0.0"
+                  style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;width:100%"
+                  onclick="event.stopPropagation()">
+                <div style="text-align:center;font-size:13px;font-weight:700;color:${spArrived>=spOrdered?'var(--green)':'var(--amber)'}">${spArrived}/${spOrdered}</div>
               </div>`;
             }).join('')}
-          </div>
-          <!-- 右：輸入欄+確認按鈕 -->
-          <div style="padding:10px 14px;min-width:260px;display:flex;flex-direction:column;justify-content:space-between">
-            <div>
-              <div style="display:grid;grid-template-columns:80px 80px 60px;gap:6px;font-size:10px;color:var(--muted);font-weight:600;text-align:center;margin-bottom:4px;letter-spacing:0.04em">
-                <span>到貨數</span><span>公斤數</span><span>已到貨</span>
-              </div>
-              ${(p.specs||[]).map(sp => {
-                const spOrders = pOrders.filter(i => i.spec === sp.name);
-                const spOrdered = spOrders.reduce((s,i)=>s+i.qty,0);
-                const spArrived = spOrders.reduce((s,i)=>s+(i.arrivedQty||0),0);
-                const spNeed = spOrders.reduce((s,i)=>s+Math.max(0,i.qty-(i.arrivedQty||0)),0);
-                if (spOrdered <= 0) return '';
-                const spKey = sp.name.replace(/[^a-zA-Z0-9]/g,'_');
-                const sid = `arr-${p.id}-${spKey}`;
-                const kgId = `kg-${p.id}-${spKey}`;
-                return `<div style="display:grid;grid-template-columns:80px 80px 60px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0">
-                  <input id="${sid}" type="number" min="0" max="${spNeed}" placeholder="0"
-                    style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;width:100%"
-                    onclick="event.stopPropagation()">
-                  <input id="${kgId}" type="number" min="0" step="0.001" placeholder="0.0"
-                    style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;width:100%"
-                    onclick="event.stopPropagation()">
-                  <div style="text-align:center;font-size:13px;font-weight:700;color:${spArrived>=spOrdered?'var(--green)':'var(--amber)'}">${spArrived}/${spOrdered}</div>
-                </div>`;
-              }).join('')}
-            </div>
-            <div style="margin-top:8px;text-align:right">
+            <div style="margin-top:10px;text-align:right">
               <button onclick="processArrivalProduct(${p.id},'${pid}')" style="padding:6px 16px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">確認到貨</button>
             </div>
           </div>
@@ -1372,9 +1372,12 @@ function renderCustomers() {
 function toggleCust(key) { document.getElementById('cco-' + key)?.classList.toggle('open'); }
 
 // ── 商品管理 ──────────────────────────────────────────────
+let catShowHidden = false;
+function toggleCatShowHidden() { catShowHidden = !catShowHidden; renderCatMgmt(); }
 function renderCatMgmt() {
   const el = document.getElementById('cat-list');
-  el.innerHTML = categories.map((c, idx) => {
+  const kw = (document.getElementById('cat-search')?.value || '').toLowerCase();
+  const catRow = (c) => {
     const cnt = products.filter(p => p.cat_id === c.id).length;
     const isR = renamingCatId === c.id;
     const hiddenStyle = c.hidden ? 'opacity:0.45' : '';
@@ -1394,7 +1397,23 @@ function renderCatMgmt() {
            <button class="cat-del-btn" onclick="deleteCat('${c.id}')">刪除</button>`
       }
     </div>`;
-  }).join('');
+  };
+  // 搜尋中 → 全部符合的攤平顯示（含已隱藏）
+  if (kw) {
+    const m = categories.filter(c => c.label.toLowerCase().includes(kw));
+    el.innerHTML = m.length ? m.map(catRow).join('') : '<div class="empty" style="padding:14px">沒有符合的分類</div>';
+    initCatDrag();
+    return;
+  }
+  // 預設 → 顯示中的分類在上，已隱藏收合
+  const visible = categories.filter(c => !c.hidden);
+  const hidden = categories.filter(c => c.hidden);
+  let html = visible.map(catRow).join('');
+  if (hidden.length) {
+    html += `<div onclick="toggleCatShowHidden()" style="cursor:pointer;text-align:center;padding:9px;margin-top:6px;background:var(--light);border:1px dashed var(--border);border-radius:9px;font-size:12px;color:var(--muted);font-weight:600">${catShowHidden?'▾':'▸'} 已隱藏分類 ${hidden.length} 個${catShowHidden?'（點此收合）':'（點此展開）'}</div>`;
+    if (catShowHidden) html += hidden.map(catRow).join('');
+  }
+  el.innerHTML = html;
   initCatDrag();
 }
 function startCatRename(id) { renamingCatId = id; renderCatMgmt(); setTimeout(() => document.getElementById('cat-inp-' + id)?.focus(), 50); }
@@ -1435,10 +1454,12 @@ async function deleteCat(id) {
   renderCatMgmt(); syncCatFilters(); renderProductMgmt();
 }
 function syncCatFilters() {
-  const opts = '<option value="">全部分類</option>' + categories.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+  const opts = '<option value="">全部分類</option>' + categories.filter(c => !c.hidden).map(c => `<option value="${c.id}">${c.label}</option>`).join('');
   ['pm-cat-f'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
 }
 
+let pmShowOffline = false;
+function togglePmOffline() { pmShowOffline = !pmShowOffline; renderProductMgmt(); }
 function renderProductMgmt() {
   renderCatMgmt();
   const kw = (document.getElementById('pm-search').value || '').toLowerCase();
@@ -1447,16 +1468,33 @@ function renderProductMgmt() {
   let list = products;
   if (kw) list = list.filter(p => p.name.toLowerCase().includes(kw));
   if (catF) list = list.filter(p => p.cat_id === catF);
-  if (stF === 'on') list = list.filter(p => p.online);
-  if (stF === 'off') list = list.filter(p => !p.online);
   const g = document.getElementById('pm-list');
-  if (!list.length) { g.innerHTML = '<div class="empty">沒有符合條件的商品</div>'; return; }
-  g.innerHTML = list.map(p => {
+  const cardHtml = (p) => {
     const cat = categories.find(c => c.id === p.cat_id);
     const tot = totalStock(p);
     const sp = (p.specs||[]).map(s => `${s.name} NT$${s.price}`).join('、');
     return `<div class="pm-card${p.online?'':' offline'}" draggable="true" data-prod-id="${p.id}" style="cursor:default"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':(p.auto_offline?'餘量售罄':'已下架')}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格</div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
-  }).join('');
+  };
+  // 明確選了上架中/已下架，或正在搜尋 → 照舊單一列表
+  if (stF === 'on' || stF === 'off' || kw) {
+    let l2 = list;
+    if (stF === 'on') l2 = l2.filter(p => p.online);
+    if (stF === 'off') l2 = l2.filter(p => !p.online);
+    if (!l2.length) { g.innerHTML = '<div class="empty">沒有符合條件的商品</div>'; return; }
+    g.innerHTML = l2.map(cardHtml).join('');
+    initProdDrag();
+    return;
+  }
+  // 預設（全部、未搜尋）→ 上架在上，已下架收合
+  const online = list.filter(p => p.online);
+  const offline = list.filter(p => !p.online);
+  if (!online.length && !offline.length) { g.innerHTML = '<div class="empty">沒有符合條件的商品</div>'; return; }
+  let html = online.map(cardHtml).join('');
+  if (offline.length) {
+    html += `<div onclick="togglePmOffline()" style="cursor:pointer;text-align:center;padding:11px;margin-top:8px;background:var(--light);border:1px dashed var(--border);border-radius:10px;font-size:13px;color:var(--muted);font-weight:600">${pmShowOffline?'▾':'▸'} 已下架商品 ${offline.length} 件${pmShowOffline?'（點此收合）':'（點此展開）'}</div>`;
+    if (pmShowOffline) html += '<div style="margin-top:8px">' + offline.map(cardHtml).join('') + '</div>';
+  }
+  g.innerHTML = html;
   initProdDrag();
 }
 async function toggleProduct(pid) {
@@ -2547,12 +2585,11 @@ async function renderOrderList() {
   const collapsed = getOlCollapsed();
 
   const catFilterEl = document.getElementById('ol-cat-filter');
-  if (catFilterEl && catFilterEl.options.length <= 1) {
-    categories.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id; opt.textContent = c.label;
-      catFilterEl.appendChild(opt);
-    });
+  if (catFilterEl) {
+    const aci = activeOrderCatIds();
+    const cur = catFilterEl.value;
+    catFilterEl.innerHTML = '<option value="">全部分類</option>' + categories.filter(c => aci.has(c.id)).map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+    catFilterEl.value = (cur && aci.has(cur)) ? cur : '';
   }
   const catFilter = catFilterEl?.value || '';
 
