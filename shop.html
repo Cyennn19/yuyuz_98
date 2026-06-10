@@ -639,6 +639,7 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
         <div class="detail-divider"></div>
         <div class="detail-spec-label" id="detail-spec-section">選擇規格</div>
         <div class="detail-chips" id="detail-chips"></div>
+        <div id="detail-release-tag" style="margin-bottom:8px"></div>
         <div class="detail-qty-row">
           <span class="detail-qty-label">數量</span>
           <div class="detail-qty-ctrl">
@@ -1001,17 +1002,17 @@ function renderCard(p) {
   const imgContent = p.photo ? `<img src="${p.photo}" alt="${p.name}">` : `<span>${p.emoji||'📦'}</span>`;
   const specOpts = p.specs.map(s => {
     const soldOut = s.stock <= 0 && !s.preorder;
-    const lowStock = !s.preorder && s.stock > 0 && s.stock <= 2;
-    const label = soldOut ? `${s.name} — 已售罄` : s.stock <= 0 && s.preorder ? `${s.name} — NT$ ${s.price.toLocaleString()}（預購）` : `${s.name} — NT$ ${s.price.toLocaleString()}${lowStock ? `（最後 ${s.stock} 個）` : ''}`;
+    const label = soldOut ? `${s.name} — 已售罄` : s.stock <= 0 && s.preorder ? `${s.name} — NT$ ${s.price.toLocaleString()}（預購）` : `${s.name} — NT$ ${s.price.toLocaleString()}`;
     return `<option value="${s.name}"${s.name===curSpec?' selected':''}${soldOut?' disabled':''}>${label}</option>`;
   }).join('');
+  const hasRelease = p.specs.some(s => !s.preorder && (s.stock||0) > 0);
   return `<div class="product-card${inCart>0?' in-cart':''}">
-    <div class="pc-img" onclick="openDetail(${p.id})" style="cursor:pointer" title="查看詳情">${imgContent}${inCart>0?`<span class="cart-dot">${inCart}</span>`:''}<div class="pc-img-ov" style="display:none">🔍 查看詳情</div></div>
+    <div class="pc-img" onclick="openDetail(${p.id})" style="cursor:pointer" title="查看詳情">${imgContent}${hasRelease?'<span style="position:absolute;top:7px;left:7px;background:#fbe4ea;color:#c2547a;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;z-index:2">餘量釋出</span>':''}${inCart>0?`<span class="cart-dot">${inCart}</span>`:''}<div class="pc-img-ov" style="display:none">🔍 查看詳情</div></div>
     <div class="pc-info">
       <div class="pc-name">${p.name}</div>
       <div class="pc-price">${priceRange(p)}</div>
     ${p.delivery_time ? `<div style="font-size:11px;color:var(--brown);margin-top:3px;display:flex;align-items:center;gap:3px"><span>🕐</span><span>${p.delivery_time}</span></div>` : ''}
-    ${p.specs.every(s=>s.stock<=0&&!s.preorder)?'<div style="font-size:11px;color:#c0392b;font-weight:600;margin-top:2px">已售罄</div>':p.specs.some(s=>s.stock<=0&&s.preorder)?'<div style="font-size:11px;color:#185fa5;font-weight:600;margin-top:2px">預購</div>':''}
+    ${p.specs.every(s=>s.stock<=0&&!s.preorder)?'<div style="font-size:11px;color:#c0392b;font-weight:600;margin-top:2px">已售罄</div>':'<div style="font-size:11px;color:#185fa5;font-weight:600;margin-top:2px">預購</div>'}
     </div>
     <div class="pc-controls">
       <div class="pc-spec"><select onchange="onSpec(${p.id},this.value)">${specOpts}</select></div>
@@ -1544,10 +1545,11 @@ async function openDetail(pid) {
 
   // 標籤
   const tags = document.getElementById('detail-tags');
-  const hasPreorder = p.specs.some(s => s.preorder);
+  const hasRelease = p.specs.some(s => !s.preorder && (s.stock||0) > 0);
   const allSoldOut = p.specs.every(s => s.stock <= 0 && !s.preorder);
-  tags.innerHTML = (hasPreorder ? '<span class="detail-tag pre">預購中</span>' : '') +
-    (allSoldOut ? '<span class="detail-tag" style="background:#fcebeb;color:#a32d2d">已售罄</span>' : '');
+  tags.innerHTML = allSoldOut ? '<span class="detail-tag" style="background:#fcebeb;color:#a32d2d">已售罄</span>'
+    : hasRelease ? '<span class="detail-tag pre">預購商品</span><span class="detail-tag" style="background:#fbe4ea;color:#c2547a">餘量釋出</span>'
+    : '<span class="detail-tag pre">預購中</span>';
 
   // 名稱、價格
   document.getElementById('detail-name').textContent = p.name;
@@ -1611,10 +1613,9 @@ async function openDetail(pid) {
     if (chipsEl) chipsEl.style.display = '';
     chipsEl.innerHTML = p.specs.map(s => {
       const soldOut = s.stock <= 0 && !s.preorder;
-      const lowStock = !s.preorder && s.stock > 0 && s.stock <= 2;
       return `<div class="detail-chip${s.name===detailSpecName?' active':''}${soldOut?' soldout':''}"
         onclick="${soldOut ? '' : `selectDetailSpec(this,'${s.name.replace(/'/g,"\'")}','${pid}')`}">
-        ${s.name}${soldOut ? ' (售罄)' : (lowStock ? ` (最後 ${s.stock} 個)` : '')}
+        ${s.name}${soldOut ? ' (售罄)' : ''}
       </div>`;
     }).join('');
   }
@@ -1724,6 +1725,12 @@ function selectDetailSpec(el, specName, pid) {
 function updateDetailBtn(p) {
   const btn = document.getElementById('detail-add-btn');
   const spec = p.specs.find(s => s.name === detailSpecName);
+  const relEl = document.getElementById('detail-release-tag');
+  if (relEl) {
+    relEl.innerHTML = (spec && !spec.preorder && (spec.stock||0) > 0)
+      ? `<span style="display:inline-block;background:#eef2f8;color:#5e7196;border:1px solid #d6deeb;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px">剩 ${spec.stock} 件</span>`
+      : '';
+  }
   if (!spec) { btn.disabled = true; btn.textContent = '請選擇規格'; return; }
   if (spec.stock <= 0 && !spec.preorder) { btn.disabled = true; btn.textContent = '此規格已售罄'; return; }
   btn.disabled = false;
