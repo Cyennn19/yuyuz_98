@@ -317,7 +317,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
       </div>
       <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)">
         二補費率：每公斤
-        <input type="number" id="arrival-rate" value="3" min="0" step="0.001" placeholder="0.0" style="width:68px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
+        <input type="number" id="arrival-rate" value="230" min="0" step="0.001" placeholder="0.0" style="width:68px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)">
         NT$
         <button onclick="confirmRate('arrival')" style="padding:5px 11px;background:var(--brown);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">確認費率</button>
         <span id="arrival-rate-confirm" style="font-size:12px;color:var(--green);display:none">✓ 已套用</span>
@@ -352,7 +352,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span style="font-size:13px;color:var(--muted)">費率：每公斤</span>
-          <input type="number" id="rate-per-gram" value="3" min="0" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
+          <input type="number" id="rate-per-gram" value="230" min="0" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white)">
           <span style="font-size:13px;color:var(--muted)">NT$</span>
           <button onclick="confirmRate('surcharge')" style="padding:6px 12px;background:var(--brown);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">確認費率</button>
           <span id="surcharge-rate-confirm" style="font-size:12px;color:var(--green);display:none">✓ 已套用</span>
@@ -1104,7 +1104,7 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
     const kg = parseFloat(wEl ? wEl.value : 0) || 0;
     if (kg > 0 && log.length > 0) {
       const rate = parseFloat(document.getElementById('arrival-rate')?.value || 3);
-      const amt = Math.ceil(kg * rate);
+      const amt = Math.round(kg * rate);
       // 為每個配到的訂單新增二補
       for (const oid of log.map(l => l.split(' ')[0])) {
         const o = getOrder(oid);
@@ -1940,7 +1940,7 @@ function addScByWeight(oid) {
   const weight = prompt('輸入包裹重量（公斤）：');
   if (!weight || isNaN(parseFloat(weight))) return;
   const w = parseFloat(weight);
-  const amt = Math.ceil(w * rate);
+  const amt = Math.round(w * rate);
   if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
   if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
   o.surcharge_items.push({ name:`運費補差（${w}kg × ${rate}NT$/g）`, weight:w, amount:amt });
@@ -1955,7 +1955,7 @@ function calcScWeight(oid, idx, val) {
   const rate = getRate();
   const w = parseFloat(val) || 0;
   o.surcharge_items[idx].weight = w;
-  if (w > 0) o.surcharge_items[idx].amount = Math.ceil(w * rate);
+  if (w > 0) o.surcharge_items[idx].amount = Math.round(w * rate);
   renderScItems(o); saveScData(oid);
 }
 
@@ -3004,7 +3004,9 @@ async function processArrivalProduct(pid, pidKey) {
 }
 
 async function processArrivalSpec(pid, specName, n, kg) {
-  const rate = parseFloat(localStorage.getItem('arrival-rate')) || 0;
+  const rate = parseFloat(document.getElementById('arrival-rate')?.value)
+    || parseFloat(localStorage.getItem('surcharge_rate'))
+    || 0;
   const p = products.find(x => x.id == pid);
   if (!p || n <= 0) return;
   const needOrders = orders.filter(o => {
@@ -3021,28 +3023,24 @@ async function processArrivalSpec(pid, specName, n, kg) {
     const give = Math.min(rem, need);
     item.arrivedQty = (item.arrivedQty||0) + give;
     rem -= give;
-    // 二補計算
+    // 二補計算（公斤數＝單個重量；每張訂單二補 = 單重 × 費率 × 該訂單數量；四捨五入）
+    let scAdded = false;
     if (kg > 0 && rate > 0) {
-      const surcharge = Math.round(kg * rate * give / n);
+      const surcharge = Math.round(kg * rate * give);
       if (surcharge > 0) {
-        const sc = o.surcharge_items || [];
-        sc.push({ spec: specName, kg, surcharge, note: `${specName} ${kg}kg` });
-        o.surcharge_items = sc;
+        if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+        if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
+        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge });
         o.surcharge_total = (o.surcharge_total||0) + surcharge;
-        try {
-          await sb.from('orders').update({
-            items: JSON.stringify(o.items),
-            surcharge_items: JSON.stringify(sc),
-            surcharge_total: o.surcharge_total
-          }).eq('order_id', o.order_id||String(o.id));
-        } catch(e) { console.warn(e); }
+        if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
+        scAdded = true;
       }
-    } else {
-      try {
-        await sb.from('orders').update({ items: JSON.stringify(o.items) })
-          .eq('order_id', o.order_id||String(o.id));
-      } catch(e) { console.warn(e); }
     }
+    try {
+      const upd = { items: JSON.stringify(o.items) };
+      if (scAdded) { upd.surcharge_items = JSON.stringify(o.surcharge_items); upd.surcharge_total = o.surcharge_total; upd.surcharge_status = o.surcharge_status; }
+      await sb.from('orders').update(upd).eq('order_id', o.order_id||String(o.id));
+    } catch(e) { console.warn(e); }
   }
   // 多出來的加庫存（只對「開放預購」規格；「餘量販售」規格的餘量由系統依上限自動計算，不另外加）
   if (rem > 0) {
