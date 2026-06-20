@@ -297,6 +297,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
           <option value="">全部分類</option>
         </select>
         <button class="new-btn" onclick="loadOrders()">重新整理</button>
+        <button class="new-btn" style="background:#5578a8" onclick="openTrackImport()">批次匯入單號</button>
         <button class="new-btn" style="background:#185fa5" onclick="exportExcel()">匯出 Excel</button>
       </div>
       <div class="otable">
@@ -612,6 +613,25 @@ input[type="datetime-local"] { -webkit-appearance:none; }
 </div>
 
 <!-- PRODUCT MODAL -->
+<div class="modal-wrap" id="track-import-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-hdr"><span class="modal-title">批次匯入物流單號</span><button class="modal-x" onclick="closeTrackImport()">×</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px">
+        每行一筆，格式：<b style="color:var(--dark)">訂單編號, 物流單號</b><br>
+        ・同一訂單再貼新單號 → 自動接成第 2、3 批（最多 3 批）<br>
+        ・同一訂單＋同一單號重複 → 自動略過<br>
+        ・不同訂單用到同一單號 → 照常匯入
+      </div>
+      <textarea id="track-import-text" placeholder="ORD-20260613-001, C84421739823&#10;ORD-20260613-002, C84421729699" style="width:100%;min-height:160px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;box-sizing:border-box"></textarea>
+      <div id="track-import-preview" style="margin-top:12px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button onclick="previewTrackImport()" style="padding:8px 16px;background:var(--light);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">預覽核對</button>
+        <button id="track-import-confirm" onclick="confirmTrackImport()" disabled style="padding:8px 16px;background:#ccc;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:not-allowed">確認匯入</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal-wrap" id="product-modal">
   <div class="modal">
     <div class="modal-hdr"><span class="modal-title" id="pm-modal-title">新增商品</span><button class="modal-x" onclick="closeProductModal()">×</button></div>
@@ -781,6 +801,7 @@ async function loadOrders() {
       ...o,
       items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
       surcharge_items: typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []),
+      tracking_numbers: (function(t){ if(!t) return []; for(let i=0;i<2;i++){ if(typeof t==='string'){ try{ t=JSON.parse(t); }catch(e){ return []; } } } return Array.isArray(t)?t:[]; })(o.tracking_numbers),
       transfer_code: o.transfer_code || '',
       deposit_status: o.deposit_status || 'pending',
       balance_status: o.balance_status || 'pending'
@@ -1051,7 +1072,7 @@ function buildOrderDetail(o) {
     <button class="edit-btn" onclick="openAddItemModal('${o.order_id||String(o.id)}');event.stopPropagation()" style="color:var(--brown);border-color:var(--brown)">+ 補加商品</button>
     <div style="margin-top:8px">
     <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">物流單號</div>
-    ${(function(){const tks=o.tracking_numbers||(o.tracking_number?[{number:o.tracking_number,date:''}]:[]);const oid=o.order_id||o.id;return [1,2,3].map(function(n){const tk=(tks||[])[n-1];return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input id="tracking-'+oid+'-'+n+'" placeholder="第'+n+'批物流單號" value="'+(tk?tk.number:'')+' " style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();saveTracking(\'' + oid + '\',' + n + ')" style="padding:5px 10px;background:#92A8D1;color:#fff;border:none;border-radius:7px;font-size:11px;cursor:pointer">儲存</button>'+(tk&&tk.date?'<span style="font-size:10px;color:var(--muted)">'+tk.date+'</span>':'')+'</div>';}).join('');})()}
+    ${(function(){const tks=o.tracking_numbers||(o.tracking_number?[{number:o.tracking_number,date:''}]:[]);const oid=o.order_id||o.id;return [1,2,3].map(function(n){const tk=(tks||[])[n-1];return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input id="tracking-'+oid+'-'+n+'" placeholder="第'+n+'批物流單號" value="'+(tk?tk.number:'')+'" style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();saveTracking(\'' + oid + '\',' + n + ')" style="padding:5px 10px;background:#92A8D1;color:#fff;border:none;border-radius:7px;font-size:11px;cursor:pointer">儲存</button>'+(tk&&tk.date?'<span style="font-size:10px;color:var(--muted)">'+tk.date+'</span>':'')+'</div>';}).join('');})()}
   </div>
   <div style="margin-bottom:8px">
     <div style="font-size:11px;color:var(--muted);margin-bottom:4px">更改訂單狀態</div>
@@ -3091,7 +3112,7 @@ async function saveTracking(orderId, n) {
   const val = inp.value.trim();
   const o = orders.find(x => (x.order_id||String(x.id)) === orderId);
   if (!o) return;
-  const trackings = o.tracking_numbers ? [...o.tracking_numbers] : [];
+  const trackings = Array.isArray(o.tracking_numbers) ? [...o.tracking_numbers] : [];
   while (trackings.length < n) trackings.push(null);
   if (val) {
     const now = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'});
@@ -3107,6 +3128,88 @@ async function saveTracking(orderId, n) {
   } catch(e) {
     showToast('儲存失敗：' + e.message);
   }
+}
+
+// ── 批次匯入物流單號 ──────────────────────────────────────
+let trackImportParsed = null;
+function openTrackImport() {
+  document.getElementById('track-import-text').value = '';
+  document.getElementById('track-import-preview').innerHTML = '';
+  const btn = document.getElementById('track-import-confirm');
+  btn.disabled = true; btn.style.background = '#ccc'; btn.style.cursor = 'not-allowed';
+  trackImportParsed = null;
+  document.getElementById('track-import-modal').style.display = 'flex';
+}
+function closeTrackImport() { document.getElementById('track-import-modal').style.display = 'none'; }
+
+function previewTrackImport() {
+  const raw = document.getElementById('track-import-text').value || '';
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
+  const ok = [], bad = [];
+  const usedBatch = {};
+  lines.forEach(line => {
+    const parts = line.split(/[,，\t]/).map(s => s.trim()).filter(s => s !== '');
+    if (parts.length < 2) { bad.push({ line, reason: '格式不對（需要 訂單編號, 單號）' }); return; }
+    const oid = parts[0], num = parts[1];
+    const o = orders.find(x => (x.order_id||String(x.id)) === oid);
+    if (!o) { bad.push({ line, reason: '找不到此訂單編號' }); return; }
+    const existing = Array.isArray(o.tracking_numbers) ? o.tracking_numbers.filter(Boolean) : [];
+    const base = usedBatch[oid] != null ? usedBatch[oid] : existing.length;
+    const dupExisting = existing.some(t => t && t.number === num);
+    if (dupExisting) { ok.push({ oid, num, batch: null, skip: true, name: o.customer_name }); return; }
+    if (base >= 3) { bad.push({ line, reason: '此訂單已滿 3 批單號' }); return; }
+    const batch = base + 1;
+    usedBatch[oid] = batch;
+    ok.push({ oid, num, batch, skip: false, name: o.customer_name });
+  });
+  trackImportParsed = { ok, bad };
+  const willImport = ok.filter(r => !r.skip);
+  let html = '';
+  if (willImport.length) {
+    html += `<div style="font-size:12px;font-weight:600;color:var(--dark);margin-bottom:6px">將匯入 ${willImport.length} 筆：</div>`;
+    html += `<div style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">${willImport.map(r => `<div style="display:flex;gap:8px;padding:5px 10px;border-bottom:1px solid #f0f0f0;font-size:12px"><span style="color:var(--brown);flex:1">${r.oid}</span><span style="color:var(--muted)">${r.name||''}</span><span style="font-family:monospace">${r.num}</span><span style="color:#5578a8;font-weight:600">第${r.batch}批</span></div>`).join('')}</div>`;
+  }
+  const skipped = ok.filter(r => r.skip);
+  if (skipped.length) html += `<div style="font-size:12px;color:var(--muted);margin-top:8px">略過 ${skipped.length} 筆（單號已存在）</div>`;
+  if (bad.length) {
+    html += `<div style="font-size:12px;font-weight:600;color:#c0392b;margin-top:8px">${bad.length} 筆有問題（不會匯入）：</div>`;
+    html += `<div style="max-height:120px;overflow-y:auto;border:1px solid #f3d0d0;border-radius:8px;margin-top:4px">${bad.map(b => `<div style="padding:5px 10px;border-bottom:1px solid #f7e4e4;font-size:12px"><span style="font-family:monospace;color:#444">${b.line}</span> <span style="color:#c0392b">← ${b.reason}</span></div>`).join('')}</div>`;
+  }
+  if (!willImport.length && !skipped.length && !bad.length) html = '<div style="font-size:13px;color:var(--muted)">沒有可匯入的資料</div>';
+  document.getElementById('track-import-preview').innerHTML = html;
+  const btn = document.getElementById('track-import-confirm');
+  if (willImport.length) { btn.disabled = false; btn.style.background = '#5578a8'; btn.style.cursor = 'pointer'; }
+  else { btn.disabled = true; btn.style.background = '#ccc'; btn.style.cursor = 'not-allowed'; }
+}
+
+async function confirmTrackImport() {
+  if (!trackImportParsed) return;
+  const willImport = trackImportParsed.ok.filter(r => !r.skip);
+  if (!willImport.length) return;
+  const btn = document.getElementById('track-import-confirm');
+  btn.disabled = true; btn.textContent = '匯入中…';
+  const now = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'});
+  const byOrder = {};
+  willImport.forEach(r => { (byOrder[r.oid] = byOrder[r.oid] || []).push(r); });
+  let done = 0, fail = 0;
+  for (const oid of Object.keys(byOrder)) {
+    const o = orders.find(x => (x.order_id||String(x.id)) === oid);
+    if (!o) { fail += byOrder[oid].length; continue; }
+    let trackings = Array.isArray(o.tracking_numbers) ? [...o.tracking_numbers] : [];
+    byOrder[oid].forEach(r => {
+      if (trackings.filter(Boolean).some(t => t.number === r.num)) return;
+      if (trackings.filter(Boolean).length >= 3) return;
+      trackings.push({ number: r.num, date: now });
+    });
+    try {
+      await sb.from('orders').update({ tracking_numbers: JSON.stringify(trackings) }).eq('order_id', o.order_id||String(o.id));
+      o.tracking_numbers = trackings;
+      done += byOrder[oid].length;
+    } catch(e) { fail += byOrder[oid].length; console.warn(e); }
+  }
+  closeTrackImport();
+  renderOrders();
+  showToast(`✓ 已匯入 ${done} 筆單號${fail?`，${fail} 筆失敗`:''}`);
 }
 
 
