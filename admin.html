@@ -1251,13 +1251,13 @@ function renderArrival() {
             <div style="display:grid;grid-template-columns:1fr 76px 76px 56px;gap:8px;align-items:center;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;letter-spacing:0.04em">
               <span>規格</span><span style="text-align:center">到貨數</span><span style="text-align:center">公斤數</span><span style="text-align:center">已到貨</span>
             </div>
-            ${(p.specs||[]).map(sp => {
+            ${(p.specs||[]).map((sp, spIdx) => {
               const spOrders = pOrders.filter(i => i.spec === sp.name);
               const spOrdered = spOrders.reduce((s,i)=>s+i.qty,0);
               const spArrived = spOrders.reduce((s,i)=>s+(i.arrivedQty||0),0);
               const spNeed = spOrders.reduce((s,i)=>s+Math.max(0,i.qty-(i.arrivedQty||0)),0);
               if (spOrdered <= 0) return '';
-              const spKey = sp.name.replace(/[^a-zA-Z0-9]/g,'_');
+              const spKey = spIdx;
               const sid = `arr-${p.id}-${spKey}`;
               const kgId = `kg-${p.id}-${spKey}`;
               return `<div style="display:grid;grid-template-columns:1fr 76px 76px 56px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0">
@@ -3271,8 +3271,10 @@ async function processArrivalProduct(pid, pidKey) {
   const p = products.find(x => x.id == pid);
   if (!p) return;
   let anyProcessed = false;
-  for (const sp of (p.specs || [])) {
-    const spKey = sp.name.replace(/[^a-zA-Z0-9]/g, '_');
+  const specs = p.specs || [];
+  for (let spIdx = 0; spIdx < specs.length; spIdx++) {
+    const sp = specs[spIdx];
+    const spKey = spIdx;
     const arrInp = document.getElementById(`arr-${pid}-${spKey}`);
     const kgInp = document.getElementById(`kg-${pid}-${spKey}`);
     if (!arrInp) continue;
