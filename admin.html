@@ -1227,7 +1227,7 @@ function renderArrival() {
       if (totalOrdered <= 0) return;
 
       const imgHtml = p.photo
-        ? `<img src="${p.photo}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`
+        ? `<img src="${p.photo}" loading="lazy" decoding="async" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`
         : `<div style="width:44px;height:44px;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;background:#f5f5f5">${p.emoji||'📦'}</div>`;
 
       // 商品 row：左中右三欄
@@ -1365,7 +1365,7 @@ function renderReportTeam() {
     if (exp) {
       h += `<table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
         ${r.detail.map(d => `<tr style="border-top:1px solid #f0f0f0">
-          <td style="padding:7px 10px 7px 34px;width:46%"><span style="display:inline-flex;align-items:center;gap:8px">${d.p.photo?`<img src="${d.p.photo}" style="width:28px;height:28px;border-radius:6px;object-fit:cover">`:`<span style="width:28px;height:28px;border-radius:6px;background:var(--light);display:inline-flex;align-items:center;justify-content:center">${d.p.emoji||'📦'}</span>`}<span>${d.p.name}</span></span></td>
+          <td style="padding:7px 10px 7px 34px;width:46%"><span style="display:inline-flex;align-items:center;gap:8px">${d.p.photo?`<img src="${d.p.photo}" loading="lazy" decoding="async" style="width:28px;height:28px;border-radius:6px;object-fit:cover">`:`<span style="width:28px;height:28px;border-radius:6px;background:var(--light);display:inline-flex;align-items:center;justify-content:center">${d.p.emoji||'📦'}</span>`}<span>${d.p.name}</span></span></td>
           <td style="text-align:center">${d.s.sold}</td>
           <td style="text-align:center">${d.s.shipped}</td>
           <td style="text-align:right;padding-right:14px">${d.s.soldAmt.toLocaleString()}</td>
@@ -1677,7 +1677,7 @@ function renderProductMgmt() {
     const tot = totalStock(p);
     const sales = productSales(p.id);
     const sp = (p.specs||[]).map(s => `${s.name} NT$${s.price}`).join('、');
-    return `<div class="pm-card${p.online?'':' offline'}" draggable="true" data-prod-id="${p.id}" style="cursor:default"><div class="pm-thumb">${p.photo?`<img src="${p.photo}">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':(p.auto_offline?'餘量售罄':'已下架')}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格 · <span style="color:var(--brown);font-weight:600">售出 ${sales.sold} / 已出 ${sales.shipped}</span></div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
+    return `<div class="pm-card${p.online?'':' offline'}" draggable="true" data-prod-id="${p.id}" style="cursor:default"><div class="pm-thumb">${p.photo?`<img src="${p.photo}" loading="lazy" decoding="async">`:`<span style="font-size:20px">${p.emoji||'📦'}</span>`}</div><div class="pm-info"><div class="pm-name">${p.name}<span class="pm-badge ${p.online?'on':'off'}">${p.online?'上架中':(p.auto_offline?'餘量售罄':'已下架')}</span></div><div class="pm-meta">${cat?cat.label:'未分類'} · 庫存 ${tot} · ${(p.specs||[]).length} 種規格 · <span style="color:var(--brown);font-weight:600">售出 ${sales.sold} / 已出 ${sales.shipped}</span></div><div class="pm-specs-p">${sp}</div></div><div class="pm-actions"><button class="pm-edit-btn" onclick="cloneProduct(${p.id})" title="複製商品" style="background:#f0f0f0;color:#555">複製</button><button class="pm-edit-btn" onclick="openProductModal(${p.id})">編輯</button><button class="pm-tog-btn ${p.online?'on':'off'}" onclick="toggleProduct(${p.id})">${p.online?'下架':'上架'}</button></div></div>`;
   };
   // 明確選了上架中/已下架，或正在搜尋 → 照舊單一列表
   if (stF === 'on' || stF === 'off' || kw) {
@@ -1757,7 +1757,7 @@ async function openProductModal(pid) {
   document.getElementById('pm-emoji').value = p ? (p.emoji || '') : '✨';
   document.getElementById('pm-photo-inp').value = '';
   const prev = document.getElementById('pm-photo-prev');
-  if (p && p.photo) { prev.innerHTML = `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover">`; pmPhotoData = p.photo; }
+  if (p && p.photo) { prev.innerHTML = `<img src="${p.photo}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover">`; pmPhotoData = p.photo; }
   else { prev.innerHTML = `<span style="font-size:18px">${p ? (p.emoji||'📦') : '✨'}</span>`; }
   document.getElementById('pm-cat-sel').innerHTML = categories.map(c => `<option value="${c.id}"${p&&p.cat_id===c.id?' selected':''}>${c.label}</option>`).join('');
   if (p) { specRows = (p.specs||[]).map(s => ({ id: Date.now() + Math.random(), name: s.name, price: s.price, stock: s.stock, preorder: s.preorder||0, quota: s.quota })); }
@@ -2080,7 +2080,7 @@ function renderDetailImgsPreview() {
   if (!el) return;
   el.innerHTML = (window.pmDetailImgs||[]).map((src, i) =>
     `<div style="position:relative;width:60px;height:60px">
-      <img src="${src}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border)">
+      <img src="${src}" loading="lazy" decoding="async" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border)">
       <button onclick="removeDetailImg(${i})" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
     </div>`
   ).join('');
@@ -2871,7 +2871,7 @@ async function renderOrderList() {
       lastProduct = s.product;
       lastProdId = String(s.productId);
       const imgHtml = s.photo
-        ? `<img src="${s.photo}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--border);flex-shrink:0">`
+        ? `<img src="${s.photo}" loading="lazy" decoding="async" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--border);flex-shrink:0">`
         : `<span style="font-size:20px">${s.emoji}</span>`;
 
       html += `<div style="display:grid;grid-template-columns:40px 1fr 70px 70px 70px 80px 40px;padding:8px 13px 4px 16px;background:var(--light);border-bottom:1px solid var(--border);align-items:center;gap:6px">
