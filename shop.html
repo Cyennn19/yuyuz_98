@@ -798,6 +798,15 @@ input, textarea, select, button { font-family: 'DM Sans', 'Noto Sans TC', sans-s
 const SUPABASE_URL = 'https://yxlpqbbugkbxcklmtkfx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bHBxYmJ1Z2tieGNrbG10a2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzcxNTYsImV4cCI6MjA5MjQ1MzE1Nn0.B_nPq2eZ_uq6cvxGa2JImftUQZ9Pi2gdGAXdES_Iiy4';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ImageKit 圖片加速：把 Supabase 圖片網址轉成 ImageKit（自動壓縮/縮圖，省流量）
+const IK_BASE = 'https://ik.imagekit.io/yuyuz98';
+const SB_IMG_PREFIX = 'https://yxlpqbbugkbxcklmtkfx.supabase.co/storage/v1/object/public/product-images/';
+function ikUrl(u, tr) {
+  if (!u || typeof u !== 'string') return u;
+  if (u.indexOf(SB_IMG_PREFIX) !== 0) return u; // 非商品圖（如外部連結）原樣返回
+  const path = u.slice(SB_IMG_PREFIX.length);
+  return IK_BASE + '/' + path + (tr ? ('?tr=' + tr) : '');
+}
 // ── 通知設定 ─────────────────────────────────────────────
 // LINE 通知透過 Supabase Edge Function (/functions/v1/notify) 發送，
 // Token 與 User ID 存於 Edge Function 環境變數，不寫在前端。
@@ -999,7 +1008,7 @@ function renderCard(p) {
   const curSpec = pcSpecMap[p.id] || p.specs[0].name;
   const curPrice = specPrice(p, curSpec);
   const qty = pcQtyMap[p.id] || 1;
-  const imgContent = p.photo ? `<img src="${p.photo}" alt="${p.name}">` : `<span>${p.emoji||'📦'}</span>`;
+  const imgContent = p.photo ? `<img src="${ikUrl(p.photo,'w-450,q-75')}" alt="${p.name}" loading="lazy" decoding="async">` : `<span>${p.emoji||'📦'}</span>`;
   const specOpts = p.specs.map(s => {
     const soldOut = s.stock <= 0 && !s.preorder;
     const label = soldOut ? `${s.name} — 已售罄` : s.stock <= 0 && s.preorder ? `${s.name} — NT$ ${s.price.toLocaleString()}（預購）` : `${s.name} — NT$ ${s.price.toLocaleString()}`;
@@ -1088,7 +1097,7 @@ function renderCart() {
   const body = document.getElementById('cart-body');
   if (!cart.length) { body.innerHTML = '<div class="cart-empty-msg">尚未加入任何商品</div>'; return; }
   body.innerHTML = cart.map(item => {
-    const imgContent = item.photo ? `<img src="${item.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">` : `<span>${item.emoji||'📦'}</span>`;
+    const imgContent = item.photo ? `<img src="${ikUrl(item.photo,'w-150')}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">` : `<span>${item.emoji||'📦'}</span>`;
     return `<div class="cart-item">
       <div class="ci-emoji">${imgContent}</div>
       <div class="ci-info">
@@ -1137,7 +1146,7 @@ function openCheckout() {
   const finalTotal = Math.max(0, cartTotal() - discAmt);
   summary.innerHTML = cart.map(i => {
     const imgHtml = i.photo
-      ? `<img src="${i.photo}" alt="${i.product}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8;flex-shrink:0">`
+      ? `<img src="${ikUrl(i.photo,'w-120')}" alt="${i.product}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8;flex-shrink:0">`
       : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${i.emoji||'📦'}</div>`;
     return `<div class="os-row" style="align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0">
       ${imgHtml}
@@ -1567,7 +1576,7 @@ async function openDetail(pid) {
   if (allImgs.length > 1) {
     thumbs.innerHTML = allImgs.map((img, i) =>
       `<div class="detail-thumb${i===0?' active':''}" onclick="goDetailSlide(${i})">
-        <img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover">
+        <img src="${ikUrl(img,'w-900,q-80')}" alt="" style="width:100%;height:100%;object-fit:cover">
       </div>`
     ).join('');
   } else if (!p.photo && p.emoji) {
@@ -1672,7 +1681,7 @@ function renderDetailSlider() {
   } else {
     slider.innerHTML = imgs.map(img =>
       `<div class="detail-img-slide" onclick="openLightbox('${img}')">
-        <img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover">
+        <img src="${ikUrl(img,'w-900,q-80')}" alt="" style="width:100%;height:100%;object-fit:cover">
       </div>`
     ).join('');
   }
@@ -1893,7 +1902,7 @@ function updateCheckoutSummary() {
   const finalTotal = Math.max(0, cartTotal() - discAmt - creditsAmt);
   summary.innerHTML = cart.map(i => {
     const imgHtml = i.photo
-      ? `<img src="${i.photo}" alt="${i.product}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8;flex-shrink:0">`
+      ? `<img src="${ikUrl(i.photo,'w-120')}" alt="${i.product}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8;flex-shrink:0">`
       : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${i.emoji||'📦'}</div>`;
     return `<div class="os-row" style="align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0">
       ${imgHtml}
