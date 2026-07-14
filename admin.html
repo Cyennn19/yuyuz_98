@@ -366,7 +366,7 @@ input[type="datetime-local"] { -webkit-appearance:none; }
         <div class="sc"><div class="sl">已收二補筆數</div><div class="sv" id="sc-cnt-paid">0</div></div>
         <div class="sc"><div class="sl">已收二補總額</div><div class="sv" id="sc-sum-paid">NT$ 0</div></div>
       </div>
-      <div class="toolbar">
+      <div class="toolbar" style="flex-wrap:wrap;gap:8px;align-items:center">
         <input class="search-box" id="sc-search" placeholder="搜尋訂單號、客戶…" oninput="renderSurcharge()">
         <select class="filter-sel" id="sc-filter" onchange="renderSurcharge()">
           <option value="">全部</option>
@@ -374,9 +374,15 @@ input[type="datetime-local"] { -webkit-appearance:none; }
           <option value="paid">已收款</option>
           <option value="waived">已減免</option>
         </select>
+        <div style="flex:1"></div>
+        <button onclick="scBatchMark('paid')" style="padding:6px 12px;background:var(--green-bg);color:var(--green);border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">批次標記已收款</button>
+        <button onclick="scBatchMark('pending')" style="padding:6px 12px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">批次取消已收</button>
+        <button onclick="toggleScStat()" style="padding:6px 12px;background:var(--light);color:var(--dark);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">收款統計 ▾</button>
       </div>
+      <div id="sc-stat-section" style="display:none;margin-bottom:12px"></div>
       <div class="otable">
-        <div style="display:grid;grid-template-columns:88px 88px 90px 1fr 76px 76px 76px 100px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600">
+        <div style="display:grid;grid-template-columns:34px 88px 84px 88px 1fr 74px 68px 72px 96px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;align-items:center">
+          <span><input type="checkbox" id="sc-check-all" onchange="scToggleAll(this.checked)" style="cursor:pointer"></span>
           <span>訂單號</span><span>客戶</span><span>電話</span><span>二補明細</span><span>合計</span><span>店號</span><span>狀態</span><span>操作</span>
         </div>
         <div id="surcharge-list"></div>
@@ -2223,6 +2229,41 @@ function getOrder(oid) {
 }
 
 // ── 二補總表 ──────────────────────────────────────────────
+let scShowPaid = false;
+let scStatView = 'team';
+function orderTeam(o) {
+  const its = Array.isArray(o.items) ? o.items : [];
+  const it = its.find(i => !i.cancelled) || its[0];
+  if (!it) return '未分類';
+  const p = products.find(x => x.id == it.productId);
+  if (!p) return '未分類';
+  const c = categories.find(cc => cc.id === p.cat_id);
+  return c ? c.label : '未分類';
+}
+function scRowHtml(o) {
+  const st = o.surcharge_status || 'none';
+  const items = typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []);
+  const itemsHtml = items.length
+    ? items.map(i=>`<div style="font-size:12px;color:var(--muted)">${i.name||'補差'}${i.weight?` (${i.weight}kg)`:''} <span style="color:var(--dark);font-weight:600">NT$ ${(i.amount||0).toLocaleString()}</span></div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted)">—</div>';
+  const oid = o.order_id||o.id;
+  const canCheck = (st==='pending'||st==='paid');
+  return `<div style="display:grid;grid-template-columns:34px 88px 84px 88px 1fr 74px 68px 72px 96px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:start">
+    <span style="padding-top:2px">${canCheck?`<input type="checkbox" class="sc-chk" data-oid="${oid}" data-st="${st}" onchange="scSyncAllBox()" style="cursor:pointer">`:''}</span>
+    <span style="color:var(--muted);font-size:12px">${oid}</span>
+    <span>${o.customer_name||''}</span>
+    <span style="font-size:12px;color:var(--muted)">${o.phone||''}</span>
+    <div>${itemsHtml}</div>
+    <span style="font-weight:700;color:var(--brown)">NT$ ${(o.surcharge_total||0).toLocaleString()}</span>
+    <span style="font-size:12px;color:var(--muted)">${o.store_no||'—'}</span>
+    <span><span class="badge ${SC_CLS[st]||''}">${SC_LABEL[st]||st}</span></span>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${st==='pending'?`<button onclick="updateScStatus('${oid}','paid')" style="padding:4px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">標記已收</button>`:''}
+      ${st==='paid'?`<button onclick="updateScStatus('${oid}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">取消已收</button>`:''}
+      ${st!=='waived'?`<button onclick="updateScStatus('${oid}','waived')" style="padding:4px 8px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">減免</button>`:''}
+    </div>
+  </div>`;
+}
 function renderSurcharge() {
   const ft = document.getElementById('sc-filter')?.value || '';
   const kw = (document.getElementById('sc-search')?.value || '').toLowerCase();
@@ -2238,29 +2279,89 @@ function renderSurcharge() {
   document.getElementById('sc-sum-paid').textContent = 'NT$ ' + paid.reduce((s,o)=>s+(o.surcharge_total||0),0).toLocaleString();
 
   const el = document.getElementById('surcharge-list');
-  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有二補記錄</div>'; return; }
-  el.innerHTML = list.map(o => {
-    const st = o.surcharge_status || 'none';
-    const items = typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []);
-    const itemsHtml = items.length
-      ? items.map(i=>`<div style="font-size:12px;color:var(--muted)">${i.name||'補差'}${i.weight?` (${i.weight}g)`:''} <span style="color:var(--dark);font-weight:600">NT$ ${(i.amount||0).toLocaleString()}</span></div>`).join('')
-      : '<div style="font-size:12px;color:var(--muted)">—</div>';
-    return `<div style="display:grid;grid-template-columns:88px 88px 90px 1fr 76px 76px 76px 100px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:start">
-      <span style="color:var(--muted);font-size:12px">${o.order_id||o.id}</span>
-      <span>${o.customer_name||''}</span>
-      <span style="font-size:12px;color:var(--muted)">${o.phone||''}</span>
-      <div>${itemsHtml}</div>
-      <span style="font-weight:700;color:var(--brown)">NT$ ${(o.surcharge_total||0).toLocaleString()}</span>
-      <span style="font-size:12px;color:var(--muted)">${o.store_no||'—'}</span>
-      <span><span class="badge ${SC_CLS[st]||''}">${SC_LABEL[st]||st}</span></span>
-      <div style="display:flex;flex-direction:column;gap:4px">
-        ${st==='pending'?`<button onclick="updateScStatus('${o.order_id||o.id}','paid')" style="padding:4px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">標記已收</button>`:''}
-        ${st==='paid'?`<button onclick="updateScStatus('${o.order_id||o.id}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">取消已收</button>`:''}
-        ${st!=='waived'?`<button onclick="updateScStatus('${o.order_id||o.id}','waived')" style="padding:4px 8px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">減免</button>`:''}
-      </div>
-    </div>`;
-  }).join('');
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有二補記錄</div>'; el.innerHTML += ''; const cb=document.getElementById('sc-check-all'); if(cb)cb.checked=false; return; }
+
+  // 全部檢視時：待收/減免展開，已收款收合
+  if (!ft) {
+    const notPaid = list.filter(o => (o.surcharge_status||'none') !== 'paid');
+    const paidList = list.filter(o => (o.surcharge_status||'none') === 'paid');
+    let html = notPaid.map(scRowHtml).join('') || '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">沒有待收款項目 🎉</div>';
+    if (paidList.length) {
+      html += `<div onclick="scTogglePaid()" style="cursor:pointer;text-align:center;padding:10px;background:var(--light);border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-weight:600">${scShowPaid?'▾':'▸'} 已收款 ${paidList.length} 筆${scShowPaid?'（點此收合）':'（點此展開）'}</div>`;
+      if (scShowPaid) html += paidList.map(scRowHtml).join('');
+    }
+    el.innerHTML = html;
+  } else {
+    el.innerHTML = list.map(scRowHtml).join('');
+  }
+  const cb = document.getElementById('sc-check-all'); if (cb) cb.checked = false;
+  if (document.getElementById('sc-stat-section').style.display !== 'none') renderScStat();
 }
+
+function scTogglePaid() { scShowPaid = !scShowPaid; renderSurcharge(); }
+function scToggleAll(on) { document.querySelectorAll('.sc-chk').forEach(c => c.checked = on); }
+function scSyncAllBox() {
+  const all = document.querySelectorAll('.sc-chk'), chk = document.querySelectorAll('.sc-chk:checked');
+  const cb = document.getElementById('sc-check-all'); if (cb) cb.checked = all.length>0 && all.length===chk.length;
+}
+async function scBatchMark(status) {
+  const checked = [...document.querySelectorAll('.sc-chk:checked')];
+  if (!checked.length) { showToast('請先勾選要處理的項目'); return; }
+  const oids = checked.map(c => c.getAttribute('data-oid'))
+    .filter(oid => { const o = getOrder(oid); return o && (o.surcharge_status||'none') !== status; });
+  if (!oids.length) { showToast('勾選的項目已經是該狀態了'); return; }
+  const word = status==='paid' ? '標記已收款' : '取消已收';
+  if (!confirm(`確定要把 ${oids.length} 筆${word}嗎？`)) return;
+  let done = 0;
+  for (const oid of oids) {
+    const o = getOrder(oid); if (!o) continue;
+    o.surcharge_status = status;
+    try { await saveScData(oid); done++; } catch(e) { console.warn(e); }
+  }
+  renderSurcharge();
+  showToast(`✓ 已${word} ${done} 筆`);
+}
+
+// 收款統計（依團 / 依月）
+function toggleScStat() {
+  const sec = document.getElementById('sc-stat-section');
+  if (sec.style.display === 'none') { sec.style.display = ''; renderScStat(); }
+  else { sec.style.display = 'none'; }
+}
+function renderScStat() {
+  const sec = document.getElementById('sc-stat-section');
+  const scOrders = orders.filter(o => (o.surcharge_total||0) > 0 && (o.surcharge_status==='pending'||o.surcharge_status==='paid'));
+  const groups = {};
+  scOrders.forEach(o => {
+    let key;
+    if (scStatView === 'month') {
+      if (!o.created_at) return;
+      const d = new Date(o.created_at); key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    } else { key = orderTeam(o); }
+    if (!groups[key]) groups[key] = { pend:0, paid:0, pcnt:0, dcnt:0 };
+    if (o.surcharge_status==='paid') { groups[key].paid += o.surcharge_total; groups[key].dcnt++; }
+    else { groups[key].pend += o.surcharge_total; groups[key].pcnt++; }
+  });
+  const keys = Object.keys(groups).sort().reverse();
+  const rows = keys.map(k => {
+    const g = groups[k];
+    return `<div style="display:grid;grid-template-columns:1fr 120px 120px;padding:8px 12px;border-top:1px solid #f0f0f0;font-size:13px;align-items:center">
+      <span style="font-weight:600;color:var(--dark)">${scStatView==='month'?k.replace('-','年')+'月':k}</span>
+      <span style="color:var(--amber);text-align:right">待收 NT$ ${g.pend.toLocaleString()} <span style="color:var(--muted);font-size:11px">(${g.pcnt})</span></span>
+      <span style="color:var(--green);text-align:right">已收 NT$ ${g.paid.toLocaleString()} <span style="color:var(--muted);font-size:11px">(${g.dcnt})</span></span>
+    </div>`;
+  }).join('') || '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">尚無資料</div>';
+  sec.innerHTML = `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--light);border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;font-weight:700;color:var(--dark);flex:1">二補收款統計</span>
+      <button onclick="setScStatView('team')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:${scStatView==='team'?'var(--brown)':'transparent'};color:${scStatView==='team'?'#fff':'var(--muted)'}">依團</button>
+      <button onclick="setScStatView('month')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:${scStatView==='month'?'var(--brown)':'transparent'};color:${scStatView==='month'?'#fff':'var(--muted)'}">依月</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 120px 120px;padding:6px 12px;background:#fafafa;font-size:11px;color:var(--muted);font-weight:600"><span>${scStatView==='month'?'月份':'團務'}</span><span style="text-align:right">待收</span><span style="text-align:right">已收</span></div>
+    ${rows}
+  </div>`;
+}
+function setScStatView(v) { scStatView = v; renderScStat(); }
 
 function exportSurchargeExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
