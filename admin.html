@@ -928,6 +928,8 @@ function renderOrders() {
     const st = getArrivalStatus(o);
     const f = o.items && o.items.length > 0 ? o.items[0] : {product:'(無商品)',spec:''};
     const multi = o.items && o.items.length > 1 ? ` +${o.items.length-1} 件` : '';
+    const oteams = [...new Set((o.items||[]).filter(i=>!i.cancelled).map(i=>{const p=products.find(x=>x.id==i.productId);const c=p&&categories.find(cc=>cc.id===p.cat_id);return c?c.label:'';}).filter(Boolean))];
+    const teamTag = oteams.length===1 ? `<span style="font-size:10px;color:#8a6d3b;background:#f7efe0;padding:1px 7px;border-radius:8px">${oteams[0]}</span>` : oteams.length>1 ? `<span style="font-size:10px;color:#a0522d;background:#faf0e6;padding:1px 7px;border-radius:8px">混團 ${oteams.length}</span>` : '';
     const { arr, tot } = orderProgress(o);
     const pct = tot > 0 ? Math.round(arr / tot * 100) : 0;
     const detHtml = buildOrderDetail(o);
@@ -938,6 +940,7 @@ function renderOrders() {
       </span>
       <div>
         <div style="font-size:13px">${f.product}${multi}</div>
+        ${teamTag?`<div style="margin-top:3px">${teamTag}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;gap:2px">
         <span style="font-size:13px">${o.customer_name||''}</span>
