@@ -1408,6 +1408,24 @@ async function doLookup() {
         }
       } catch(e) { /* demo mode */ }
     }
+    // 撈商品→團務(分類)對照（含已下架商品）
+    let prodCatLabel = {};
+    try {
+      const allPids = [...new Set(data.flatMap(o => {
+        const its = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items||[]);
+        return its.map(i => i.productId);
+      }).filter(Boolean))];
+      if (allPids.length) {
+        const { data: prods } = await sb.from('products').select('id,cat_id').in('id', allPids);
+        const catMap = {};
+        (categories||[]).forEach(c => catMap[c.id] = c.label);
+        // 補撈可能隱藏的分類
+        const { data: allCats } = await sb.from('categories').select('id,label');
+        (allCats||[]).forEach(c => catMap[c.id] = c.label);
+        (prods||[]).forEach(p => { prodCatLabel[p.id] = catMap[p.cat_id] || ''; });
+      }
+    } catch(e) { /* demo */ }
+    const isLookupById = lookupMode === 'id';
     result.innerHTML = creditsHtml + data.map(o => {
       const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
       const st = getOrderStatus(o);
@@ -1418,6 +1436,10 @@ async function doLookup() {
       // 雙重驗證：只有輸入訂單編號時才能看到填後五碼（防亂填）
       // 只有訂單編號查詢才顯示匯款帳號和填後五碼按鈕
       const canFill = lookupMode === 'id';
+      // 團務（分類）判斷
+      const teams = [...new Set(items.filter(i=>!i.cancelled).map(i=>prodCatLabel[i.productId]).filter(Boolean))];
+      const multiTeam = teams.length > 1;
+      const singleTeam = teams.length === 1 ? teams[0] : '';
       const showBankInfo = lookupMode === 'id';
       const tcKey = (o.order_id||'').replace(/[^a-zA-Z0-9]/g,'');
       const BANK_INFO = (window.BANK_ACCOUNT || '請聯繫賣家取得匯款帳號').replace(/\n/g,'<br>');
@@ -1453,6 +1475,7 @@ async function doLookup() {
         })(i.batchStatus||'');
         return `<div class="lookup-item" style="${i.cancelled?'opacity:0.6':''}">
           <div>
+            ${multiTeam && prodCatLabel[i.productId] ? `<div style="font-size:10px;color:#8a6d3b;background:#f7efe0;display:inline-block;padding:1px 7px;border-radius:8px;margin-bottom:3px">${prodCatLabel[i.productId]}</div>` : ''}
             <div style="${i.cancelled?'color:#aaa':''}">
               <span style="${i.cancelled?'text-decoration:line-through':''}">${i.product}（${i.spec}）× ${i.qty}</span>
               ${i.cancelled?'<span style="font-size:11px;font-weight:700;color:#888;margin-left:6px">已取消</span>':''}
@@ -1492,6 +1515,7 @@ async function doLookup() {
           <div>
             <div class="lookup-oid">${o.order_id}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px">下單日期：${date}</div>
+            ${singleTeam ? `<div style="font-size:11px;color:#8a6d3b;background:#f7efe0;display:inline-block;padding:2px 9px;border-radius:9px;margin-top:5px;font-weight:600">📦 ${singleTeam}</div>` : ''}
           </div>
           <span class="svt-badge">${STATUS_LABEL[st]}</span>
         </div>
@@ -1502,6 +1526,16 @@ async function doLookup() {
         </div>
         ${payHtml}
         <div class="lookup-items">${itemsHtml}</div>
+        ${isLookupById ? `<details style="margin:8px 0;background:var(--light);border-radius:8px;border:1px solid var(--border);padding:0">
+          <summary style="font-size:12px;color:var(--brown);font-weight:600;padding:10px 12px;cursor:pointer;list-style:none">📋 訂購資訊（點擊展開）</summary>
+          <div style="font-size:12px;color:var(--dark);line-height:1.9;word-break:break-all;padding:0 12px 10px">
+            ${o.customer_name?`<div>姓名：${o.customer_name}</div>`:''}
+            ${o.phone?`<div>電話：${o.phone}</div>`:''}
+            ${o.email?`<div>Email：${o.email}</div>`:''}
+            ${o.ig?`<div>IG：${o.ig}</div>`:''}
+            ${(o.store||o.store_no)?`<div>取貨門市：${o.store||''}${o.store_no?`（店號 ${o.store_no}）`:''}</div>`:''}
+          </div>
+        </details>` : ''}
         ${(()=>{
           const tks = o.tracking_numbers ? (typeof o.tracking_numbers==='string'?JSON.parse(o.tracking_numbers):o.tracking_numbers).filter(Boolean) : (o.tracking_number?[{number:o.tracking_number,date:''}]:[]);
           if(!tks.length) return '';
@@ -1565,7 +1599,7 @@ async function openDetail(pid) {
   document.getElementById('detail-price').textContent = priceRange(p);
 
   // 所有圖片（主圖 + 詳情圖）
-  const allImgs = [p.photo, ...(p.detail_images||[])].filter(Boolean);
+  const allImgs = [p.photo, ...(p.detail_images||[])].filter(Boolean).map(u => ikUrl(u, 'w-900,q-80'));
   window._detailImgs = allImgs;
   window._detailImgIdx = 0;
   currentDetailImg = allImgs[0] || '';
@@ -1635,7 +1669,7 @@ async function openDetail(pid) {
   const descBody = document.getElementById('detail-desc-body');
   if (p.description) {
     descSection.style.display = '';
-    descBody.innerHTML = p.description;
+    descBody.innerHTML = p.description.split(SB_IMG_PREFIX).join(IK_BASE + '/');
   } else {
     descSection.style.display = 'none';
   }
