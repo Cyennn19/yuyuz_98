@@ -847,6 +847,7 @@ function getArrivalStatus(o) {
   if (!o.status || o.status === '') o.status = 'waiting';
   if (o.status === 'cancelled') return 'cancelled';
   if (o.status === 'processing') return 'processing';
+  if (o.status === 'shipped') return 'shipped';
   const activeItems = o.items.filter(i => !i.cancelled && i.qty > 0);
   if (!activeItems.length) return 'waiting';
   const allShipped = activeItems.every(i => (i.shippedQty||0) >= i.qty);
@@ -999,15 +1000,27 @@ function buildOrderDetail(o) {
   setTimeout(() => renderScItems(o), 80);
   return `<div style="display:contents">
     <div class="det-block">
-      <div class="det-title">收件資料</div>
-      <div class="det-row"><span class="det-label">姓名</span><span class="det-val">${o.customer_name||''}</span></div>
-      <div class="det-row"><span class="det-label">電話</span><span class="det-val">${o.phone||''}</span></div>
-      <div class="det-row"><span class="det-label">Email</span><span class="det-val">${o.email||'—'}</span></div>
-      <div class="det-row"><span class="det-label">超商門市</span><span class="det-val">${o.store||'—'}</span></div>
-      <div class="det-row"><span class="det-label">店號</span><span class="det-val">${o.store_no||'—'}</span></div>
-      <div class="det-row"><span class="det-label">IG 帳號</span><span class="det-val">${o.ig||'—'}</span></div>
-      <div class="det-row"><span class="det-label">LINE 暱稱</span><span class="det-val">${o.line_nickname||'—'}</span></div>
-      ${o.note?`<div class="det-row"><span class="det-label">客人備註</span><span class="det-val" style="color:var(--amber)">${o.note}</span></div>`:''}
+      <div class="det-title" style="display:flex;align-items:center;gap:8px">收件資料
+        <button onclick="event.stopPropagation();editCustomerInfo('${key}')" id="ci-editbtn-${key}" style="margin-left:auto;padding:2px 12px;background:var(--light);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;color:var(--brown);font-weight:600">編輯</button>
+      </div>
+      <div id="ci-view-${key}">
+        <div class="det-row"><span class="det-label">姓名</span><span class="det-val">${o.customer_name||''}</span></div>
+        <div class="det-row"><span class="det-label">電話</span><span class="det-val">${o.phone||''}</span></div>
+        <div class="det-row"><span class="det-label">Email</span><span class="det-val">${o.email||'—'}</span></div>
+        <div class="det-row"><span class="det-label">超商門市</span><span class="det-val">${o.store||'—'}</span></div>
+        <div class="det-row"><span class="det-label">店號</span><span class="det-val">${o.store_no||'—'}</span></div>
+        <div class="det-row"><span class="det-label">IG 帳號</span><span class="det-val">${o.ig||'—'}</span></div>
+        <div class="det-row"><span class="det-label">LINE 暱稱</span><span class="det-val">${o.line_nickname||'—'}</span></div>
+        ${o.note?`<div class="det-row"><span class="det-label">客人備註</span><span class="det-val" style="color:var(--amber)">${o.note}</span></div>`:''}
+      </div>
+      <div id="ci-edit-${key}" style="display:none" onclick="event.stopPropagation()">
+        ${[['姓名','name',o.customer_name],['電話','phone',o.phone],['Email','email',o.email],['超商門市','store',o.store],['店號','storeno',o.store_no],['IG 帳號','ig',o.ig],['LINE 暱稱','line',o.line_nickname]].map(([lb,k,v])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;color:var(--muted);width:60px;flex-shrink:0">${lb}</span><input id="ci-${k}-${key}" value="${(v||'').replace(/"/g,'&quot;')}" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--white)"></div>`).join('')}
+        <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">⚠ 改電話時會問你要「只改這筆」還是「這支電話全部訂單」</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="saveCustomerInfo('${o.order_id||o.id}','${key}')" style="padding:6px 14px;background:var(--brown);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">儲存</button>
+          <button onclick="cancelCustomerInfo('${key}')" style="padding:6px 14px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer">取消</button>
+        </div>
+      </div>
     </div>
     <div class="det-block">
       <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">後台備註</div>
@@ -1116,6 +1129,47 @@ function toggleOrder(key) {
   row.classList.toggle('exp', !open);
   const h = row.querySelector('.eh');
   if (h) h.textContent = open ? '▼' : '▶';
+}
+// ── 編輯客人資料 ──────────────────────────────────────────
+function editCustomerInfo(key) {
+  document.getElementById('ci-view-'+key).style.display = 'none';
+  document.getElementById('ci-edit-'+key).style.display = '';
+  const b = document.getElementById('ci-editbtn-'+key); if (b) b.style.display = 'none';
+}
+function cancelCustomerInfo(key) {
+  document.getElementById('ci-edit-'+key).style.display = 'none';
+  document.getElementById('ci-view-'+key).style.display = '';
+  const b = document.getElementById('ci-editbtn-'+key); if (b) b.style.display = '';
+}
+async function saveCustomerInfo(oid, key) {
+  const o = getOrder(oid); if (!o) return;
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const name=g('ci-name-'+key), phone=g('ci-phone-'+key), email=g('ci-email-'+key),
+        store=g('ci-store-'+key), storeno=g('ci-storeno-'+key), ig=g('ci-ig-'+key), line=g('ci-line-'+key);
+  const oldPhone = o.phone || '';
+  const phoneChanged = phone && phone !== oldPhone;
+  let scope = 'one';
+  if (phoneChanged) {
+    const others = orders.filter(x => (x.phone||'')===oldPhone && (x.order_id||String(x.id))!==(o.order_id||String(o.id)));
+    if (others.length > 0) {
+      scope = confirm(`電話 ${oldPhone} 底下還有 ${others.length} 筆其他訂單。\n\n【確定】= 把這支電話的「所有訂單」都改成新電話 ${phone}\n【取消】= 只改目前這一筆`) ? 'all' : 'one';
+    } else { scope = 'sole'; }
+  }
+  try {
+    await sb.from('orders').update({ customer_name:name, phone:phone, email:email, store:store, store_no:storeno, ig:ig, line_nickname:line }).eq('order_id', o.order_id||String(o.id));
+    Object.assign(o, { customer_name:name, phone:phone, email:email, store:store, store_no:storeno, ig:ig, line_nickname:line });
+    if (phoneChanged) {
+      if (scope === 'all' || scope === 'sole') {
+        try { await sb.from('customers').update({ phone:phone }).eq('phone', oldPhone); } catch(e){ console.warn('customers 搬移略過', e); }
+      }
+      if (scope === 'all') {
+        await sb.from('orders').update({ phone:phone }).eq('phone', oldPhone);
+        orders.forEach(x => { if ((x.phone||'')===oldPhone) x.phone = phone; });
+      }
+    }
+    showToast('✓ 客人資料已更新');
+    renderOrders();
+  } catch(e) { showToast('儲存失敗：' + e.message); }
 }
 async function changeOrderStatus(oid, val) {
   if (!val) return;
@@ -2131,7 +2185,7 @@ function renderScItems(o) {
     el.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">尚未設定二補項目</div>';
     return;
   }
-  el.innerHTML = items.map((item, idx) => `
+  const rowHtml = (item, idx) => `
     <div style="display:grid;grid-template-columns:1fr 72px 80px 26px;gap:5px;align-items:center;margin-bottom:6px">
       <input value="${item.name||''}" placeholder="說明（如：運費補差）" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white)"
         onchange="updateScField('${o.order_id||o.id}',${idx},'name',this.value)">
@@ -2140,8 +2194,25 @@ function renderScItems(o) {
       <input type="number" value="${item.amount||0}" placeholder="NT$" min="0" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--white);width:100%"
         onchange="updateScField('${o.order_id||o.id}',${idx},'amount',parseInt(this.value)||0)">
       <button onclick="removeScItem('${o.order_id||o.id}',${idx})" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center">×</button>
-    </div>`).join('') +
-    `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">← 說明 | 重量(kg) | 金額(NT$)</div>`;
+    </div>`;
+  const withIdx = items.map((item, idx) => ({ item, idx }));
+  const groups = {};
+  withIdx.forEach(x => { const d = x.item.date || ''; (groups[d] = groups[d] || []).push(x); });
+  const datedKeys = Object.keys(groups).filter(d => d).sort((a, b) => new Date(a) - new Date(b));
+  const undated = groups[''] || [];
+  let out = '';
+  datedKeys.forEach((d, gi) => {
+    const sub = groups[d].reduce((s, x) => s + (parseInt(x.item.amount) || 0), 0);
+    out += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 9px;margin:2px 0 6px;background:#eef2f8;border-radius:6px;font-size:11px;font-weight:700;color:#5578a8">
+      <span>📦 第 ${gi+1} 批 · ${d} 到貨</span><span>小計 NT$ ${sub.toLocaleString()}</span></div>`;
+    out += groups[d].map(x => rowHtml(x.item, x.idx)).join('');
+  });
+  if (undated.length) {
+    if (datedKeys.length) out += `<div style="padding:5px 9px;margin:2px 0 6px;background:var(--light);border-radius:6px;font-size:11px;font-weight:700;color:var(--muted)">未分批 / 手動新增</div>`;
+    out += undated.map(x => rowHtml(x.item, x.idx)).join('');
+  }
+  out += `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">← 說明 | 重量(kg) | 金額(NT$)</div>`;
+  el.innerHTML = out;
   updateScTotal(o);
 }
 
@@ -2369,19 +2440,23 @@ function setScStatView(v) { scStatView = v; renderScStat(); }
 function exportSurchargeExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
   const stMap = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
-  const rows = [['訂單號','客戶姓名','電話','超商店號','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
+  const rows = [['訂單號','客戶姓名','電話','超商店號','到貨批次','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
   orders.filter(o=>(o.surcharge_items||[]).length>0||(o.surcharge_status&&o.surcharge_status!=='none')).forEach(o=>{
     const items = o.surcharge_items||[];
     if (!items.length) {
-      rows.push([o.order_id||o.id,o.customer_name||'',o.phone||'',o.store_no||'','—','',0,0,stMap[o.surcharge_status||'none']]);
+      rows.push([o.order_id||o.id,o.customer_name||'',o.phone||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
     } else {
+      // 依到貨日期分批，算出第幾批
+      const dates = [...new Set(items.map(it=>it.date).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
+      const batchNo = {}; dates.forEach((d,i)=>batchNo[d]=i+1);
       items.forEach((item,i)=>{
-        rows.push([i===0?(o.order_id||o.id):'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.store_no||''):'',item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
+        const batchLabel = item.date ? `第${batchNo[item.date]}批 (${item.date})` : '未分批';
+        rows.push([i===0?(o.order_id||o.id):'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.store_no||''):'',batchLabel,item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
       });
     }
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[12,12,13,10,22,8,10,10,8].map(w=>({wch:w}));
+  ws['!cols']=[12,12,13,10,15,22,8,10,10,8].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '二補總表');
   XLSX.writeFile(wb, `yuyuz_98_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
@@ -2822,9 +2897,7 @@ function buildSpecMap(filtered) {
       }
       specMap[key].orderedQty += item.qty || 0;
       specMap[key].arrivedQty += item.arrivedQty || 0;
-      if (o.status === 'shipped' || o.status === 'partial_shipped') {
-        specMap[key].shippedQty += item.shippedQty || item.qty || 0;
-      }
+      specMap[key].shippedQty += (o.status === 'shipped') ? (item.qty || 0) : (item.shippedQty || 0);
     });
   });
   return specMap;
@@ -2950,6 +3023,16 @@ async function renderOrderList() {
 
   specs.sort((a, b) => (a.catOrder - b.catOrder) || a.cat.localeCompare(b.cat) || a.product.localeCompare(b.product) || a.spec.localeCompare(b.spec));
 
+  // 每個團：還有幾項未叫齊
+  const catNeed = {};
+  specs.forEach(s => {
+    const ck = s.catId || s.cat;
+    const need = Math.max(0, s.orderedQty - (ordered[getOlKey(s.productId||s.product, s.spec)]||0));
+    if (!catNeed[ck]) catNeed[ck] = { pend:0, total:0 };
+    catNeed[ck].total++;
+    if (need > 0) catNeed[ck].pend++;
+  });
+
   let html = '';
   let lastCat = '';
   let lastProduct = '';
@@ -2971,8 +3054,13 @@ async function renderOrderList() {
       lastProduct = '';
       lastProdId = '';
       const catKey = s.catId || s.cat;
+      const cn = catNeed[catKey] || { pend:0, total:0 };
+      const catBadge = cn.pend > 0
+        ? `<span style="font-size:11px;font-weight:700;color:#fff;background:#d9534f;padding:2px 9px;border-radius:9px">⚠ 還有 ${cn.pend} 項未叫</span>`
+        : `<span style="font-size:11px;font-weight:700;color:#2d7a2d;background:#e3f4e3;padding:2px 9px;border-radius:9px">✓ 已全叫</span>`;
       html += `<div onclick="toggleOlCat('${catKey}')" style="display:flex;align-items:center;gap:8px;padding:10px 13px 6px;background:#e0e0e0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">
         <span style="font-size:12px;font-weight:700;color:#444;letter-spacing:0.06em;text-transform:uppercase;flex:1">${s.cat}</span>
+        ${catBadge}
         <span style="font-size:11px;color:#888">${isCollapsed ? '▼ 展開' : '▲ 收合'}</span>
       </div>`;
     }
@@ -3002,8 +3090,8 @@ async function renderOrderList() {
       <span></span>
       <span style="color:var(--muted);padding-left:16px">└ ${s.spec}</span>
       <span style="text-align:center;font-weight:600">${s.orderedQty}</span>
-      <span style="text-align:center;font-weight:700;color:${needQty>0?'var(--dark)':'var(--green)'}">
-        ${needQty > 0 ? needQty : '✓'}
+      <span style="text-align:center;font-weight:700;color:${needQty>0?'#d9534f':'var(--green)'}">
+        ${needQty > 0 ? '⚠ '+needQty : '✓'}
       </span>
       <span style="text-align:center">
         <input type="number" value="${orderedAmt||''}" placeholder="0" min="0"
@@ -3432,7 +3520,7 @@ async function processArrivalSpec(pid, specName, n, kg) {
       if (surcharge > 0) {
         if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
         if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
-        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge });
+        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge, date: new Date().toLocaleDateString('zh-TW') });
         o.surcharge_total = (o.surcharge_total||0) + surcharge;
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         scAdded = true;
