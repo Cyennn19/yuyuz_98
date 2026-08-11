@@ -624,12 +624,20 @@ input[type="datetime-local"] { -webkit-appearance:none; }
     <div class="modal-hdr"><span class="modal-title">批次匯入物流單號</span><button class="modal-x" onclick="closeTrackImport()">×</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px">
-        每行一筆，格式：<b style="color:var(--dark)">訂單編號, 物流單號</b><br>
-        ・同一訂單再貼新單號 → 自動接成第 2、3 批（最多 3 批）<br>
-        ・同一訂單＋同一單號重複 → 自動略過<br>
-        ・不同訂單用到同一單號 → 照常匯入
+        <b style="color:var(--dark)">兩種方式都可以：</b><br>
+        ① <b style="color:#5578a8">上傳賣貨便匯出的 Excel</b> → 系統自動認出訂單號＋單號<br>
+        ② 或直接貼上：可貼賣貨便原始資料，或「訂單編號, 物流單號」每行一筆<br>
+        ・系統自動辨認 ORD 訂單號（含賣貨便亂加的空格）＋物流單號<br>
+        ・同訂單再貼新單號 → 自動接第 2、3 批（最多 3 批）；重複自動略過
       </div>
-      <textarea id="track-import-text" placeholder="ORD-20260613-001, C84421739823&#10;ORD-20260613-002, C84421729699" style="width:100%;min-height:160px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;box-sizing:border-box"></textarea>
+      <div style="margin-bottom:10px">
+        <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eef2f8;border:1px solid #d6deeb;border-radius:8px;font-size:13px;font-weight:600;color:#5578a8;cursor:pointer">
+          📄 上傳賣貨便 Excel
+          <input type="file" accept=".xlsx,.xls" onchange="importTrackFromExcel(this)" style="display:none">
+        </label>
+        <span id="track-file-name" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
+      </div>
+      <textarea id="track-import-text" placeholder="上傳 Excel，或貼上資料…&#10;例：ORD-MQ9AVBIJ, E26906304986" style="width:100%;min-height:140px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;box-sizing:border-box"></textarea>
       <div id="track-import-preview" style="margin-top:12px"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
         <button onclick="previewTrackImport()" style="padding:8px 16px;background:var(--light);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">預覽核對</button>
@@ -2440,23 +2448,24 @@ function setScStatView(v) { scStatView = v; renderScStat(); }
 function exportSurchargeExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
   const stMap = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
-  const rows = [['訂單號','客戶姓名','電話','超商店號','到貨批次','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
+  const rows = [['訂單號','賣貨便商品名稱','客戶姓名','電話','超商店號','到貨批次','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
   orders.filter(o=>(o.surcharge_items||[]).length>0||(o.surcharge_status&&o.surcharge_status!=='none')).forEach(o=>{
     const items = o.surcharge_items||[];
+    const svName = `${o.order_id||o.id} 到貨商品`;
     if (!items.length) {
-      rows.push([o.order_id||o.id,o.customer_name||'',o.phone||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
+      rows.push([o.order_id||o.id,svName,o.customer_name||'',o.phone||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
     } else {
       // 依到貨日期分批，算出第幾批
       const dates = [...new Set(items.map(it=>it.date).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
       const batchNo = {}; dates.forEach((d,i)=>batchNo[d]=i+1);
       items.forEach((item,i)=>{
         const batchLabel = item.date ? `第${batchNo[item.date]}批 (${item.date})` : '未分批';
-        rows.push([i===0?(o.order_id||o.id):'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.store_no||''):'',batchLabel,item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
+        rows.push([i===0?(o.order_id||o.id):'',i===0?svName:'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.store_no||''):'',batchLabel,item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
       });
     }
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[12,12,13,10,15,22,8,10,10,8].map(w=>({wch:w}));
+  ws['!cols']=[12,20,12,13,10,15,22,8,10,10,8].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '二補總表');
   XLSX.writeFile(wb, `yuyuz_98_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
@@ -3343,22 +3352,72 @@ function openTrackImport() {
 }
 function closeTrackImport() { document.getElementById('track-import-modal').style.display = 'none'; }
 
+function importTrackFromExcel(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  document.getElementById('track-file-name').textContent = file.name;
+  if (!window.XLSX) { showToast('Excel 套件載入中，請稍後再試'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      // 找有「配送單編號」「商品名稱」的分頁（優先訂單匯入）
+      let lines = [];
+      wb.SheetNames.forEach(sn => {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1 });
+        // 找表頭列
+        let hdrRow = -1, cTrack = -1, cName = -1;
+        for (let r = 0; r < Math.min(rows.length, 8); r++) {
+          const row = (rows[r]||[]).map(x => String(x||''));
+          const ti = row.findIndex(h => h.includes('配送單編號'));
+          const ni = row.findIndex(h => h.includes('商品名稱'));
+          if (ti >= 0 && ni >= 0) { hdrRow = r; cTrack = ti; cName = ni; break; }
+        }
+        if (hdrRow < 0) return;
+        for (let r = hdrRow + 1; r < rows.length; r++) {
+          const row = rows[r] || [];
+          const track = String(row[cTrack]||'').trim();
+          const name = String(row[cName]||'').trim();
+          if (/ORD/i.test(name) && /[A-Za-z]\d{11}/.test(track)) lines.push(`${name}\t${track}`);
+        }
+      });
+      if (!lines.length) { showToast('Excel 裡沒認到「訂單號＋單號」，請確認格式'); return; }
+      document.getElementById('track-import-text').value = lines.join('\n');
+      previewTrackImport();
+      showToast(`✓ 從 Excel 讀到 ${lines.length} 筆，請核對後匯入`);
+    } catch(err) { showToast('讀取 Excel 失敗：' + err.message); }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
 function previewTrackImport() {
   const raw = document.getElementById('track-import-text').value || '';
   const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
   const ok = [], bad = [];
   const usedBatch = {};
   lines.forEach(line => {
-    const parts = line.split(/[,，\t]/).map(s => s.trim()).filter(s => s !== '');
-    if (parts.length < 2) { bad.push({ line, reason: '格式不對（需要 訂單編號, 單號）' }); return; }
-    const oid = parts[0], num = parts[1];
+    // 智慧辨認：單號 = 1碼英文+11碼數字（避開 CM 編號、電話）；訂單號 = ORD-xxx（自動去空格）
+    const trackM = line.match(/(?:^|[^A-Za-z0-9])([A-Za-z]\d{11})(?![0-9])/);
+    let num = trackM ? trackM[1] : null;
+    const lineForOrd = num ? line.replace(num, '  ') : line;
+    const ordM = lineForOrd.match(/ORD[-\s]?([A-Za-z0-9\s]*?)(?=\s*到貨|[,，\t]|\s{2,}|$)/i);
+    let oid = (ordM && ordM[1] && ordM[1].replace(/\s/g,'')) ? ('ORD-' + ordM[1].replace(/\s+/g,'').toUpperCase()) : null;
+    // 後援：乾淨的「訂單號, 單號」格式
+    if (!oid || !num) {
+      const parts = line.split(/[,，\t]+/).map(s => s.trim()).filter(s => s !== '');
+      if (!oid) { const p = parts.find(x=>/^ORD/i.test(x)); if (p) oid = 'ORD-' + p.replace(/^ORD[-\s]?/i,'').replace(/\s+/g,'').toUpperCase(); }
+      if (!num) { const p = parts.find(x=>/^[A-Za-z]?\d{8,}$/.test(x) && x!==oid); if (p) num = p; }
+    }
+    if (!oid && !num) { bad.push({ line, reason: '認不出訂單號與單號' }); return; }
+    if (!oid) { bad.push({ line, reason: '認不出訂單編號（ORD）' }); return; }
+    if (!num) { bad.push({ line, reason: '認不出物流單號' }); return; }
     const o = orders.find(x => (x.order_id||String(x.id)) === oid);
-    if (!o) { bad.push({ line, reason: '找不到此訂單編號' }); return; }
+    if (!o) { bad.push({ line: `${oid} → ${num}`, reason: '系統找不到此訂單編號' }); return; }
     const existing = Array.isArray(o.tracking_numbers) ? o.tracking_numbers.filter(Boolean) : [];
     const base = usedBatch[oid] != null ? usedBatch[oid] : existing.length;
     const dupExisting = existing.some(t => t && t.number === num);
     if (dupExisting) { ok.push({ oid, num, batch: null, skip: true, name: o.customer_name }); return; }
-    if (base >= 3) { bad.push({ line, reason: '此訂單已滿 3 批單號' }); return; }
+    if (base >= 3) { bad.push({ line: `${oid} → ${num}`, reason: '此訂單已滿 3 批單號' }); return; }
     const batch = base + 1;
     usedBatch[oid] = batch;
     ok.push({ oid, num, batch, skip: false, name: o.customer_name });
