@@ -1230,7 +1230,7 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
         if (!o) continue;
         if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
         if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
-        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt });
+        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt, date: new Date().toLocaleDateString('zh-TW') });
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         await saveScData(oid);
       }
@@ -2448,24 +2448,24 @@ function setScStatView(v) { scStatView = v; renderScStat(); }
 function exportSurchargeExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
   const stMap = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
-  const rows = [['訂單號','賣貨便商品名稱','客戶姓名','電話','超商店號','到貨批次','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
+  const rows = [['訂單號','賣貨便商品名稱','客戶姓名','電話','Email','超商店號','到貨批次','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
   orders.filter(o=>(o.surcharge_items||[]).length>0||(o.surcharge_status&&o.surcharge_status!=='none')).forEach(o=>{
     const items = o.surcharge_items||[];
     const svName = `${o.order_id||o.id} 到貨商品`;
     if (!items.length) {
-      rows.push([o.order_id||o.id,svName,o.customer_name||'',o.phone||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
+      rows.push([o.order_id||o.id,svName,o.customer_name||'',o.phone||'',o.email||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
     } else {
       // 依到貨日期分批，算出第幾批
       const dates = [...new Set(items.map(it=>it.date).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
       const batchNo = {}; dates.forEach((d,i)=>batchNo[d]=i+1);
       items.forEach((item,i)=>{
         const batchLabel = item.date ? `第${batchNo[item.date]}批 (${item.date})` : '未分批';
-        rows.push([i===0?(o.order_id||o.id):'',i===0?svName:'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.store_no||''):'',batchLabel,item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
+        rows.push([i===0?(o.order_id||o.id):'',i===0?svName:'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.email||''):'',i===0?(o.store_no||''):'',batchLabel,item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
       });
     }
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[12,20,12,13,10,15,22,8,10,10,8].map(w=>({wch:w}));
+  ws['!cols']=[12,20,12,13,22,10,15,22,8,10,10,8].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '二補總表');
   XLSX.writeFile(wb, `yuyuz_98_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
