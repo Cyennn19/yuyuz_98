@@ -1230,7 +1230,7 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
         if (!o) continue;
         if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
         if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
-        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt, date: new Date().toLocaleDateString('zh-TW') });
+        o.surcharge_items.push({ name: `${p.name||''}-${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt, date: new Date().toLocaleDateString('zh-TW') });
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         await saveScData(oid);
       }
@@ -3364,20 +3364,20 @@ function importTrackFromExcel(input) {
       // 找有「配送單編號」「商品名稱」的分頁（優先訂單匯入）
       let lines = [];
       wb.SheetNames.forEach(sn => {
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1 });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' });
         // 找表頭列
         let hdrRow = -1, cTrack = -1, cName = -1;
         for (let r = 0; r < Math.min(rows.length, 8); r++) {
-          const row = (rows[r]||[]).map(x => String(x||''));
-          const ti = row.findIndex(h => h.includes('配送單編號'));
-          const ni = row.findIndex(h => h.includes('商品名稱'));
+          const row = Array.isArray(rows[r]) ? rows[r].map(x => (x==null?'':String(x))) : [];
+          const ti = row.findIndex(h => h.indexOf('配送單編號') >= 0);
+          const ni = row.findIndex(h => h.indexOf('商品名稱') >= 0);
           if (ti >= 0 && ni >= 0) { hdrRow = r; cTrack = ti; cName = ni; break; }
         }
         if (hdrRow < 0) return;
         for (let r = hdrRow + 1; r < rows.length; r++) {
-          const row = rows[r] || [];
-          const track = String(row[cTrack]||'').trim();
-          const name = String(row[cName]||'').trim();
+          const row = Array.isArray(rows[r]) ? rows[r] : [];
+          const track = String(row[cTrack]==null?'':row[cTrack]).trim();
+          const name = String(row[cName]==null?'':row[cName]).trim();
           if (/ORD/i.test(name) && /[A-Za-z]\d{11}/.test(track)) lines.push(`${name}\t${track}`);
         }
       });
@@ -3579,7 +3579,7 @@ async function processArrivalSpec(pid, specName, n, kg) {
       if (surcharge > 0) {
         if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
         if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
-        o.surcharge_items.push({ name: `${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge, date: new Date().toLocaleDateString('zh-TW') });
+        o.surcharge_items.push({ name: `${p.name||''}-${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge, date: new Date().toLocaleDateString('zh-TW') });
         o.surcharge_total = (o.surcharge_total||0) + surcharge;
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         scAdded = true;
