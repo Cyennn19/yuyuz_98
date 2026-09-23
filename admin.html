@@ -381,9 +381,9 @@ input[type="datetime-local"] { -webkit-appearance:none; }
       </div>
       <div id="sc-stat-section" style="display:none;margin-bottom:12px"></div>
       <div class="otable">
-        <div style="display:grid;grid-template-columns:34px 88px 84px 88px 1fr 74px 68px 72px 96px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;align-items:center">
+        <div style="display:grid;grid-template-columns:32px 48px 92px 74px 70px 1fr 74px 68px 92px;padding:9px 13px;background:var(--light);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;align-items:center">
           <span><input type="checkbox" id="sc-check-all" onchange="scToggleAll(this.checked)" style="cursor:pointer"></span>
-          <span>訂單號</span><span>客戶</span><span>電話</span><span>二補明細</span><span>合計</span><span>店號</span><span>狀態</span><span>操作</span>
+          <span>批次</span><span>訂單號</span><span>客戶</span><span>到貨日</span><span>二補明細</span><span>金額</span><span>狀態</span><span>操作</span>
         </div>
         <div id="surcharge-list"></div>
       </div>
@@ -1230,7 +1230,9 @@ async function processArrival(pid, specName, inputId, resultId, weightId) {
         if (!o) continue;
         if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
         if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
-        o.surcharge_items.push({ name: `${p.name||''}-${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt, date: new Date().toLocaleDateString('zh-TW') });
+        const _today1 = new Date().toLocaleDateString('zh-TW');
+        let _bid1 = (o.surcharge_items.find(it => it.date === _today1 && it.batchId) || {}).batchId || nextBatchId();
+        o.surcharge_items.push({ name: `${p.name||''}-${specName} 運費（${kg}kg × NT$${rate}/kg）`, weight: kg, amount: amt, date: _today1, batchId: _bid1, batchStatus: 'pending' });
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         await saveScData(oid);
       }
@@ -2205,18 +2207,20 @@ function renderScItems(o) {
     </div>`;
   const withIdx = items.map((item, idx) => ({ item, idx }));
   const groups = {};
-  withIdx.forEach(x => { const d = x.item.date || ''; (groups[d] = groups[d] || []).push(x); });
-  const datedKeys = Object.keys(groups).filter(d => d).sort((a, b) => new Date(a) - new Date(b));
+  withIdx.forEach(x => { const k = x.item.batchId || ''; (groups[k] = groups[k] || []).push(x); });
+  const batchKeys = Object.keys(groups).filter(k => k).sort();
   const undated = groups[''] || [];
   let out = '';
-  datedKeys.forEach((d, gi) => {
-    const sub = groups[d].reduce((s, x) => s + (parseInt(x.item.amount) || 0), 0);
+  batchKeys.forEach((bid) => {
+    const g = groups[bid];
+    const sub = g.reduce((s, x) => s + (parseInt(x.item.amount) || 0), 0);
+    const d = (g[0] && g[0].item.date) || '';
     out += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 9px;margin:2px 0 6px;background:#eef2f8;border-radius:6px;font-size:11px;font-weight:700;color:#5578a8">
-      <span>📦 第 ${gi+1} 批 · ${d} 到貨</span><span>小計 NT$ ${sub.toLocaleString()}</span></div>`;
-    out += groups[d].map(x => rowHtml(x.item, x.idx)).join('');
+      <span>📦 ${bid} · ${d} 到貨</span><span>小計 NT$ ${sub.toLocaleString()}</span></div>`;
+    out += g.map(x => rowHtml(x.item, x.idx)).join('');
   });
   if (undated.length) {
-    if (datedKeys.length) out += `<div style="padding:5px 9px;margin:2px 0 6px;background:var(--light);border-radius:6px;font-size:11px;font-weight:700;color:var(--muted)">未分批 / 手動新增</div>`;
+    if (batchKeys.length) out += `<div style="padding:5px 9px;margin:2px 0 6px;background:var(--light);border-radius:6px;font-size:11px;font-weight:700;color:var(--muted)">未分批 / 手動新增</div>`;
     out += undated.map(x => rowHtml(x.item, x.idx)).join('');
   }
   out += `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">← 說明 | 重量(kg) | 金額(NT$)</div>`;
@@ -2313,6 +2317,50 @@ function getOrder(oid) {
 // ── 二補總表 ──────────────────────────────────────────────
 let scShowPaid = false;
 let scStatView = 'team';
+// 全域二補批次流水號：A001…A999→B001…（三位數+字母進位），從現有資料算下一號
+function nextBatchId() {
+  let maxN = -1; // A001 = 0
+  orders.forEach(o => {
+    const its = typeof o.surcharge_items === 'string' ? (function(){try{return JSON.parse(o.surcharge_items||'[]')}catch(e){return[]}})() : (o.surcharge_items||[]);
+    its.forEach(it => {
+      const m = it && it.batchId && /^([A-Z])(\d{3})$/.exec(it.batchId);
+      if (m) { const n = (m[1].charCodeAt(0) - 65) * 999 + (parseInt(m[2]) - 1); if (n > maxN) maxN = n; }
+    });
+  });
+  const next = maxN + 1;
+  const letter = String.fromCharCode(65 + Math.floor(next / 999));
+  const num = (next % 999) + 1;
+  return letter + String(num).padStart(3, '0');
+}
+// 把一張訂單的二補明細，依 batchId 分組成「批次」（舊的無 batchId → 未分批）
+function scBatchesOf(o) {
+  const items = typeof o.surcharge_items === 'string' ? (function(){try{return JSON.parse(o.surcharge_items||'[]')}catch(e){return[]}})() : (o.surcharge_items||[]);
+  const batches = {};
+  let unbatchedAmt = 0, hasUnbatched = false;
+  items.forEach(it => {
+    if (it.batchId) {
+      if (!batches[it.batchId]) batches[it.batchId] = { id: it.batchId, date: it.date||'', amount: 0, status: it.batchStatus || 'pending', items: [] };
+      batches[it.batchId].amount += (parseInt(it.amount)||0);
+      batches[it.batchId].items.push(it);
+      if (it.batchStatus) batches[it.batchId].status = it.batchStatus;
+    } else { unbatchedAmt += (parseInt(it.amount)||0); hasUnbatched = true; }
+  });
+  const arr = Object.values(batches).sort((a,b)=> a.id.localeCompare(b.id));
+  if (hasUnbatched) arr.push({ id: '', date: '未分批', amount: unbatchedAmt, status: o.surcharge_status||'pending', items: items.filter(it=>!it.batchId), unbatched: true });
+  return arr;
+}
+// 設定某批次的收款狀態
+async function setBatchStatus(oid, batchId, status) {
+  const o = getOrder(oid); if (!o) return;
+  if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+  if (batchId) {
+    o.surcharge_items.forEach(it => { if (it.batchId === batchId) it.batchStatus = status; });
+  } else {
+    o.surcharge_status = status;
+  }
+  await saveScData(oid);
+  renderSurcharge();
+}
 function orderTeam(o) {
   const its = Array.isArray(o.items) ? o.items : [];
   const it = its.find(i => !i.cancelled) || its[0];
@@ -2322,59 +2370,63 @@ function orderTeam(o) {
   const c = categories.find(cc => cc.id === p.cat_id);
   return c ? c.label : '未分類';
 }
-function scRowHtml(o) {
-  const st = o.surcharge_status || 'none';
-  const items = typeof o.surcharge_items === 'string' ? JSON.parse(o.surcharge_items||'[]') : (o.surcharge_items || []);
-  const itemsHtml = items.length
-    ? items.map(i=>`<div style="font-size:12px;color:var(--muted)">${i.name||'補差'}${i.weight?` (${i.weight}kg)`:''} <span style="color:var(--dark);font-weight:600">NT$ ${(i.amount||0).toLocaleString()}</span></div>`).join('')
-    : '<div style="font-size:12px;color:var(--muted)">—</div>';
+function scRowHtml(o, b) {
   const oid = o.order_id||o.id;
+  const st = b.status || 'pending';
   const canCheck = (st==='pending'||st==='paid');
-  return `<div style="display:grid;grid-template-columns:34px 88px 84px 88px 1fr 74px 68px 72px 96px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:start">
-    <span style="padding-top:2px">${canCheck?`<input type="checkbox" class="sc-chk" data-oid="${oid}" data-st="${st}" onchange="scSyncAllBox()" style="cursor:pointer">`:''}</span>
-    <span style="color:var(--muted);font-size:12px">${oid}</span>
+  const itemsHtml = b.items.length
+    ? b.items.map(i=>`<div style="font-size:12px;color:var(--muted)">${i.name||'補差'}${i.weight?` (${i.weight}kg)`:''} <span style="color:var(--dark);font-weight:600">NT$ ${(i.amount||0).toLocaleString()}</span></div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted)">—</div>';
+  const bidLabel = b.id ? `<span style="font-weight:700;color:#5578a8">${b.id}</span>` : `<span style="color:var(--muted);font-size:11px">未分批</span>`;
+  return `<div style="display:grid;grid-template-columns:32px 48px 92px 74px 70px 1fr 74px 68px 92px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--dark);align-items:start">
+    <span style="padding-top:2px">${canCheck?`<input type="checkbox" class="sc-chk" data-oid="${oid}" data-bid="${b.id}" onchange="scSyncAllBox()" style="cursor:pointer">`:''}</span>
+    <span style="padding-top:1px">${bidLabel}</span>
+    <span style="color:var(--muted);font-size:11px">${oid}</span>
     <span>${o.customer_name||''}</span>
-    <span style="font-size:12px;color:var(--muted)">${o.phone||''}</span>
+    <span style="font-size:12px;color:var(--muted)">${b.date||''}</span>
     <div>${itemsHtml}</div>
-    <span style="font-weight:700;color:var(--brown)">NT$ ${(o.surcharge_total||0).toLocaleString()}</span>
-    <span style="font-size:12px;color:var(--muted)">${o.store_no||'—'}</span>
+    <span style="font-weight:700;color:var(--brown)">NT$ ${b.amount.toLocaleString()}</span>
     <span><span class="badge ${SC_CLS[st]||''}">${SC_LABEL[st]||st}</span></span>
     <div style="display:flex;flex-direction:column;gap:4px">
-      ${st==='pending'?`<button onclick="updateScStatus('${oid}','paid')" style="padding:4px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">標記已收</button>`:''}
-      ${st==='paid'?`<button onclick="updateScStatus('${oid}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">取消已收</button>`:''}
-      ${st!=='waived'?`<button onclick="updateScStatus('${oid}','waived')" style="padding:4px 8px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">減免</button>`:''}
+      ${st==='pending'?`<button onclick="setBatchStatus('${oid}','${b.id}','paid')" style="padding:4px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">標記已收</button>`:''}
+      ${st==='paid'?`<button onclick="setBatchStatus('${oid}','${b.id}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">取消已收</button>`:''}
+      ${st!=='waived'?`<button onclick="setBatchStatus('${oid}','${b.id}','waived')" style="padding:4px 8px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">減免</button>`:''}
     </div>
   </div>`;
 }
 function renderSurcharge() {
   const ft = document.getElementById('sc-filter')?.value || '';
   const kw = (document.getElementById('sc-search')?.value || '').toLowerCase();
-  let list = orders.filter(o => (o.surcharge_items||[]).length > 0 || (o.surcharge_status && o.surcharge_status!=='none'));
-  if (ft) list = list.filter(o => (o.surcharge_status||'none') === ft);
-  if (kw) list = list.filter(o => (o.order_id||'').toLowerCase().includes(kw)||(o.customer_name||'').includes(kw));
+  let base = orders.filter(o => (o.surcharge_items&&o.surcharge_items.length>0) || (o.surcharge_status && o.surcharge_status!=='none'));
+  if (kw) base = base.filter(o => (o.order_id||'').toLowerCase().includes(kw)||(o.customer_name||'').includes(kw));
+  // 展開成「批次列」
+  let rows = [];
+  base.forEach(o => scBatchesOf(o).forEach(b => rows.push({ o, b })));
+  if (ft) rows = rows.filter(r => (r.b.status||'pending') === ft);
 
-  const pending = orders.filter(o => o.surcharge_status==='pending');
-  const paid = orders.filter(o => o.surcharge_status==='paid');
-  document.getElementById('sc-cnt-pending').textContent = pending.length;
-  document.getElementById('sc-sum-pending').textContent = 'NT$ ' + pending.reduce((s,o)=>s+(o.surcharge_total||0),0).toLocaleString();
-  document.getElementById('sc-cnt-paid').textContent = paid.length;
-  document.getElementById('sc-sum-paid').textContent = 'NT$ ' + paid.reduce((s,o)=>s+(o.surcharge_total||0),0).toLocaleString();
+  // 統計卡（以批次為單位）
+  let allB = [];
+  orders.forEach(o => scBatchesOf(o).forEach(b => allB.push(b)));
+  const pendB = allB.filter(b => b.status==='pending'), paidB = allB.filter(b => b.status==='paid');
+  document.getElementById('sc-cnt-pending').textContent = pendB.length;
+  document.getElementById('sc-sum-pending').textContent = 'NT$ ' + pendB.reduce((s,b)=>s+b.amount,0).toLocaleString();
+  document.getElementById('sc-cnt-paid').textContent = paidB.length;
+  document.getElementById('sc-sum-paid').textContent = 'NT$ ' + paidB.reduce((s,b)=>s+b.amount,0).toLocaleString();
 
   const el = document.getElementById('surcharge-list');
-  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有二補記錄</div>'; el.innerHTML += ''; const cb=document.getElementById('sc-check-all'); if(cb)cb.checked=false; return; }
+  if (!rows.length) { el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);font-size:14px">目前沒有二補記錄</div>'; const cb=document.getElementById('sc-check-all'); if(cb)cb.checked=false; return; }
 
-  // 全部檢視時：待收/減免展開，已收款收合
   if (!ft) {
-    const notPaid = list.filter(o => (o.surcharge_status||'none') !== 'paid');
-    const paidList = list.filter(o => (o.surcharge_status||'none') === 'paid');
-    let html = notPaid.map(scRowHtml).join('') || '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">沒有待收款項目 🎉</div>';
-    if (paidList.length) {
-      html += `<div onclick="scTogglePaid()" style="cursor:pointer;text-align:center;padding:10px;background:var(--light);border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-weight:600">${scShowPaid?'▾':'▸'} 已收款 ${paidList.length} 筆${scShowPaid?'（點此收合）':'（點此展開）'}</div>`;
-      if (scShowPaid) html += paidList.map(scRowHtml).join('');
+    const notPaid = rows.filter(r => (r.b.status||'pending') !== 'paid');
+    const paidRows = rows.filter(r => (r.b.status||'pending') === 'paid');
+    let html = notPaid.map(r => scRowHtml(r.o, r.b)).join('') || '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">沒有待收款批次 🎉</div>';
+    if (paidRows.length) {
+      html += `<div onclick="scTogglePaid()" style="cursor:pointer;text-align:center;padding:10px;background:var(--light);border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-weight:600">${scShowPaid?'▾':'▸'} 已收款 ${paidRows.length} 批${scShowPaid?'（點此收合）':'（點此展開）'}</div>`;
+      if (scShowPaid) html += paidRows.map(r => scRowHtml(r.o, r.b)).join('');
     }
     el.innerHTML = html;
   } else {
-    el.innerHTML = list.map(scRowHtml).join('');
+    el.innerHTML = rows.map(r => scRowHtml(r.o, r.b)).join('');
   }
   const cb = document.getElementById('sc-check-all'); if (cb) cb.checked = false;
   if (document.getElementById('sc-stat-section').style.display !== 'none') renderScStat();
@@ -2388,23 +2440,27 @@ function scSyncAllBox() {
 }
 async function scBatchMark(status) {
   const checked = [...document.querySelectorAll('.sc-chk:checked')];
-  if (!checked.length) { showToast('請先勾選要處理的項目'); return; }
-  const oids = checked.map(c => c.getAttribute('data-oid'))
-    .filter(oid => { const o = getOrder(oid); return o && (o.surcharge_status||'none') !== status; });
-  if (!oids.length) { showToast('勾選的項目已經是該狀態了'); return; }
+  if (!checked.length) { showToast('請先勾選要處理的批次'); return; }
+  const byOid = {};
+  checked.forEach(c => { const oid=c.getAttribute('data-oid'), bid=c.getAttribute('data-bid'); (byOid[oid]=byOid[oid]||[]).push(bid); });
   const word = status==='paid' ? '標記已收款' : '取消已收';
-  if (!confirm(`確定要把 ${oids.length} 筆${word}嗎？`)) return;
+  if (!confirm(`確定要把 ${checked.length} 個批次${word}嗎？`)) return;
   let done = 0;
-  for (const oid of oids) {
+  for (const oid in byOid) {
     const o = getOrder(oid); if (!o) continue;
-    o.surcharge_status = status;
-    try { await saveScData(oid); done++; } catch(e) { console.warn(e); }
+    if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
+    byOid[oid].forEach(bid => {
+      if (bid) { o.surcharge_items.forEach(it => { if (it.batchId===bid) it.batchStatus=status; }); }
+      else { o.surcharge_status = status; }
+      done++;
+    });
+    try { await saveScData(oid); } catch(e) { console.warn(e); }
   }
   renderSurcharge();
-  showToast(`✓ 已${word} ${done} 筆`);
+  showToast(`✓ 已${word} ${done} 個批次`);
 }
 
-// 收款統計（依團 / 依月）
+// 收款統計（依團 / 依月，以批次為單位）
 function toggleScStat() {
   const sec = document.getElementById('sc-stat-section');
   if (sec.style.display === 'none') { sec.style.display = ''; renderScStat(); }
@@ -2412,17 +2468,20 @@ function toggleScStat() {
 }
 function renderScStat() {
   const sec = document.getElementById('sc-stat-section');
-  const scOrders = orders.filter(o => (o.surcharge_total||0) > 0 && (o.surcharge_status==='pending'||o.surcharge_status==='paid'));
   const groups = {};
-  scOrders.forEach(o => {
-    let key;
-    if (scStatView === 'month') {
-      if (!o.created_at) return;
-      const d = new Date(o.created_at); key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    } else { key = orderTeam(o); }
-    if (!groups[key]) groups[key] = { pend:0, paid:0, pcnt:0, dcnt:0 };
-    if (o.surcharge_status==='paid') { groups[key].paid += o.surcharge_total; groups[key].dcnt++; }
-    else { groups[key].pend += o.surcharge_total; groups[key].pcnt++; }
+  orders.forEach(o => {
+    scBatchesOf(o).forEach(b => {
+      if (b.status!=='pending' && b.status!=='paid') return;
+      let key;
+      if (scStatView === 'month') {
+        let d = (b.date && b.date!=='未分批') ? new Date(b.date) : (o.created_at ? new Date(o.created_at) : null);
+        if (!d || isNaN(d)) return;
+        key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      } else { key = orderTeam(o); }
+      if (!groups[key]) groups[key] = { pend:0, paid:0, pcnt:0, dcnt:0 };
+      if (b.status==='paid') { groups[key].paid += b.amount; groups[key].dcnt++; }
+      else { groups[key].pend += b.amount; groups[key].pcnt++; }
+    });
   });
   const keys = Object.keys(groups).sort().reverse();
   const rows = keys.map(k => {
@@ -2435,7 +2494,7 @@ function renderScStat() {
   }).join('') || '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">尚無資料</div>';
   sec.innerHTML = `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--light);border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;font-weight:700;color:var(--dark);flex:1">二補收款統計</span>
+      <span style="font-size:13px;font-weight:700;color:var(--dark);flex:1">二補收款統計（依批次）</span>
       <button onclick="setScStatView('team')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:${scStatView==='team'?'var(--brown)':'transparent'};color:${scStatView==='team'?'#fff':'var(--muted)'}">依團</button>
       <button onclick="setScStatView('month')" style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:${scStatView==='month'?'var(--brown)':'transparent'};color:${scStatView==='month'?'#fff':'var(--muted)'}">依月</button>
     </div>
@@ -2443,29 +2502,41 @@ function renderScStat() {
     ${rows}
   </div>`;
 }
-function setScStatView(v) { scStatView = v; renderScStat(); }
 
 function exportSurchargeExcel() {
   if (!window.XLSX) { showToast('請稍後再試'); return; }
   const stMap = { none:'無二補', pending:'待收款', paid:'已收款', waived:'已減免' };
-  const rows = [['訂單號','賣貨便商品名稱','客戶姓名','電話','Email','超商店號','到貨批次','二補說明','重量(kg)','金額(NT$)','二補合計','狀態']];
+  const rows = [['批次編號','訂單號','賣貨便商品名稱','客戶姓名','電話','Email','超商店號','到貨日','二補說明','重量(kg)','金額(NT$)','批次小計','批次狀態']];
   orders.filter(o=>(o.surcharge_items||[]).length>0||(o.surcharge_status&&o.surcharge_status!=='none')).forEach(o=>{
-    const items = o.surcharge_items||[];
     const svName = `${o.order_id||o.id} 到貨商品`;
-    if (!items.length) {
-      rows.push([o.order_id||o.id,svName,o.customer_name||'',o.phone||'',o.email||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
-    } else {
-      // 依到貨日期分批，算出第幾批
-      const dates = [...new Set(items.map(it=>it.date).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
-      const batchNo = {}; dates.forEach((d,i)=>batchNo[d]=i+1);
-      items.forEach((item,i)=>{
-        const batchLabel = item.date ? `第${batchNo[item.date]}批 (${item.date})` : '未分批';
-        rows.push([i===0?(o.order_id||o.id):'',i===0?svName:'',i===0?(o.customer_name||''):'',i===0?(o.phone||''):'',i===0?(o.email||''):'',i===0?(o.store_no||''):'',batchLabel,item.name||'補差',item.weight||'',item.amount||0,i===0?(o.surcharge_total||0):'',i===0?(stMap[o.surcharge_status||'none']):'']);
-      });
+    const batches = scBatchesOf(o);
+    if (!batches.length) {
+      rows.push(['','',svName,o.customer_name||'',o.phone||'',o.email||'',o.store_no||'','','—','',0,0,stMap[o.surcharge_status||'none']]);
+      return;
     }
+    batches.forEach(b => {
+      const bidLabel = b.id || '未分批';
+      b.items.forEach((item,i)=>{
+        rows.push([
+          i===0?bidLabel:'',
+          i===0?(o.order_id||o.id):'',
+          i===0?svName:'',
+          i===0?(o.customer_name||''):'',
+          i===0?(o.phone||''):'',
+          i===0?(o.email||''):'',
+          i===0?(o.store_no||''):'',
+          i===0?(b.date||''):'',
+          item.name||'補差',
+          item.weight||'',
+          item.amount||0,
+          i===0?b.amount:'',
+          i===0?stMap[b.status||'pending']:''
+        ]);
+      });
+    });
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[12,20,12,13,22,10,15,22,8,10,10,8].map(w=>({wch:w}));
+  ws['!cols']=[9,12,20,12,13,22,10,12,22,8,10,10,9].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '二補總表');
   XLSX.writeFile(wb, `yuyuz_98_二補_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
@@ -3579,7 +3650,9 @@ async function processArrivalSpec(pid, specName, n, kg) {
       if (surcharge > 0) {
         if (typeof o.surcharge_items === 'string') o.surcharge_items = JSON.parse(o.surcharge_items||'[]');
         if (!Array.isArray(o.surcharge_items)) o.surcharge_items = [];
-        o.surcharge_items.push({ name: `${p.name||''}-${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge, date: new Date().toLocaleDateString('zh-TW') });
+        const _today2 = new Date().toLocaleDateString('zh-TW');
+        let _bid2 = (o.surcharge_items.find(it => it.date === _today2 && it.batchId) || {}).batchId || nextBatchId();
+        o.surcharge_items.push({ name: `${p.name||''}-${specName} 運費（${kg}kg/個 × ${give} 件 × NT$${rate}）`, weight: Math.round(kg * give * 1000) / 1000, amount: surcharge, date: _today2, batchId: _bid2, batchStatus: 'pending' });
         o.surcharge_total = (o.surcharge_total||0) + surcharge;
         if (!o.surcharge_status || o.surcharge_status === 'none') o.surcharge_status = 'pending';
         scAdded = true;
