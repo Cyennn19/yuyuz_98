@@ -2390,6 +2390,7 @@ function scRowHtml(o, b) {
     <div style="display:flex;flex-direction:column;gap:4px">
       ${st==='pending'?`<button onclick="setBatchStatus('${oid}','${b.id}','paid')" style="padding:4px 8px;background:var(--green-bg);color:var(--green);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">標記已收</button>`:''}
       ${st==='paid'?`<button onclick="setBatchStatus('${oid}','${b.id}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">取消已收</button>`:''}
+      ${st==='waived'?`<button onclick="setBatchStatus('${oid}','${b.id}','pending')" style="padding:4px 8px;background:var(--amber-bg);color:var(--amber);border:none;border-radius:6px;font-size:11px;cursor:pointer">改回待收</button>`:''}
       ${st!=='waived'?`<button onclick="setBatchStatus('${oid}','${b.id}','waived')" style="padding:4px 8px;background:var(--light);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">減免</button>`:''}
     </div>
   </div>`;
